@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "77831467457",
+    "project_id": "kurnool-kaburlu",
+    "storage_bucket": "kurnool-kaburlu.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:77831467457:android:0ab708e17ae75d9ddcbf40",
+        "android_client_info": {
+          "package_name": "com.kurnoolone"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "77831467457-hspogpc77l8r6uollgce645qfi12utg6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCvDvxJmqcYHjjJE9Ybht_dJyL-wfC1DDU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "77831467457-hspogpc77l8r6uollgce645qfi12utg6.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:77831467457:android:2ec94e004b6c540ddcbf40",
+        "android_client_info": {
+          "package_name": "com.paul.kurnoolkaburlu"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "77831467457-hspogpc77l8r6uollgce645qfi12utg6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCvDvxJmqcYHjjJE9Ybht_dJyL-wfC1DDU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "77831467457-hspogpc77l8r6uollgce645qfi12utg6.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

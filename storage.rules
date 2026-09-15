@@ -1,0 +1,43 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isImageOrVideo() {
+      return request.resource.contentType.matches('image/.*') || 
+             request.resource.contentType.matches('video/.*');
+    }
+
+    function isValidSize() {
+      return request.resource.size < 10 * 1024 * 1024; // 10MB limit
+    }
+
+    // Public read for all media
+    match /{allPaths=**} {
+      allow read: if true;
+    }
+
+    // User avatars
+    match /avatars/{userId}/{fileName} {
+      allow write: if isAuthenticated() && request.auth.uid == userId && isImageOrVideo() && isValidSize();
+    }
+
+    // Business & Professional media uploads
+    match /businesses/{businessId}/{fileName} {
+      allow write: if isAuthenticated() && isImageOrVideo() && isValidSize();
+    }
+
+    // Posts & general media
+    match /posts/{userId}/{fileName} {
+      allow write: if isAuthenticated() && request.auth.uid == userId && isImageOrVideo() && isValidSize();
+    }
+
+    // Admin banners
+    match /banners/{fileName} {
+      allow write: if isAuthenticated() && isImageOrVideo() && isValidSize();
+    }
+  }
+}
