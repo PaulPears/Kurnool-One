@@ -27,6 +27,11 @@ export default function ManageBusinessScreen({ navigation }: any) {
   const [landmark, setLandmark] = useState('');
   const [website, setWebsite] = useState('');
   const [googleMapsUrl, setGoogleMapsUrl] = useState('');
+  const [facebook, setFacebook] = useState('');
+  const [instagram, setInstagram] = useState('');
+  const [twitter, setTwitter] = useState('');
+  const [youtube, setYoutube] = useState('');
+  const [linkedin, setLinkedin] = useState('');
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -56,6 +61,11 @@ export default function ManageBusinessScreen({ navigation }: any) {
         setLandmark(b.landmark || '');
         setWebsite(b.website || '');
         setGoogleMapsUrl(b.googleMapsUrl || '');
+        setFacebook(b.socialLinks?.facebook || '');
+        setInstagram(b.socialLinks?.instagram || '');
+        setTwitter(b.socialLinks?.twitter || '');
+        setYoutube(b.socialLinks?.youtube || '');
+        setLinkedin(b.socialLinks?.linkedin || '');
         setDescription(b.description_en || '');
       }
     } catch (e) {
@@ -82,6 +92,13 @@ export default function ManageBusinessScreen({ navigation }: any) {
         landmark: landmark.trim(),
         website: cleanWebsite,
         googleMapsUrl: googleMapsUrl.trim(),
+        socialLinks: {
+          facebook: facebook.trim() || undefined,
+          instagram: instagram.trim() || undefined,
+          twitter: twitter.trim() || undefined,
+          youtube: youtube.trim() || undefined,
+          linkedin: linkedin.trim() || undefined,
+        },
         description_en: description.trim(),
       });
 
@@ -280,6 +297,58 @@ export default function ManageBusinessScreen({ navigation }: any) {
           keyboardType="url"
           value={googleMapsUrl}
           onChangeText={setGoogleMapsUrl}
+        />
+
+        <Text style={[styles.sectionHeader, { marginTop: 20 }]}>Social Media & Online Links (All Optional)</Text>
+
+        <Text style={styles.label}>Instagram Handle / URL (Optional)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="https://instagram.com/your_shop"
+          placeholderTextColor="#94A3B8"
+          autoCapitalize="none"
+          value={instagram}
+          onChangeText={setInstagram}
+        />
+
+        <Text style={styles.label}>Facebook Page URL (Optional)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="https://facebook.com/your_shop"
+          placeholderTextColor="#94A3B8"
+          autoCapitalize="none"
+          value={facebook}
+          onChangeText={setFacebook}
+        />
+
+        <Text style={styles.label}>Twitter / X URL (Optional)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="https://x.com/your_shop"
+          placeholderTextColor="#94A3B8"
+          autoCapitalize="none"
+          value={twitter}
+          onChangeText={setTwitter}
+        />
+
+        <Text style={styles.label}>YouTube Channel URL (Optional)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="https://youtube.com/@your_channel"
+          placeholderTextColor="#94A3B8"
+          autoCapitalize="none"
+          value={youtube}
+          onChangeText={setYoutube}
+        />
+
+        <Text style={styles.label}>LinkedIn Company Page URL (Optional)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="https://linkedin.com/company/your_company"
+          placeholderTextColor="#94A3B8"
+          autoCapitalize="none"
+          value={linkedin}
+          onChangeText={setLinkedin}
         />
 
         <Text style={styles.label}>Business Description</Text>

@@ -146,6 +146,7 @@ export default function RegisterBusinessPage() {
   const [instagram, setInstagram] = useState('');
   const [twitter, setTwitter] = useState('');
   const [youtube, setYoutube] = useState('');
+  const [linkedin, setLinkedin] = useState('');
 
   // ─── MEDIA MANAGEMENT ─────────────────────────────────────────────────────
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -322,6 +323,7 @@ export default function RegisterBusinessPage() {
           instagram: instagram.trim(),
           twitter: twitter.trim(),
           youtube: youtube.trim(),
+          linkedin: linkedin.trim(),
         },
         logoUrl: logoUploadedUrl,
         thumbnailUrl: thumbUrl,
@@ -504,7 +506,7 @@ export default function RegisterBusinessPage() {
               href="/directory"
               className="px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition flex items-center justify-center"
             >
-              Back to Directory
+              Back to Businesses
             </Link>
           </div>
         </div>
@@ -524,28 +526,28 @@ export default function RegisterBusinessPage() {
   if (!user) {
     return (
       <div className="max-w-xl mx-auto my-14 px-4">
-        <div className="rounded-3xl bg-[#0c1222] border border-white/10 p-8 sm:p-10 shadow-2xl text-center space-y-6">
-          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-400/20 flex items-center justify-center mx-auto shadow-inner">
+        <div className="rounded-3xl bg-white border border-slate-200 p-8 sm:p-10 shadow-sm text-center space-y-6">
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-700 border border-blue-200 flex items-center justify-center mx-auto shadow-xs">
             <Building2 className="w-8 h-8" />
           </div>
 
           <div className="space-y-2">
-            <span className="inline-block text-xs font-black uppercase tracking-wider text-amber-300 bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
+            <span className="inline-block text-xs font-black uppercase tracking-wider text-blue-800 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
               Merchant Login Required
             </span>
-            <h1 className="text-2xl sm:text-3xl font-black text-white">
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900">
               Log In to Register Your Business
             </h1>
-            <p className="text-slate-400 text-xs sm:text-sm leading-relaxed max-w-md mx-auto">
+            <p className="text-slate-600 text-xs sm:text-sm leading-relaxed max-w-md mx-auto">
               Please sign in to your profile before registering a business listing. This links your store to your Merchant Portal to edit timings and view customer calls.
             </p>
           </div>
 
           {/* Quick Demo Login Option */}
-          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3 text-left">
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 text-left">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-amber-300">Quick Testing (1-Click Demo)</span>
-              <span className="text-[10px] text-slate-400">Merchant Account</span>
+              <span className="text-xs font-bold text-slate-800">Quick Testing (1-Click Demo)</span>
+              <span className="text-[10px] text-blue-700 font-semibold">Merchant Account</span>
             </div>
             <button
               type="button"
@@ -560,7 +562,7 @@ export default function RegisterBusinessPage() {
                   setDemoLoginLoading(false);
                 }
               }}
-              className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+              className="w-full py-3 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
             >
               {demoLoginLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -577,14 +579,14 @@ export default function RegisterBusinessPage() {
             <button
               type="button"
               onClick={() => loginWithGoogle()}
-              className="w-full py-3.5 px-4 bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs sm:text-sm rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3.5 px-4 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs sm:text-sm rounded-xl border border-slate-300 shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Continue with Google</span>
             </button>
 
             <Link
               href="/login?returnUrl=/register-business"
-              className="block w-full py-3.5 px-4 bg-white/10 hover:bg-white/15 text-white font-bold text-xs sm:text-sm rounded-xl border border-white/10 transition"
+              className="block w-full py-3.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs sm:text-sm rounded-xl border border-slate-200 transition"
             >
               Sign In / Register with Email
             </Link>
@@ -596,19 +598,18 @@ export default function RegisterBusinessPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-8 py-10 space-y-10">
-      {/* ─── LUXURY HEADER BANNER ────────────────────────────────────────── */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-slate-950 via-blue-950 to-indigo-950 text-white rounded-3xl p-8 sm:p-12 shadow-2xl border border-white/10">
-        <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:16px_16px]" />
+      {/* ─── PROFESSIONAL HEADER BANNER ────────────────────────────────────────── */}
+      <div className="relative overflow-hidden bg-white text-slate-900 rounded-3xl p-8 sm:p-12 shadow-sm border border-slate-200">
         <div className="relative z-10 max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-amber-300 text-xs font-extrabold uppercase tracking-wider mb-4 border border-white/10">
-            <Crown className="w-3.5 h-3.5 text-amber-400" />
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 text-blue-800 text-xs font-bold uppercase tracking-wider mb-4 border border-blue-200">
+            <Crown className="w-3.5 h-3.5 text-blue-700" />
             <span>Kurnool One • Merchant Growth Platform</span>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl font-black tracking-tight mb-3">
+          <h1 className="text-3xl sm:text-5xl font-black tracking-tight mb-3 text-slate-900">
             Add Your Business in Kurnool
           </h1>
-          <p className="text-slate-300 text-sm sm:text-base leading-relaxed font-normal">
+          <p className="text-slate-600 text-sm sm:text-base leading-relaxed font-normal">
             Join Kurnool's verified city network. Reach 100,000+ local residents, receive direct customer phone calls, WhatsApp inquiries, and showcase your storefront with 7-day operating hours.
           </p>
         </div>
@@ -1022,12 +1023,19 @@ export default function RegisterBusinessPage() {
             <p className="text-xs text-slate-500">Upload your logo, storefront photos, and connect social handles</p>
           </div>
 
-          {/* Social Media Inputs */}
+          {/* Social Media Inputs (All Optional) */}
           <div>
-            <h3 className="font-extrabold text-slate-900 text-sm mb-3">Social Media & Links</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-extrabold text-slate-900 text-sm">Social Media & Web Accounts</h3>
+              <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                All Optional
+              </span>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Facebook Page</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Facebook Page <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
                 <input
                   type="url"
                   placeholder="https://facebook.com/yourbusiness"
@@ -1038,7 +1046,9 @@ export default function RegisterBusinessPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Instagram Handle / URL</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Instagram Handle / URL <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
                 <input
                   type="text"
                   placeholder="https://instagram.com/yourbusiness"
@@ -1049,7 +1059,9 @@ export default function RegisterBusinessPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Twitter / X</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Twitter / X Profile <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
                 <input
                   type="text"
                   placeholder="https://x.com/yourbusiness"
@@ -1060,12 +1072,27 @@ export default function RegisterBusinessPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">YouTube Channel</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  YouTube Channel <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
                 <input
                   type="url"
                   placeholder="https://youtube.com/@yourbusiness"
                   value={youtube}
                   onChange={(e) => setYoutube(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  LinkedIn Page / Company URL <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://linkedin.com/company/yourbusiness"
+                  value={linkedin}
+                  onChange={(e) => setLinkedin(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
@@ -1322,16 +1349,16 @@ export default function RegisterBusinessPage() {
           </div>
         )}
 
-        <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-2xl">
+        <div className="bg-white border border-slate-200 text-slate-900 rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm">
           <div>
-            <div className="text-amber-400 text-xs font-black uppercase tracking-wider mb-1">
+            <div className="inline-block text-blue-800 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-2">
               Ready to Publish in Kurnool
             </div>
-            <div className="text-xl sm:text-2xl font-black">
-              Total: ₹{activePlan.price}{' '}
-              <span className="text-xs font-normal text-slate-400">({activePlan.name} • {activePlan.period})</span>
+            <div className="text-xl sm:text-2xl font-black text-slate-900">
+              Total: <span className="text-blue-700">₹{activePlan.price}</span>{' '}
+              <span className="text-xs font-medium text-slate-500">({activePlan.name} • {activePlan.period})</span>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               Secure payments via Razorpay (UPI, Credit/Debit Cards, NetBanking)
             </p>
           </div>
@@ -1339,7 +1366,7 @@ export default function RegisterBusinessPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-sm rounded-2xl shadow-xl shadow-blue-500/30 transition transform hover:scale-[1.02] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            className="w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-600 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-sm rounded-2xl shadow-md transition transform hover:scale-[1.02] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
             {loading ? (
               <>

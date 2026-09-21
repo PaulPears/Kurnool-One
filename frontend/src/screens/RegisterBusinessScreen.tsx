@@ -39,6 +39,11 @@ export default function RegisterBusinessScreen({ navigation }: any) {
   const [website, setWebsite] = useState('');
   const [googleMapsUrl, setGoogleMapsUrl] = useState('');
   const [timing, setTiming] = useState('10:00 AM - 09:00 PM');
+  const [facebook, setFacebook] = useState('');
+  const [instagram, setInstagram] = useState('');
+  const [twitter, setTwitter] = useState('');
+  const [youtube, setYoutube] = useState('');
+  const [linkedin, setLinkedin] = useState('');
   const [description, setDescription] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -141,6 +146,13 @@ export default function RegisterBusinessScreen({ navigation }: any) {
         images: uploadedImageUrl ? [uploadedImageUrl] : [],
         thumbnailUrl: uploadedImageUrl || undefined,
         amenities: ['UPI Accepted'],
+        socialLinks: {
+          facebook: facebook.trim() || undefined,
+          instagram: instagram.trim() || undefined,
+          twitter: twitter.trim() || undefined,
+          youtube: youtube.trim() || undefined,
+          linkedin: linkedin.trim() || undefined,
+        },
         planId: selectedPlan,
         paymentStatus: 'unpaid',
         tier: 'featured',
@@ -405,6 +417,61 @@ export default function RegisterBusinessScreen({ navigation }: any) {
           placeholderTextColor="#9CA3AF"
           value={timing}
           onChangeText={setTiming}
+        />
+
+        {/* Social Media & Online Links (All Optional) */}
+        <Text style={[styles.label, { marginTop: 14, fontWeight: '800', color: '#0F172A' }]}>
+          Social Media & Online Links (All Optional)
+        </Text>
+
+        <Text style={styles.label}>Instagram Handle / URL (Optional)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="https://instagram.com/your_shop"
+          placeholderTextColor="#9CA3AF"
+          autoCapitalize="none"
+          value={instagram}
+          onChangeText={setInstagram}
+        />
+
+        <Text style={styles.label}>Facebook Page URL (Optional)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="https://facebook.com/your_shop"
+          placeholderTextColor="#9CA3AF"
+          autoCapitalize="none"
+          value={facebook}
+          onChangeText={setFacebook}
+        />
+
+        <Text style={styles.label}>Twitter / X URL (Optional)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="https://x.com/your_shop"
+          placeholderTextColor="#9CA3AF"
+          autoCapitalize="none"
+          value={twitter}
+          onChangeText={setTwitter}
+        />
+
+        <Text style={styles.label}>YouTube Channel URL (Optional)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="https://youtube.com/@your_channel"
+          placeholderTextColor="#9CA3AF"
+          autoCapitalize="none"
+          value={youtube}
+          onChangeText={setYoutube}
+        />
+
+        <Text style={styles.label}>LinkedIn Company Page URL (Optional)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="https://linkedin.com/company/your_company"
+          placeholderTextColor="#9CA3AF"
+          autoCapitalize="none"
+          value={linkedin}
+          onChangeText={setLinkedin}
         />
 
         <Text style={styles.label}>Services / Business Description</Text>

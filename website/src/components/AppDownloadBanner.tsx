@@ -4,35 +4,35 @@ import { Smartphone, Download, CheckCircle2, ShieldCheck, Zap } from 'lucide-rea
 export default function AppDownloadBanner() {
   return (
     <section className="my-16 max-w-7xl mx-auto px-4 sm:px-8">
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-8 sm:p-12 shadow-2xl border border-blue-500/20">
-        {/* Glow effect */}
-        <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 text-white p-8 sm:p-12 shadow-xl border border-blue-400/30">
+        {/* Subtle accent glow */}
+        <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-96 h-96 bg-indigo-400/20 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           <div className="lg:col-span-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-bold uppercase tracking-wider mb-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 border border-white/20 text-white text-xs font-bold uppercase tracking-wider mb-4">
               <Smartphone className="w-3.5 h-3.5" />
               <span>Native Mobile Experience</span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white mb-4">
-              Download the <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-amber-300">Kurnool One Mobile App</span>
+              Download the <span className="text-amber-300">Kurnool One Mobile App</span>
             </h2>
-            <p className="text-slate-300 text-base max-w-2xl mb-6 leading-relaxed">
+            <p className="text-blue-50 text-base max-w-2xl mb-6 leading-relaxed font-medium">
               Experience lightning-fast local search, instant WhatsApp chats with Kurnool merchants, one-tap Google Maps directions, and urgent city announcements directly on your Android device.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8 text-sm">
-              <div className="flex items-center gap-2 text-slate-200">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <div className="flex items-center gap-2 text-white">
+                <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />
                 <span>One-tap WhatsApp Connect</span>
               </div>
-              <div className="flex items-center gap-2 text-slate-200">
-                <Zap className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>Instant Offline Directory</span>
+              <div className="flex items-center gap-2 text-white">
+                <Zap className="w-4 h-4 text-amber-300 shrink-0" />
+                <span>Instant Offline Businesses</span>
               </div>
-              <div className="flex items-center gap-2 text-slate-200">
-                <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0" />
+              <div className="flex items-center gap-2 text-white">
+                <ShieldCheck className="w-4 h-4 text-emerald-300 shrink-0" />
                 <span>100% Verified Local Shops</span>
               </div>
             </div>

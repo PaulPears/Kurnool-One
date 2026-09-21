@@ -56,6 +56,7 @@ export interface BusinessItem {
     instagram?: string;
     twitter?: string;
     youtube?: string;
+    linkedin?: string;
   };
   logoUrl?: string;
   thumbnailUrl?: string;
@@ -104,9 +105,13 @@ export interface ProfessionalItem {
   visitingCharges?: string;
   description?: string;
   portfolioPhotos: string[];
-  avatarUrl?: string;
+  avatarUrl?: string; // Profile photo/image
   instagramUrl?: string;
   youtubeUrl?: string;
+  linkedinUrl?: string;
+  twitterUrl?: string;
+  facebookUrl?: string;
+  websiteUrl?: string;
   email?: string;
   verifiedProfessional: boolean;
   ratingAvg: number;
@@ -924,6 +929,8 @@ export const SEED_PROFESSIONALS: ProfessionalItem[] = [
     visitingCharges: '₹150',
     hourlyRate: '₹250/hr',
     description: 'Expert residential & commercial electrical wiring, short circuits, switchboards, fan installations and inverter setups.',
+    avatarUrl: 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=400',
+    instagramUrl: 'https://instagram.com/kurnool_electricals',
     portfolioPhotos: [],
     verifiedProfessional: true,
     ratingAvg: 4.8,
@@ -941,6 +948,7 @@ export const SEED_PROFESSIONALS: ProfessionalItem[] = [
     whatsapp: '9848023456',
     visitingCharges: '₹150',
     description: 'Leakages, bathroom fittings, motor pump repairs, overhead water tank connections and sanitary piping.',
+    avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400',
     portfolioPhotos: [],
     verifiedProfessional: true,
     ratingAvg: 4.9,
@@ -958,6 +966,7 @@ export const SEED_PROFESSIONALS: ProfessionalItem[] = [
     whatsapp: '9848034567',
     visitingCharges: '₹200',
     description: 'Split and window AC gas refilling, jet pump wet servicing, PCB repairs and refrigerator cooling fixes.',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
     portfolioPhotos: [],
     verifiedProfessional: true,
     ratingAvg: 4.7,
@@ -976,6 +985,9 @@ export const SEED_PROFESSIONALS: ProfessionalItem[] = [
     description: 'Pre-wedding candid shoots, traditional Telugu wedding photography, 4K cinematography and drone aerial coverage.',
     visitingCharges: '₹500 (Consultation/Booking)',
     hourlyRate: 'Custom Event Packages',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400',
+    instagramUrl: 'https://instagram.com/chandra_wedding_films',
+    youtubeUrl: 'https://youtube.com/@chandraweddings',
     portfolioPhotos: [],
     verifiedProfessional: true,
     ratingAvg: 5.0,
@@ -994,6 +1006,7 @@ export const SEED_PROFESSIONALS: ProfessionalItem[] = [
     visitingCharges: 'Free Demo Class',
     hourlyRate: '₹3,000 / month',
     description: 'Dedicated 1-on-1 coaching for Classes 6-10 CBSE & State Syllabus in Mathematics, Physics and Chemistry. Proven 95%+ marks track record.',
+    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400',
     portfolioPhotos: [],
     verifiedProfessional: true,
     ratingAvg: 4.9,
@@ -1012,6 +1025,8 @@ export const SEED_PROFESSIONALS: ProfessionalItem[] = [
     visitingCharges: '₹300 (Legal Consultation)',
     hourlyRate: 'Documentation Fees per deed',
     description: 'Property registration, title search reports, partition deeds, gift settlements, affidavit notary and civil litigation advisory.',
+    avatarUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400',
+    linkedinUrl: 'https://linkedin.com/in/k-subba-rao-advocate',
     portfolioPhotos: [],
     verifiedProfessional: true,
     ratingAvg: 4.8,
@@ -1030,6 +1045,7 @@ export const SEED_PROFESSIONALS: ProfessionalItem[] = [
     visitingCharges: '₹150',
     hourlyRate: 'Day wage or Job quotation',
     description: 'Modular kitchen woodwork, sliding wardrobes, door frame repairs, locks replacement, customized TV units and Italian wood polish.',
+    avatarUrl: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=400',
     portfolioPhotos: [],
     verifiedProfessional: true,
     ratingAvg: 4.7,
@@ -1047,7 +1063,9 @@ export const SEED_PROFESSIONALS: ProfessionalItem[] = [
     whatsapp: '9848089012',
     visitingCharges: '₹1,500 / Store Visit Reel',
     hourlyRate: 'Brand Collaboration Packages',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
     instagramUrl: 'https://instagram.com/kurnool_food_vlogs',
+    youtubeUrl: 'https://youtube.com/@kurnoolfoodvlogs',
     description: 'Popular Kurnool food & lifestyle influencer with 65k+ active followers. Restaurant reviews, store launch promotions, food testing and viral Instagram reels.',
     portfolioPhotos: [],
     verifiedProfessional: true,
@@ -1066,6 +1084,7 @@ export const SEED_PROFESSIONALS: ProfessionalItem[] = [
     whatsapp: '9848090123',
     visitingCharges: '₹150 (Wall Inspection & Measurement)',
     hourlyRate: '₹12 / sq.ft (Asian Paints Royal Finish)',
+    avatarUrl: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=400',
     description: 'Interior & exterior emulsion painting, waterproofing, designer stencil textures, kid room murals and enamel gloss woodwork.',
     portfolioPhotos: [],
     verifiedProfessional: true,

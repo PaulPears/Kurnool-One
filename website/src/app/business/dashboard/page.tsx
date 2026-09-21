@@ -53,6 +53,13 @@ export default function BusinessDashboardPage() {
   const [googleMapsUrl, setGoogleMapsUrl] = useState('');
   const [description, setDescription] = useState('');
   
+  // Social media links
+  const [facebook, setFacebook] = useState('');
+  const [instagram, setInstagram] = useState('');
+  const [twitter, setTwitter] = useState('');
+  const [youtube, setYoutube] = useState('');
+  const [linkedin, setLinkedin] = useState('');
+
   // Operating hours Monday to Sunday
   const [operatingHours, setOperatingHours] = useState({
     monday: { closed: false, open: '09:00 AM', close: '09:00 PM' },
@@ -107,6 +114,11 @@ export default function BusinessDashboardPage() {
     setWebsite(biz.website || '');
     setGoogleMapsUrl(biz.googleMapsUrl || '');
     setDescription(biz.description_en || '');
+    setFacebook(biz.socialLinks?.facebook || '');
+    setInstagram(biz.socialLinks?.instagram || '');
+    setTwitter(biz.socialLinks?.twitter || '');
+    setYoutube(biz.socialLinks?.youtube || '');
+    setLinkedin(biz.socialLinks?.linkedin || '');
     if (biz.operatingHours) {
       setOperatingHours({
         ...operatingHours,
@@ -137,6 +149,13 @@ export default function BusinessDashboardPage() {
         googleMapsUrl: googleMapsUrl.trim(),
         description_en: description.trim(),
         operatingHours,
+        socialLinks: {
+          facebook: facebook.trim(),
+          instagram: instagram.trim(),
+          twitter: twitter.trim(),
+          youtube: youtube.trim(),
+          linkedin: linkedin.trim(),
+        },
       });
       setProfileSuccess(true);
       setTimeout(() => setProfileSuccess(false), 4000);
@@ -515,6 +534,86 @@ export default function BusinessDashboardPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* Social Media & Channels (All Optional) */}
+              <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-blue-600" />
+                    Social Media & Links
+                  </h3>
+                  <span className="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-0.5 rounded-full border border-slate-200">
+                    All Optional
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Facebook Page <span className="text-slate-400 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="url"
+                      value={facebook}
+                      onChange={(e) => setFacebook(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      placeholder="https://facebook.com/yourbusiness"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Instagram Handle / URL <span className="text-slate-400 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={instagram}
+                      onChange={(e) => setInstagram(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      placeholder="https://instagram.com/yourbusiness"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Twitter / X Profile <span className="text-slate-400 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={twitter}
+                      onChange={(e) => setTwitter(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      placeholder="https://x.com/yourbusiness"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      YouTube Channel <span className="text-slate-400 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="url"
+                      value={youtube}
+                      onChange={(e) => setYoutube(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      placeholder="https://youtube.com/@yourbusiness"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      LinkedIn Page / Company URL <span className="text-slate-400 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="url"
+                      value={linkedin}
+                      onChange={(e) => setLinkedin(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                      placeholder="https://linkedin.com/company/yourbusiness"
+                    />
+                  </div>
                 </div>
               </div>
 

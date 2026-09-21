@@ -76,10 +76,10 @@ export default function DirectoryScreen({ route, navigation }: any) {
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>
-            {language === 'en' ? 'Kurnool Directory' : 'కర్నూలు డైరెక్టరీ'}
+            {language === 'en' ? 'Kurnool Businesses' : 'కర్నూలు వ్యాపారాలు'}
           </Text>
           <Text style={styles.headerSub}>
-            {language === 'en' ? 'Verified Businesses & Skilled Services' : 'ధృవీకరించబడిన వ్యాపారాలు & సేవలు'}
+            {language === 'en' ? 'Commercial Businesses & Professional Profiles' : 'వ్యాపారాలు & నిపుణుల ప్రొఫైళ్లు'}
           </Text>
         </View>
         <TouchableOpacity

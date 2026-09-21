@@ -163,8 +163,8 @@ export default async function HomePage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
-                Local Directory
+              <span className="text-xs font-black uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
+                Local Businesses
               </span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
@@ -228,7 +228,7 @@ export default async function HomePage() {
             href="/directory"
             className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 transition"
           >
-            <span>Explore Full Directory</span>
+            <span>Explore All Businesses</span>
             <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
@@ -262,8 +262,8 @@ export default async function HomePage() {
                   </div>
 
                   {/* Rating */}
-                  <div className="absolute top-3 right-3 bg-slate-900/80 backdrop-blur-sm px-2 py-1 rounded-lg text-[11px] font-bold text-white flex items-center gap-1">
-                    <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                  <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm px-2 py-1 rounded-lg text-[11px] font-bold text-slate-800 flex items-center gap-1 shadow-sm border border-slate-200">
+                    <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                     <span>{biz.ratingAvg || 4.8}</span>
                   </div>
                 </div>
@@ -332,24 +332,24 @@ export default async function HomePage() {
 
       {/* ─── 4. SKILLED PROFESSIONALS & CREATORS ───────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-8">
-        <div className="bg-teal-900 text-white rounded-3xl p-6 sm:p-10">
+        <div className="bg-gradient-to-br from-teal-50/80 via-slate-50 to-emerald-50/80 border border-teal-200/70 text-slate-900 rounded-3xl p-6 sm:p-10 shadow-xs">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-800 text-teal-200 text-xs font-bold tracking-wide mb-2">
-                <Briefcase className="w-3.5 h-3.5 text-teal-300" />
-                <span>Professional & Creator Directory</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-100 text-teal-800 text-xs font-bold tracking-wide mb-2 border border-teal-200">
+                <Briefcase className="w-3.5 h-3.5 text-teal-700" />
+                <span>Professionals & Creators</span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                 Connect with Kurnool&apos;s Skilled Specialists
               </h2>
-              <p className="text-teal-200 text-xs sm:text-sm mt-1 max-w-xl">
+              <p className="text-slate-600 text-xs sm:text-sm mt-1 max-w-xl">
                 Doctors, Lawyers, IT Developers, Influencers, Teachers, and Technicians serving Kurnool.
               </p>
             </div>
 
             <Link
               href="/directory?tab=professionals"
-              className="py-2.5 px-5 rounded-xl bg-white hover:bg-teal-50 text-teal-900 text-xs font-black shadow-sm transition shrink-0"
+              className="py-2.5 px-5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black shadow-md transition shrink-0"
             >
               Browse All 30 Pro Categories →
             </Link>
@@ -359,13 +359,21 @@ export default async function HomePage() {
             {professionals.slice(0, 4).map((pro) => (
               <div
                 key={pro.id}
-                className="bg-white text-slate-900 rounded-2xl p-5 shadow-sm space-y-3 flex flex-col justify-between"
+                className="bg-white text-slate-900 rounded-2xl p-5 shadow-sm border border-slate-200/80 space-y-3 flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center font-black text-lg shrink-0">
-                      {pro.fullName.charAt(0)}
-                    </div>
+                    {pro.avatarUrl ? (
+                      <img
+                        src={pro.avatarUrl}
+                        alt={pro.fullName}
+                        className="w-12 h-12 rounded-xl object-cover shrink-0 border border-teal-200"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center font-black text-lg shrink-0">
+                        {pro.fullName.charAt(0)}
+                      </div>
+                    )}
                     <div>
                       <h4 className="font-bold text-sm text-slate-900 line-clamp-1">{pro.fullName}</h4>
                       <p className="text-[11px] text-teal-700 font-semibold line-clamp-1">{pro.category}</p>
@@ -473,19 +481,19 @@ export default async function HomePage() {
 
       {/* ─── 6. HERITAGE & TOURISM ────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-8">
-        <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-10 space-y-6">
+        <div className="bg-white border border-slate-200 shadow-sm text-slate-900 rounded-3xl p-6 sm:p-10 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
                 Historic Rayalaseema
               </span>
-              <h2 className="text-2xl sm:text-3xl font-black tracking-tight mt-1">
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 mt-2">
                 Explore Kurnool Landmarks
               </h2>
             </div>
             <Link
               href="/explore"
-              className="py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition shrink-0"
+              className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition shrink-0 border border-slate-200"
             >
               Discover All Places →
             </Link>
@@ -495,19 +503,19 @@ export default async function HomePage() {
             {places.slice(0, 4).map((place) => (
               <div
                 key={place.id}
-                className="bg-slate-800 rounded-2xl overflow-hidden border border-slate-700 space-y-3 pb-4"
+                className="bg-slate-50 rounded-2xl overflow-hidden border border-slate-200 hover:border-blue-300 hover:shadow-md transition space-y-3 pb-4"
               >
-                <div className="relative h-36 w-full bg-slate-700">
+                <div className="relative h-36 w-full bg-slate-200">
                   <Image
-                    src={place.image_url}
-                    alt={place.title_en}
+                    src={place.photos?.[0] || 'https://images.unsplash.com/photo-1590077428593-a55bb07c4665?w=800'}
+                    alt={place.name_en}
                     fill
                     className="object-cover"
                   />
                 </div>
                 <div className="px-4">
-                  <h4 className="font-bold text-sm text-white line-clamp-1">{place.title_en}</h4>
-                  <p className="text-xs text-amber-400 font-medium mt-0.5">{place.tagline_en}</p>
+                  <h4 className="font-bold text-sm text-slate-900 line-clamp-1">{place.name_en}</h4>
+                  <p className="text-xs text-amber-700 font-semibold mt-0.5">{place.timings || place.address}</p>
                 </div>
               </div>
             ))}

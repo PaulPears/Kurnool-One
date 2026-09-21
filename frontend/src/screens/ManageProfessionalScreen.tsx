@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, SafeAreaView, ScrollView, TextInput, TouchableOpacity,
-  Alert, ActivityIndicator, StyleSheet, StatusBar, Linking,
+  Alert, ActivityIndicator, StyleSheet, StatusBar, Linking, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
@@ -25,8 +25,13 @@ export default function ManageProfessionalScreen({ navigation }: any) {
   const [serviceAreas, setServiceAreas] = useState('All Kurnool');
   const [visitingCharges, setVisitingCharges] = useState('₹150');
   const [hourlyRate, setHourlyRate] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
   const [instagramUrl, setInstagramUrl] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [twitterUrl, setTwitterUrl] = useState('');
+  const [facebookUrl, setFacebookUrl] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -49,8 +54,13 @@ export default function ManageProfessionalScreen({ navigation }: any) {
           setServiceAreas(Array.isArray(p.serviceAreas) ? p.serviceAreas.join(', ') : 'All Kurnool');
           setVisitingCharges(p.visitingCharges || '₹150');
           setHourlyRate(p.hourlyRate || '');
+          setAvatarUrl(p.avatarUrl || '');
           setInstagramUrl(p.instagramUrl || '');
           setYoutubeUrl(p.youtubeUrl || '');
+          setLinkedinUrl(p.linkedinUrl || '');
+          setTwitterUrl(p.twitterUrl || '');
+          setFacebookUrl(p.facebookUrl || '');
+          setWebsiteUrl(p.websiteUrl || '');
           setDescription(p.description || '');
         }
       }
@@ -74,8 +84,13 @@ export default function ManageProfessionalScreen({ navigation }: any) {
         serviceAreas: areas.length > 0 ? areas : ['All Kurnool'],
         visitingCharges: visitingCharges.trim(),
         hourlyRate: hourlyRate.trim() || undefined,
+        avatarUrl: avatarUrl.trim() || undefined,
         instagramUrl: instagramUrl.trim() || undefined,
         youtubeUrl: youtubeUrl.trim() || undefined,
+        linkedinUrl: linkedinUrl.trim() || undefined,
+        twitterUrl: twitterUrl.trim() || undefined,
+        facebookUrl: facebookUrl.trim() || undefined,
+        websiteUrl: websiteUrl.trim() || undefined,
         description: description.trim(),
       });
 
@@ -211,6 +226,31 @@ export default function ManageProfessionalScreen({ navigation }: any) {
         {/* Profile Details Form */}
         <Text style={styles.sectionHeader}>Profile Details</Text>
 
+        {/* Profile Photo / Avatar */}
+        <View style={styles.formGroup}>
+          <Text style={styles.inputLabel}>Profile Photo / Avatar URL</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 1, borderColor: '#CBD5E1' }} />
+            ) : (
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#CCFBF1', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="person" size={28} color="#0D9488" />
+              </View>
+            )}
+            <Text style={{ flex: 1, fontSize: 12, color: '#64748B' }}>
+              Paste an image URL for your profile picture. It will display across Kurnool One directory cards.
+            </Text>
+          </View>
+          <TextInput
+            style={styles.textInput}
+            value={avatarUrl}
+            onChangeText={setAvatarUrl}
+            placeholder="https://images.unsplash.com/... or hosted image URL"
+            placeholderTextColor="#94A3B8"
+            autoCapitalize="none"
+          />
+        </View>
+
         <View style={styles.formGroup}>
           <Text style={styles.inputLabel}>Full Name / Professional Handle *</Text>
           <TextInput
@@ -271,10 +311,10 @@ export default function ManageProfessionalScreen({ navigation }: any) {
         </View>
 
         {/* Social Links */}
-        <Text style={styles.sectionHeader}>Social & Portfolio Channels</Text>
+        <Text style={styles.sectionHeader}>Social & Portfolio Channels (All Optional)</Text>
 
         <View style={styles.formGroup}>
-          <Text style={styles.inputLabel}>Instagram Handle / URL (For Creators)</Text>
+          <Text style={styles.inputLabel}>Instagram Handle / URL (Optional)</Text>
           <TextInput
             style={styles.textInput}
             value={instagramUrl}
@@ -286,12 +326,60 @@ export default function ManageProfessionalScreen({ navigation }: any) {
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={styles.inputLabel}>YouTube Channel URL</Text>
+          <Text style={styles.inputLabel}>YouTube Channel URL (Optional)</Text>
           <TextInput
             style={styles.textInput}
             value={youtubeUrl}
             onChangeText={setYoutubeUrl}
             placeholder="https://youtube.com/@channel"
+            placeholderTextColor="#94A3B8"
+            autoCapitalize="none"
+          />
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.inputLabel}>LinkedIn Profile URL (Optional)</Text>
+          <TextInput
+            style={styles.textInput}
+            value={linkedinUrl}
+            onChangeText={setLinkedinUrl}
+            placeholder="https://linkedin.com/in/your_name"
+            placeholderTextColor="#94A3B8"
+            autoCapitalize="none"
+          />
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.inputLabel}>Twitter / X Profile URL (Optional)</Text>
+          <TextInput
+            style={styles.textInput}
+            value={twitterUrl}
+            onChangeText={setTwitterUrl}
+            placeholder="https://x.com/your_handle"
+            placeholderTextColor="#94A3B8"
+            autoCapitalize="none"
+          />
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.inputLabel}>Facebook Profile URL (Optional)</Text>
+          <TextInput
+            style={styles.textInput}
+            value={facebookUrl}
+            onChangeText={setFacebookUrl}
+            placeholder="https://facebook.com/your_profile"
+            placeholderTextColor="#94A3B8"
+            autoCapitalize="none"
+          />
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.inputLabel}>Personal Website / Portfolio (Optional)</Text>
+          <TextInput
+            style={styles.textInput}
+            value={websiteUrl}
+            onChangeText={setWebsiteUrl}
+            placeholder="https://yourportfolio.com"
             placeholderTextColor="#94A3B8"
             autoCapitalize="none"
           />

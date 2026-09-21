@@ -49,8 +49,13 @@ export default function ProfessionalDashboardPage() {
   const [serviceAreas, setServiceAreas] = useState('');
   const [visitingCharges, setVisitingCharges] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
   const [instagramUrl, setInstagramUrl] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [twitterUrl, setTwitterUrl] = useState('');
+  const [facebookUrl, setFacebookUrl] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -76,8 +81,13 @@ export default function ProfessionalDashboardPage() {
         setServiceAreas(Array.isArray(p.serviceAreas) ? p.serviceAreas.join(', ') : 'All Kurnool');
         setVisitingCharges(p.visitingCharges || '₹150');
         setHourlyRate(p.hourlyRate || '');
+        setAvatarUrl(p.avatarUrl || '');
         setInstagramUrl(p.instagramUrl || '');
         setYoutubeUrl(p.youtubeUrl || '');
+        setLinkedinUrl(p.linkedinUrl || '');
+        setTwitterUrl(p.twitterUrl || '');
+        setFacebookUrl(p.facebookUrl || '');
+        setWebsiteUrl(p.websiteUrl || '');
         setDescription(p.description || '');
       }
     } catch (err) {
@@ -102,8 +112,13 @@ export default function ProfessionalDashboardPage() {
         serviceAreas: areas.length > 0 ? areas : ['All Kurnool'],
         visitingCharges: visitingCharges.trim(),
         hourlyRate: hourlyRate.trim() || undefined,
+        avatarUrl: avatarUrl.trim() || undefined,
         instagramUrl: instagramUrl.trim() || undefined,
         youtubeUrl: youtubeUrl.trim() || undefined,
+        linkedinUrl: linkedinUrl.trim() || undefined,
+        twitterUrl: twitterUrl.trim() || undefined,
+        facebookUrl: facebookUrl.trim() || undefined,
+        websiteUrl: websiteUrl.trim() || undefined,
         description: description.trim(),
       });
       setSaveSuccess(true);
@@ -200,7 +215,7 @@ export default function ProfessionalDashboardPage() {
               className="inline-flex items-center gap-2 py-2 px-3.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 text-xs font-bold transition-all"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              Browse Pro Directory
+              Browse Professionals
             </Link>
             <button
               onClick={logout}
@@ -302,7 +317,7 @@ export default function ProfessionalDashboardPage() {
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-teal-950">
-                    Listed in Kurnool One Professional Directory
+                    Listed on Kurnool One Professionals
                   </h3>
                   <p className="text-xs text-teal-700 mt-0.5">
                     Your services are discoverable by residents across all Kurnool mandals and localities.
@@ -433,34 +448,135 @@ export default function ProfessionalDashboardPage() {
                 />
               </div>
 
-              {/* Social Channels */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                    <Share2 className="w-3.5 h-3.5 text-pink-600" />
-                    Instagram Handle / URL
+              {/* Profile Photo / Headshot */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Profile Photo / Headshot URL (Add your photo)
                   </label>
+                  <span className="text-[10px] text-teal-700 font-semibold bg-white px-2 py-0.5 rounded-full border border-slate-200">
+                    Displayed on your profile
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
                   <input
-                    type="text"
-                    value={instagramUrl}
-                    onChange={(e) => setInstagramUrl(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-600 focus:outline-none"
-                    placeholder="https://instagram.com/your_handle"
+                    type="url"
+                    value={avatarUrl}
+                    onChange={(e) => setAvatarUrl(e.target.value)}
+                    className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-teal-600 focus:outline-none"
+                    placeholder="https://example.com/your-photo.jpg"
                   />
+                  {avatarUrl && (
+                    <div className="w-12 h-12 rounded-xl overflow-hidden border border-slate-300 shrink-0">
+                      <img
+                        src={avatarUrl}
+                        alt="Avatar Preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Social Channels (All Optional) */}
+              <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                    <Share2 className="w-4 h-4 text-teal-600" />
+                    Social Media & Web Accounts
+                  </h3>
+                  <span className="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-0.5 rounded-full border border-slate-200">
+                    All Optional
+                  </span>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                    <Video className="w-3.5 h-3.5 text-red-600" />
-                    YouTube Channel URL
-                  </label>
-                  <input
-                    type="text"
-                    value={youtubeUrl}
-                    onChange={(e) => setYoutubeUrl(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-600 focus:outline-none"
-                    placeholder="https://youtube.com/@channel"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Share2 className="w-3.5 h-3.5 text-pink-600" />
+                      Instagram URL <span className="text-slate-400 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={instagramUrl}
+                      onChange={(e) => setInstagramUrl(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-teal-600 focus:outline-none"
+                      placeholder="https://instagram.com/your_handle"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Video className="w-3.5 h-3.5 text-red-600" />
+                      YouTube Channel <span className="text-slate-400 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={youtubeUrl}
+                      onChange={(e) => setYoutubeUrl(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-teal-600 focus:outline-none"
+                      placeholder="https://youtube.com/@channel"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Globe className="w-3.5 h-3.5 text-blue-600" />
+                      LinkedIn Profile <span className="text-slate-400 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={linkedinUrl}
+                      onChange={(e) => setLinkedinUrl(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-teal-600 focus:outline-none"
+                      placeholder="https://linkedin.com/in/your_profile"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Share2 className="w-3.5 h-3.5 text-slate-700" />
+                      Twitter / X Profile <span className="text-slate-400 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={twitterUrl}
+                      onChange={(e) => setTwitterUrl(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-teal-600 focus:outline-none"
+                      placeholder="https://x.com/your_handle"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Share2 className="w-3.5 h-3.5 text-blue-700" />
+                      Facebook Profile / Page <span className="text-slate-400 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={facebookUrl}
+                      onChange={(e) => setFacebookUrl(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-teal-600 focus:outline-none"
+                      placeholder="https://facebook.com/your_page"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Globe className="w-3.5 h-3.5 text-teal-600" />
+                      Website / Portfolio <span className="text-slate-400 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={websiteUrl}
+                      onChange={(e) => setWebsiteUrl(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-teal-600 focus:outline-none"
+                      placeholder="https://yourwebsite.com"
+                    />
+                  </div>
                 </div>
               </div>
 

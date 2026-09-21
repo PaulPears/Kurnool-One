@@ -188,28 +188,28 @@ export default function MyBusinessPortalPage() {
   if (!user) {
     return (
       <div className="max-w-xl mx-auto my-14 px-4">
-        <div className="rounded-3xl bg-[#0c1222] border border-white/10 p-8 sm:p-10 shadow-2xl text-center space-y-6">
-          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-400/20 flex items-center justify-center mx-auto shadow-inner">
+        <div className="rounded-3xl bg-white border border-slate-200 p-8 sm:p-10 shadow-xl text-center space-y-6">
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center mx-auto shadow-inner">
             <Building2 className="w-8 h-8" />
           </div>
 
           <div className="space-y-2">
-            <span className="inline-block text-xs font-black uppercase tracking-wider text-amber-300 bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
+            <span className="inline-block text-xs font-black uppercase tracking-wider text-blue-700 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
               Merchant Portal Access
             </span>
-            <h1 className="text-2xl sm:text-3xl font-black text-white">
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900">
               Sign In to Your Merchant Account
             </h1>
-            <p className="text-slate-400 text-xs sm:text-sm leading-relaxed max-w-md mx-auto">
+            <p className="text-slate-600 text-xs sm:text-sm leading-relaxed max-w-md mx-auto">
               Manage your business listing, edit 7-day operating hours, post limited-time festival deals, and view customer call clicks.
             </p>
           </div>
 
           {/* Quick Demo Login */}
-          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3 text-left">
+          <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-3 text-left">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-amber-300">Quick Testing (1-Click Demo)</span>
-              <span className="text-[10px] text-slate-400">Merchant Account</span>
+              <span className="text-xs font-black text-amber-900">Quick Testing (1-Click Demo)</span>
+              <span className="text-[10px] text-amber-700 font-bold bg-amber-100 px-2 py-0.5 rounded">Merchant Account</span>
             </div>
             <button
               type="button"
@@ -224,7 +224,7 @@ export default function MyBusinessPortalPage() {
                   setDemoLoading(false);
                 }
               }}
-              className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+              className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
             >
               {demoLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -241,16 +241,16 @@ export default function MyBusinessPortalPage() {
             <button
               type="button"
               onClick={() => loginWithGoogle()}
-              className="w-full py-3.5 px-4 bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs sm:text-sm rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3.5 px-4 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-bold text-xs sm:text-sm rounded-xl shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Continue with Google</span>
             </button>
 
             <Link
-              href="/login?returnUrl=/my-business"
-              className="block w-full py-3.5 px-4 bg-white/10 hover:bg-white/15 text-white font-bold text-xs sm:text-sm rounded-xl border border-white/10 transition"
+              href="/business/login"
+              className="block w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition"
             >
-              Sign In / Register with Email
+              Sign In to Dedicated Business Portal →
             </Link>
           </div>
         </div>
@@ -277,7 +277,7 @@ export default function MyBusinessPortalPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-8 py-10 space-y-8">
       {/* Top Banner & Business Selector */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 text-white rounded-3xl p-8 sm:p-10 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 text-white rounded-3xl p-8 sm:p-10 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <span className="bg-blue-500/20 text-blue-300 text-xs font-black px-3 py-0.5 rounded-full uppercase tracking-wider border border-blue-400/30">

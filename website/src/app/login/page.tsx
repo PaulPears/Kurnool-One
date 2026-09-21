@@ -126,27 +126,27 @@ function LoginFormContent() {
   // If already signed in
   if (user) {
     return (
-      <div className="max-w-md mx-auto my-12 p-8 rounded-3xl bg-[#0c1222] border border-white/10 shadow-2xl text-center space-y-6">
-        <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto shadow-inner">
+      <div className="max-w-md mx-auto my-12 p-8 rounded-3xl bg-white border border-slate-200 shadow-xl text-center space-y-6">
+        <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto shadow-inner">
           <CheckCircle2 className="w-8 h-8" />
         </div>
         <div>
-          <h2 className="text-2xl font-black text-white">You are Signed In</h2>
-          <p className="text-slate-400 text-sm mt-1">
-            Logged in as <span className="font-bold text-white">{user.displayName || user.email}</span>
+          <h2 className="text-2xl font-black text-slate-900">You are Signed In</h2>
+          <p className="text-slate-500 text-sm mt-1">
+            Logged in as <span className="font-bold text-slate-900">{user.displayName || user.email}</span>
           </p>
         </div>
         <div className="space-y-3 pt-2">
           <Link
             href={returnUrl}
-            className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-sm rounded-xl shadow-lg transition flex items-center justify-center gap-2"
+            className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm rounded-xl shadow-lg transition flex items-center justify-center gap-2"
           >
             <span>Continue to Destination</span>
             <ArrowRight className="w-4 h-4" />
           </Link>
           <button
             onClick={() => logout()}
-            className="w-full py-3 px-4 bg-white/5 hover:bg-white/10 text-slate-300 font-bold text-xs rounded-xl border border-white/10 transition"
+            className="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition"
           >
             Sign Out / Switch Account
           </button>
@@ -158,55 +158,55 @@ function LoginFormContent() {
   return (
     <div className="max-w-lg mx-auto my-10 px-4">
       {/* Container Card */}
-      <div className="rounded-3xl bg-[#0c1222] border border-white/10 p-7 sm:p-10 shadow-2xl space-y-7 backdrop-blur-xl">
+      <div className="rounded-3xl bg-white border border-slate-200 p-7 sm:p-10 shadow-xl space-y-7">
         {/* Brand Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-400/10 border border-amber-400/20 text-amber-300 text-xs font-bold uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Kurnool One Profile Access</span>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-800 text-xs font-bold uppercase tracking-wider">
+            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+            <span>Kurnool One Citizen Access</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
             {mode === 'signin' ? 'Sign In to Your Account' : 'Create Your Account'}
           </h1>
-          <p className="text-slate-400 text-xs sm:text-sm font-normal">
-            Sign in to your Kurnool One citizen account or jump to your specialized portal:
+          <p className="text-slate-600 text-xs sm:text-sm font-normal">
+            Sign in to your Kurnool One account or jump to your dedicated portal:
           </p>
 
           <div className="grid grid-cols-2 gap-2.5 pt-2">
             <Link
               href="/business/login"
-              className="flex items-center gap-2 p-2.5 rounded-xl bg-blue-500/10 border border-blue-400/30 hover:bg-blue-500/20 text-blue-300 text-xs font-bold transition text-left"
+              className="flex items-center gap-2 p-2.5 rounded-xl bg-blue-50 border border-blue-200 hover:bg-blue-100/70 text-blue-800 text-xs font-bold transition text-left"
             >
-              <Building2 className="w-4 h-4 text-blue-400 shrink-0" />
+              <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
               <div>
-                <span className="block text-white font-bold text-xs">Business Portal</span>
-                <span className="text-[10px] text-blue-200/70 font-normal">For Shop Owners →</span>
+                <span className="block text-slate-900 font-bold text-xs">Business Portal</span>
+                <span className="text-[10px] text-blue-600 font-normal">For Shop Owners →</span>
               </div>
             </Link>
 
             <Link
               href="/professional/login"
-              className="flex items-center gap-2 p-2.5 rounded-xl bg-teal-500/10 border border-teal-400/30 hover:bg-teal-500/20 text-teal-300 text-xs font-bold transition text-left"
+              className="flex items-center gap-2 p-2.5 rounded-xl bg-teal-50 border border-teal-200 hover:bg-teal-100/70 text-teal-800 text-xs font-bold transition text-left"
             >
-              <UserCheck className="w-4 h-4 text-teal-400 shrink-0" />
+              <UserCheck className="w-4 h-4 text-teal-600 shrink-0" />
               <div>
-                <span className="block text-white font-bold text-xs">Pro Portal</span>
-                <span className="text-[10px] text-teal-200/70 font-normal">For Experts/Creators →</span>
+                <span className="block text-slate-900 font-bold text-xs">Pro Portal</span>
+                <span className="text-[10px] text-teal-600 font-normal">For Experts/Creators →</span>
               </div>
             </Link>
           </div>
         </div>
 
         {/* Demo Credentials Section (Highlighted for User Testing) */}
-        <div className="rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-600/5 to-transparent border border-amber-400/20 p-4 space-y-3">
+        <div className="rounded-2xl bg-amber-50/70 border border-amber-200 p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs font-black text-amber-300">
-              <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+            <div className="flex items-center gap-1.5 text-xs font-black text-amber-900">
+              <Zap className="w-3.5 h-3.5 text-amber-600 fill-amber-600" />
               <span>Instant 1-Click Demo Login</span>
             </div>
-            <span className="text-[10px] text-slate-400 font-mono">Test Ready</span>
+            <span className="text-[10px] text-amber-700 font-mono font-bold bg-amber-100 px-2 py-0.5 rounded">Test Ready</span>
           </div>
-          <p className="text-[11px] text-slate-300 leading-snug">
+          <p className="text-[11px] text-amber-800 leading-snug">
             Click any demo profile below to test without typing credentials:
           </p>
 
@@ -216,14 +216,14 @@ function LoginFormContent() {
               type="button"
               disabled={loading || activeDemoRole !== null}
               onClick={() => handle1ClickDemo('merchant')}
-              className="p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-amber-400/40 text-left transition flex flex-col justify-between cursor-pointer active:scale-95 disabled:opacity-50"
+              className="p-3 rounded-xl bg-white hover:bg-amber-100/50 border border-amber-200 hover:border-amber-400 text-left transition flex flex-col justify-between cursor-pointer active:scale-95 disabled:opacity-50 shadow-sm"
             >
               <div className="flex items-center justify-between mb-1">
-                <Building2 className="w-4 h-4 text-amber-400" />
-                {activeDemoRole === 'merchant' && <Loader2 className="w-3 h-3 text-amber-400 animate-spin" />}
+                <Building2 className="w-4 h-4 text-amber-600" />
+                {activeDemoRole === 'merchant' && <Loader2 className="w-3 h-3 text-amber-600 animate-spin" />}
               </div>
-              <span className="font-bold text-xs text-white">Merchant</span>
-              <span className="text-[10px] text-slate-400">Shop Owner</span>
+              <span className="font-bold text-xs text-slate-900">Merchant</span>
+              <span className="text-[10px] text-slate-500">Shop Owner</span>
             </button>
 
             {/* Pro Demo */}
@@ -231,14 +231,14 @@ function LoginFormContent() {
               type="button"
               disabled={loading || activeDemoRole !== null}
               onClick={() => handle1ClickDemo('professional')}
-              className="p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-blue-400/40 text-left transition flex flex-col justify-between cursor-pointer active:scale-95 disabled:opacity-50"
+              className="p-3 rounded-xl bg-white hover:bg-blue-100/50 border border-blue-200 hover:border-blue-400 text-left transition flex flex-col justify-between cursor-pointer active:scale-95 disabled:opacity-50 shadow-sm"
             >
               <div className="flex items-center justify-between mb-1">
-                <UserCheck className="w-4 h-4 text-blue-400" />
-                {activeDemoRole === 'professional' && <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />}
+                <UserCheck className="w-4 h-4 text-blue-600" />
+                {activeDemoRole === 'professional' && <Loader2 className="w-3 h-3 text-blue-600 animate-spin" />}
               </div>
-              <span className="font-bold text-xs text-white">Professional</span>
-              <span className="text-[10px] text-slate-400">Creator/Specialist</span>
+              <span className="font-bold text-xs text-slate-900">Professional</span>
+              <span className="text-[10px] text-slate-500">Creator/Specialist</span>
             </button>
 
             {/* Citizen Demo */}
@@ -246,14 +246,14 @@ function LoginFormContent() {
               type="button"
               disabled={loading || activeDemoRole !== null}
               onClick={() => handle1ClickDemo('user')}
-              className="p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-400/40 text-left transition flex flex-col justify-between cursor-pointer active:scale-95 disabled:opacity-50"
+              className="p-3 rounded-xl bg-white hover:bg-emerald-100/50 border border-emerald-200 hover:border-emerald-400 text-left transition flex flex-col justify-between cursor-pointer active:scale-95 disabled:opacity-50 shadow-sm"
             >
               <div className="flex items-center justify-between mb-1">
-                <UserIcon className="w-4 h-4 text-emerald-400" />
-                {activeDemoRole === 'user' && <Loader2 className="w-3 h-3 text-emerald-400 animate-spin" />}
+                <UserIcon className="w-4 h-4 text-emerald-600" />
+                {activeDemoRole === 'user' && <Loader2 className="w-3 h-3 text-emerald-600 animate-spin" />}
               </div>
-              <span className="font-bold text-xs text-white">Citizen</span>
-              <span className="text-[10px] text-slate-400">Regular User</span>
+              <span className="font-bold text-xs text-slate-900">Citizen</span>
+              <span className="text-[10px] text-slate-500">Regular User</span>
             </button>
           </div>
         </div>
@@ -264,7 +264,7 @@ function LoginFormContent() {
             type="button"
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full py-3.5 px-4 bg-white hover:bg-slate-100 text-slate-900 font-bold text-sm rounded-xl shadow-md transition flex items-center justify-center gap-3 cursor-pointer disabled:opacity-60 active:scale-98"
+            className="w-full py-3.5 px-4 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-bold text-sm rounded-xl shadow-sm transition flex items-center justify-center gap-3 cursor-pointer disabled:opacity-60 active:scale-98"
           >
             <GoogleIcon />
             <span>Continue with Google</span>
@@ -273,15 +273,15 @@ function LoginFormContent() {
 
         {/* Divider */}
         <div className="relative flex items-center justify-center">
-          <div className="border-t border-white/10 w-full" />
-          <span className="bg-[#0c1222] px-3 text-xs text-slate-500 uppercase tracking-widest font-semibold">
+          <div className="border-t border-slate-200 w-full" />
+          <span className="bg-white px-3 text-xs text-slate-400 uppercase tracking-widest font-semibold">
             or with email
           </span>
         </div>
 
         {/* Error Alert */}
         {errorMsg && (
-          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
+          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMsg}</span>
           </div>
@@ -291,53 +291,53 @@ function LoginFormContent() {
         <form onSubmit={handleEmailAuth} className="space-y-4">
           {mode === 'signup' && (
             <div>
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Full Name *
               </label>
               <div className="relative">
-                <UserIcon className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <UserIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   required
                   placeholder="e.g. Ramesh Kumar"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 focus:border-blue-500 text-white text-xs font-medium outline-none transition"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 text-slate-900 text-xs font-medium outline-none transition"
                 />
               </div>
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
               Email Address *
             </label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="email"
                 required
                 placeholder="name@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 focus:border-blue-500 text-white text-xs font-medium outline-none transition"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 text-slate-900 text-xs font-medium outline-none transition"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
               Password *
             </label>
             <div className="relative">
-              <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="password"
                 required
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 focus:border-blue-500 text-white text-xs font-medium outline-none transition"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 text-slate-900 text-xs font-medium outline-none transition"
               />
             </div>
           </div>
@@ -345,7 +345,7 @@ function LoginFormContent() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-sm rounded-xl shadow-lg shadow-blue-500/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+            className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm rounded-xl shadow-lg shadow-blue-500/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
           >
             {loading ? (
               <>
@@ -373,14 +373,14 @@ function LoginFormContent() {
               setLoading(false);
             }
           }}
-          className="w-full py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-bold text-xs transition border border-white/10 flex items-center justify-center gap-1.5"
+          className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition border border-slate-200 flex items-center justify-center gap-1.5"
         >
           <span>Skip Login (Explore Kurnool One as Guest)</span>
-          <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+          <ArrowRight className="w-3.5 h-3.5 text-slate-500" />
         </button>
 
         {/* Toggle Mode */}
-        <div className="pt-2 text-center text-xs text-slate-400">
+        <div className="pt-2 text-center text-xs text-slate-500">
           {mode === 'signin' ? (
             <span>
               Don't have an account yet?{' '}
@@ -390,7 +390,7 @@ function LoginFormContent() {
                   setMode('signup');
                   setErrorMsg('');
                 }}
-                className="text-amber-300 font-bold hover:underline cursor-pointer ml-1"
+                className="text-blue-600 font-bold hover:underline cursor-pointer ml-1"
               >
                 Create Account
               </button>
@@ -404,7 +404,7 @@ function LoginFormContent() {
                   setMode('signin');
                   setErrorMsg('');
                 }}
-                className="text-blue-400 font-bold hover:underline cursor-pointer ml-1"
+                className="text-blue-600 font-bold hover:underline cursor-pointer ml-1"
               >
                 Sign In
               </button>

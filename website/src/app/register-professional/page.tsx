@@ -76,9 +76,14 @@ export default function RegisterProfessionalPage() {
   const [hourlyRate, setHourlyRate] = useState('');
   const [instagramUrl, setInstagramUrl] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [twitterUrl, setTwitterUrl] = useState('');
+  const [facebookUrl, setFacebookUrl] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
   const [description, setDescription] = useState('');
 
   // Media
+  const [avatarUrlInput, setAvatarUrlInput] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -171,8 +176,12 @@ export default function RegisterProfessionalPage() {
         hourlyRate: hourlyRate.trim() || undefined,
         instagramUrl: instagramUrl.trim() || undefined,
         youtubeUrl: youtubeUrl.trim() || undefined,
+        linkedinUrl: linkedinUrl.trim() || undefined,
+        twitterUrl: twitterUrl.trim() || undefined,
+        facebookUrl: facebookUrl.trim() || undefined,
+        websiteUrl: websiteUrl.trim() || undefined,
         description: description.trim() || `Professional ${currentCategoryObj.name_en} serving Kurnool.`,
-        avatarUrl: uploadedAvatarUrl || undefined,
+        avatarUrl: uploadedAvatarUrl || avatarUrlInput.trim() || undefined,
         portfolioPhotos: [],
         verifiedProfessional: true,
         status: 'active',
@@ -297,7 +306,7 @@ export default function RegisterProfessionalPage() {
               href="/directory?tab=professionals"
               className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm px-6 py-3.5 rounded-2xl shadow-md transition flex items-center justify-center gap-2"
             >
-              <span>View Directory Listing</span>
+              <span>View Public Listing</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
@@ -324,28 +333,28 @@ export default function RegisterProfessionalPage() {
   if (!user) {
     return (
       <div className="max-w-xl mx-auto my-14 px-4">
-        <div className="rounded-3xl bg-[#0c1222] border border-white/10 p-8 sm:p-10 shadow-2xl text-center space-y-6">
-          <div className="w-16 h-16 rounded-2xl bg-blue-500/10 text-blue-400 border border-blue-400/20 flex items-center justify-center mx-auto shadow-inner">
+        <div className="rounded-3xl bg-white border border-slate-200 p-8 sm:p-10 shadow-sm text-center space-y-6">
+          <div className="w-16 h-16 rounded-2xl bg-teal-50 text-teal-700 border border-teal-200 flex items-center justify-center mx-auto shadow-xs">
             <UserCheck className="w-8 h-8" />
           </div>
 
           <div className="space-y-2">
-            <span className="inline-block text-xs font-black uppercase tracking-wider text-blue-300 bg-blue-400/10 px-3 py-1 rounded-full border border-blue-400/20">
+            <span className="inline-block text-xs font-black uppercase tracking-wider text-teal-800 bg-teal-50 px-3 py-1 rounded-full border border-teal-200">
               Professional Login Required
             </span>
-            <h1 className="text-2xl sm:text-3xl font-black text-white">
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900">
               Log In to List Your Profile
             </h1>
-            <p className="text-slate-400 text-xs sm:text-sm leading-relaxed max-w-md mx-auto">
+            <p className="text-slate-600 text-xs sm:text-sm leading-relaxed max-w-md mx-auto">
               Please sign in to your account before listing as a professional, freelancer, or creator. This links your verified profile to your account for bookings and direct inquiries.
             </p>
           </div>
 
           {/* Quick Demo Login Option */}
-          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3 text-left">
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 text-left">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-blue-300">Quick Testing (1-Click Demo)</span>
-              <span className="text-[10px] text-slate-400">Professional Account</span>
+              <span className="text-xs font-bold text-slate-800">Quick Testing (1-Click Demo)</span>
+              <span className="text-[10px] text-teal-700 font-semibold">Professional Account</span>
             </div>
             <button
               type="button"
@@ -360,7 +369,7 @@ export default function RegisterProfessionalPage() {
                   setDemoLoginLoading(false);
                 }
               }}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+              className="w-full py-3 bg-gradient-to-r from-teal-700 to-blue-700 hover:from-teal-600 hover:to-blue-600 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
             >
               {demoLoginLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -377,14 +386,14 @@ export default function RegisterProfessionalPage() {
             <button
               type="button"
               onClick={() => loginWithGoogle()}
-              className="w-full py-3.5 px-4 bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs sm:text-sm rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3.5 px-4 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs sm:text-sm rounded-xl border border-slate-300 shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Continue with Google</span>
             </button>
 
             <Link
               href="/login?returnUrl=/register-professional"
-              className="block w-full py-3.5 px-4 bg-white/10 hover:bg-white/15 text-white font-bold text-xs sm:text-sm rounded-xl border border-white/10 transition"
+              className="block w-full py-3.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs sm:text-sm rounded-xl border border-slate-200 transition"
             >
               Sign In / Register with Email
             </Link>
@@ -396,17 +405,17 @@ export default function RegisterProfessionalPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-8 py-10 space-y-8">
-      {/* Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white rounded-3xl p-8 sm:p-12 shadow-2xl border border-white/10">
+      {/* Header - Professional Light Design */}
+      <div className="relative overflow-hidden bg-white text-slate-900 rounded-3xl p-8 sm:p-12 shadow-sm border border-slate-200">
         <div className="relative z-10 max-w-2xl space-y-3">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-400/10 border border-amber-400/20 text-amber-300 text-xs font-bold uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5" />
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold uppercase tracking-wider">
+            <Sparkles className="w-3.5 h-3.5 text-teal-600" />
             <span>Kurnool One Personal & Creator Network</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900">
             List Your Personal Profile or Creator Channel
           </h1>
-          <p className="text-slate-300 text-sm sm:text-base leading-relaxed font-normal">
+          <p className="text-slate-600 text-sm sm:text-base leading-relaxed font-normal">
             Whether you are a social media influencer, painter, doctor, IT specialist, electrician, advocate, or coach — get discovered by thousands of Kurnool residents with direct client calls & WhatsApp chats.
           </p>
         </div>
@@ -649,17 +658,22 @@ export default function RegisterProfessionalPage() {
           </div>
         </div>
 
-        {/* ─── 4. SOCIAL MEDIA & PORTFOLIO LINKS ─── */}
+        {/* ─── 4. SOCIAL MEDIA & PORTFOLIO LINKS (ALL OPTIONAL) ─── */}
         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center gap-2 text-slate-900 font-black text-sm">
-            <InstagramIcon className="w-4 h-4 text-pink-600" />
-            <span>Social Handles & Creator Channels</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+              <InstagramIcon className="w-4 h-4 text-pink-600" />
+              <span>Social Media & Web Links</span>
+            </div>
+            <span className="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-0.5 rounded-full border border-slate-200">
+              All Optional
+            </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Instagram Profile Link
+                Instagram Profile Link <span className="text-slate-400 font-normal">(Optional)</span>
               </label>
               <input
                 type="url"
@@ -672,13 +686,65 @@ export default function RegisterProfessionalPage() {
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                YouTube Channel Link
+                YouTube Channel Link <span className="text-slate-400 font-normal">(Optional)</span>
               </label>
               <input
                 type="url"
                 placeholder="https://youtube.com/@yourchannel"
                 value={youtubeUrl}
                 onChange={(e) => setYoutubeUrl(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 focus:border-blue-600 outline-none text-sm text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                LinkedIn Profile Link <span className="text-slate-400 font-normal">(Optional)</span>
+              </label>
+              <input
+                type="url"
+                placeholder="https://linkedin.com/in/your_profile"
+                value={linkedinUrl}
+                onChange={(e) => setLinkedinUrl(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 focus:border-blue-600 outline-none text-sm text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Twitter / X Profile Link <span className="text-slate-400 font-normal">(Optional)</span>
+              </label>
+              <input
+                type="url"
+                placeholder="https://x.com/your_handle"
+                value={twitterUrl}
+                onChange={(e) => setTwitterUrl(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 focus:border-blue-600 outline-none text-sm text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Facebook Profile / Page <span className="text-slate-400 font-normal">(Optional)</span>
+              </label>
+              <input
+                type="url"
+                placeholder="https://facebook.com/your_page"
+                value={facebookUrl}
+                onChange={(e) => setFacebookUrl(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 focus:border-blue-600 outline-none text-sm text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Personal Website / Portfolio <span className="text-slate-400 font-normal">(Optional)</span>
+              </label>
+              <input
+                type="url"
+                placeholder="https://yourwebsite.com"
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 focus:border-blue-600 outline-none text-sm text-slate-900"
               />
             </div>
@@ -700,15 +766,22 @@ export default function RegisterProfessionalPage() {
         </div>
 
         {/* ─── 6. PROFILE PHOTO / HEADSHOT ─── */}
-        <div>
-          <label className="block text-xs font-bold text-slate-700 mb-1.5">
-            Profile Photo / Headshot / Avatar
-          </label>
-          <div className="flex items-center gap-4">
-            <label className="flex-1 border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-6 text-center cursor-pointer transition bg-slate-50/50">
-              <UploadCloud className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-              <span className="text-xs font-bold text-blue-600">Click to upload photo</span>
-              <span className="block text-[11px] text-slate-400 mt-0.5">JPG, PNG up to 5MB</span>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Profile Photo / Headshot <span className="text-blue-600 font-semibold">(Add your photo)</span>
+            </label>
+            <p className="text-[11px] text-slate-500 mb-3">
+              Upload a picture or paste a photo image URL. A clear photo builds 3x more trust with clients in Kurnool.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Option A: File Upload */}
+            <label className="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl p-5 text-center cursor-pointer transition bg-slate-50/50 flex flex-col items-center justify-center">
+              <UploadCloud className="w-7 h-7 text-slate-400 mb-1" />
+              <span className="text-xs font-bold text-blue-600">Upload Photo File</span>
+              <span className="text-[10px] text-slate-400 mt-0.5">JPG, PNG up to 5MB</span>
               <input
                 type="file"
                 accept="image/*"
@@ -716,12 +789,45 @@ export default function RegisterProfessionalPage() {
                 className="hidden"
               />
             </label>
-            {previewUrl && (
-              <div className="w-24 h-24 rounded-2xl overflow-hidden border border-slate-200 shadow-sm shrink-0">
-                <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
-              </div>
-            )}
+
+            {/* Option B: Image URL Paste */}
+            <div className="flex flex-col justify-center space-y-1.5 bg-slate-50/50 border border-slate-200 rounded-2xl p-4">
+              <label className="text-xs font-bold text-slate-700">Or Paste Image URL</label>
+              <input
+                type="url"
+                placeholder="https://example.com/photo.jpg"
+                value={avatarUrlInput}
+                onChange={(e) => {
+                  setAvatarUrlInput(e.target.value);
+                  if (e.target.value) setPreviewUrl(e.target.value);
+                }}
+                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 focus:border-blue-600 outline-none text-xs text-slate-900"
+              />
+              <span className="text-[10px] text-slate-400">Direct link to your portrait or avatar</span>
+            </div>
           </div>
+
+          {/* Avatar Preview */}
+          {(previewUrl || avatarUrlInput) && (
+            <div className="flex items-center gap-3 pt-2">
+              <div className="w-16 h-16 rounded-2xl overflow-hidden border border-slate-200 shadow-sm shrink-0">
+                <img
+                  src={previewUrl || avatarUrlInput}
+                  alt="Profile Preview"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
+              </div>
+              <div className="text-xs">
+                <span className="font-bold text-emerald-700 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Photo Selected
+                </span>
+                <span className="text-slate-500 text-[11px]">This photo will be displayed on your profile card.</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ─── 7. SUBMIT & CHECKOUT ─── */}

@@ -60,7 +60,7 @@ export const DEMO_CREDENTIALS = {
 };
 
 // Helper to create a compliant mock User object
-function createMockUser(cred: typeof DEMO_CREDENTIALS['merchant']): User {
+function createMockUser(cred: { uid: string; email: string; displayName: string; role?: string; password?: string }): User {
   return {
     uid: cred.uid,
     email: cred.email,

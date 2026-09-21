@@ -27,46 +27,46 @@ export default function Navbar() {
   const { user, logout } = useAuth();
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
-      {/* Top Civic Utility Bar */}
-      <div className="bg-slate-900 text-slate-300 text-xs py-2 px-4 sm:px-8 border-b border-slate-800">
+    <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-xs">
+      {/* Top Civic Utility Bar - Professional Light Design */}
+      <div className="bg-slate-50 text-slate-700 text-xs py-2 px-4 sm:px-8 border-b border-slate-200">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-slate-200 font-medium tracking-wide">
-              Kurnool One (కర్నూలు వన్) • Official City Directory & Local Services
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-slate-700 font-medium tracking-wide">
+              Kurnool One (కర్నూలు వన్) • Official City Platform • Local Businesses & Services
             </span>
           </div>
 
           <div className="hidden sm:flex items-center gap-4 text-xs font-semibold">
             <Link
               href="/business/dashboard"
-              className="hover:text-white transition text-blue-300 flex items-center gap-1.5"
+              className="hover:text-blue-700 transition text-blue-800 flex items-center gap-1.5"
             >
-              <Building2 className="w-3.5 h-3.5 text-blue-400" />
+              <Building2 className="w-3.5 h-3.5 text-blue-700" />
               <span>Business Portal</span>
             </Link>
 
-            <span className="text-slate-700">|</span>
+            <span className="text-slate-300">|</span>
 
             <Link
               href="/professional/dashboard"
-              className="hover:text-white transition text-teal-300 flex items-center gap-1.5"
+              className="hover:text-teal-700 transition text-teal-800 flex items-center gap-1.5"
             >
-              <Briefcase className="w-3.5 h-3.5 text-teal-400" />
+              <Briefcase className="w-3.5 h-3.5 text-teal-700" />
               <span>Pro Portal</span>
             </Link>
 
-            <span className="text-slate-700">|</span>
+            <span className="text-slate-300">|</span>
 
             {user ? (
               <div className="flex items-center gap-2">
-                <span className="text-slate-300">
+                <span className="text-slate-800 font-medium">
                   {user.displayName || user.email?.split('@')[0]}
                 </span>
                 <button
                   onClick={() => logout()}
-                  className="hover:text-rose-400 text-slate-400 ml-1 transition cursor-pointer flex items-center gap-1"
+                  className="hover:text-rose-600 text-slate-500 ml-1 transition cursor-pointer flex items-center gap-1"
                 >
                   <LogOut className="w-3 h-3" />
                   <span>Logout</span>
@@ -75,7 +75,7 @@ export default function Navbar() {
             ) : (
               <Link
                 href="/login"
-                className="hover:text-amber-300 transition text-amber-400 font-bold flex items-center gap-1"
+                className="hover:text-amber-700 transition text-amber-800 font-bold flex items-center gap-1"
               >
                 <UserIcon className="w-3.5 h-3.5" />
                 <span>Citizen Login</span>
@@ -115,7 +115,7 @@ export default function Navbar() {
             className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold text-slate-700 hover:text-blue-700 hover:bg-white transition shadow-none hover:shadow-sm"
           >
             <Building2 className="w-4 h-4 text-blue-600" />
-            <span>Directory</span>
+            <span>Businesses</span>
           </Link>
 
           <Link
@@ -228,7 +228,7 @@ export default function Navbar() {
             className="flex items-center gap-3 py-2.5 text-slate-800 font-semibold text-sm border-b border-slate-100"
           >
             <Building2 className="w-4 h-4 text-blue-600" />
-            <span>Commercial Business Directory (50 Categories)</span>
+            <span>Commercial Businesses (50 Categories)</span>
           </Link>
 
           <Link

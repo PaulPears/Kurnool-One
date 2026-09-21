@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, SafeAreaView, ScrollView, TouchableOpacity,
-  Linking, Share, StyleSheet,
+  Linking, Share, StyleSheet, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
@@ -23,6 +23,12 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
       const waNumber = num.startsWith('91') ? num : `91${num}`;
       Linking.openURL(`https://wa.me/${waNumber}?text=Hello ${pro.fullName}, I found your profile on Kurnool One and need your service.`).catch(() => {});
     }
+  };
+
+  const handleOpenLink = (url?: string) => {
+    if (!url) return;
+    const finalUrl = url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`;
+    Linking.openURL(finalUrl).catch(() => {});
   };
 
   const handleShare = async () => {
@@ -50,7 +56,11 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
         {/* Profile Header Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{pro.fullName.charAt(0)}</Text>
+            {pro.avatarUrl ? (
+              <Image source={{ uri: pro.avatarUrl }} style={{ width: 72, height: 72, borderRadius: 36 }} />
+            ) : (
+              <Text style={styles.avatarText}>{pro.fullName.charAt(0)}</Text>
+            )}
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 }}>
@@ -117,6 +127,51 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
           <View style={styles.card}>
             <Text style={styles.cardTitle}>About Services</Text>
             <Text style={styles.descText}>{pro.description}</Text>
+          </View>
+        )}
+
+        {/* Social Media & Online Profiles */}
+        {(pro.instagramUrl || pro.youtubeUrl || pro.linkedinUrl || pro.twitterUrl || pro.facebookUrl || pro.websiteUrl) && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Social & Online Profiles</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {pro.instagramUrl && (
+                <TouchableOpacity onPress={() => handleOpenLink(pro.instagramUrl)} style={[styles.areaPill, { backgroundColor: '#FDF2F8' }]}>
+                  <Ionicons name="logo-instagram" size={16} color="#DB2777" />
+                  <Text style={[styles.areaPillText, { color: '#BE185D' }]}>Instagram</Text>
+                </TouchableOpacity>
+              )}
+              {pro.youtubeUrl && (
+                <TouchableOpacity onPress={() => handleOpenLink(pro.youtubeUrl)} style={[styles.areaPill, { backgroundColor: '#FEF2F2' }]}>
+                  <Ionicons name="logo-youtube" size={16} color="#DC2626" />
+                  <Text style={[styles.areaPillText, { color: '#B91C1C' }]}>YouTube</Text>
+                </TouchableOpacity>
+              )}
+              {pro.linkedinUrl && (
+                <TouchableOpacity onPress={() => handleOpenLink(pro.linkedinUrl)} style={[styles.areaPill, { backgroundColor: '#EFF6FF' }]}>
+                  <Ionicons name="logo-linkedin" size={16} color="#0284C7" />
+                  <Text style={[styles.areaPillText, { color: '#0369A1' }]}>LinkedIn</Text>
+                </TouchableOpacity>
+              )}
+              {pro.twitterUrl && (
+                <TouchableOpacity onPress={() => handleOpenLink(pro.twitterUrl)} style={[styles.areaPill, { backgroundColor: '#F8FAFC' }]}>
+                  <Ionicons name="logo-twitter" size={16} color="#0F172A" />
+                  <Text style={[styles.areaPillText, { color: '#0F172A' }]}>Twitter / X</Text>
+                </TouchableOpacity>
+              )}
+              {pro.facebookUrl && (
+                <TouchableOpacity onPress={() => handleOpenLink(pro.facebookUrl)} style={[styles.areaPill, { backgroundColor: '#EFF6FF' }]}>
+                  <Ionicons name="logo-facebook" size={16} color="#1D4ED8" />
+                  <Text style={[styles.areaPillText, { color: '#1D4ED8' }]}>Facebook</Text>
+                </TouchableOpacity>
+              )}
+              {pro.websiteUrl && (
+                <TouchableOpacity onPress={() => handleOpenLink(pro.websiteUrl)} style={[styles.areaPill, { backgroundColor: '#F0FDF4' }]}>
+                  <Ionicons name="globe-outline" size={16} color="#16A34A" />
+                  <Text style={[styles.areaPillText, { color: '#15803D' }]}>Website</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         )}
 

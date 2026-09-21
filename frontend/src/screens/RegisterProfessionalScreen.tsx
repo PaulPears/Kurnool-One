@@ -40,8 +40,13 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
   const [whatsapp, setWhatsapp] = useState('');
   const [visitingCharges, setVisitingCharges] = useState('₹150');
   const [hourlyRate, setHourlyRate] = useState('');
+  const [avatarUrlText, setAvatarUrlText] = useState('');
   const [instagramUrl, setInstagramUrl] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [twitterUrl, setTwitterUrl] = useState('');
+  const [facebookUrl, setFacebookUrl] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
   const [description, setDescription] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -133,6 +138,8 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
         .map(s => s.trim())
         .filter(Boolean);
 
+      const finalAvatar = uploadedAvatarUrl || avatarUrlText.trim() || undefined;
+
       await registerProfessional({
         fullName: fullName.trim(),
         category: selectedCat.name_en,
@@ -143,10 +150,14 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
         whatsapp: whatsapp.trim() || phone.trim(),
         visitingCharges: visitingCharges.trim(),
         hourlyRate: hourlyRate.trim() || undefined,
+        avatarUrl: finalAvatar,
         instagramUrl: instagramUrl.trim() || undefined,
         youtubeUrl: youtubeUrl.trim() || undefined,
+        linkedinUrl: linkedinUrl.trim() || undefined,
+        twitterUrl: twitterUrl.trim() || undefined,
+        facebookUrl: facebookUrl.trim() || undefined,
+        websiteUrl: websiteUrl.trim() || undefined,
         description: description.trim() || `Professional ${selectedCat.name_en} serving Kurnool.`,
-        avatarUrl: uploadedAvatarUrl || undefined,
         portfolioPhotos: [],
         verifiedProfessional: true,
         status: 'active',
@@ -157,8 +168,8 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
       Alert.alert(
         language === 'en' ? 'Profile Published!' : 'ప్రొఫైల్ ప్రచురించబడింది!',
         language === 'en'
-          ? `Your professional profile (${selectedPlan.replace('_', ' ').toUpperCase()} Plan) is now live in the Kurnool One Directory.`
-          : 'మీ ప్రొఫైల్ ఇప్పుడు కర్నూలు వన్ డైరెక్టరీలో ప్రత్యక్షంగా ఉంది.',
+          ? `Your professional profile (${selectedPlan.replace('_', ' ').toUpperCase()} Plan) is now live in Kurnool One.`
+          : 'మీ ప్రొఫైల్ ఇప్పుడు కర్నూలు వన్‌లో ప్రత్యక్షంగా ఉంది.',
         [{ text: 'OK', onPress: () => navigation.replace('Main') }]
       );
     } catch (e: any) {
@@ -276,11 +287,11 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
           ))}
         </View>
 
-        {/* Avatar Picker */}
+        {/* Avatar Picker & Photo URL */}
         <View style={styles.avatarSection}>
           <TouchableOpacity onPress={pickImage} style={styles.avatarWrap}>
-            {imageUri ? (
-              <Image source={{ uri: imageUri }} style={styles.avatarImg} />
+            {imageUri || avatarUrlText ? (
+              <Image source={{ uri: imageUri || avatarUrlText }} style={styles.avatarImg} />
             ) : (
               <View style={styles.avatarPlaceholder}>
                 <Ionicons name="camera" size={32} color="#9CA3AF" />
@@ -292,8 +303,16 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
             </View>
           </TouchableOpacity>
           <Text style={styles.avatarHint}>
-            {language === 'en' ? 'Upload your photo or creator avatar' : 'మీ ఫోటో లేదా లోగోను అప్‌లోడ్ చేయండి'}
+            {language === 'en' ? 'Upload your photo or enter image URL below' : 'మీ ఫోటో అప్‌లోడ్ చేయండి లేదా లింక్ నమోదు చేయండి'}
           </Text>
+          <TextInput
+            style={[styles.input, { width: '100%', marginTop: 8, fontSize: 13 }]}
+            placeholder="Or paste profile photo URL (https://...)"
+            placeholderTextColor="#9CA3AF"
+            autoCapitalize="none"
+            value={avatarUrlText}
+            onChangeText={setAvatarUrlText}
+          />
         </View>
 
         {/* Category Picker */}
@@ -425,9 +444,13 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* Social Links for Influencers */}
+        {/* Social Media & Channels (All Optional) */}
+        <Text style={[styles.label, { marginTop: 12, fontWeight: '800', color: '#0F172A' }]}>
+          {language === 'en' ? 'Social Media Accounts (All Optional)' : 'సోషల్ మీడియా ఖాతాలు (ఐచ్ఛికం)'}
+        </Text>
+
         <Text style={styles.label}>
-          {language === 'en' ? 'Instagram Profile URL (For Creators)' : 'ఇన్‌స్టాగ్రామ్ లింక్'}
+          {language === 'en' ? 'Instagram Profile URL (Optional)' : 'ఇన్‌స్టాగ్రామ్ లింక్ (ఐచ్ఛికం)'}
         </Text>
         <TextInput
           style={styles.input}
@@ -439,7 +462,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
         />
 
         <Text style={styles.label}>
-          {language === 'en' ? 'YouTube Channel URL' : 'యూట్యూబ్ లింక్'}
+          {language === 'en' ? 'YouTube Channel URL (Optional)' : 'యూట్యూబ్ లింక్ (ఐచ్ఛికం)'}
         </Text>
         <TextInput
           style={styles.input}
@@ -448,6 +471,54 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
           autoCapitalize="none"
           value={youtubeUrl}
           onChangeText={setYoutubeUrl}
+        />
+
+        <Text style={styles.label}>
+          {language === 'en' ? 'LinkedIn Profile URL (Optional)' : 'లింక్డ్‌ఇన్ ప్రొఫైల్ (ఐచ్ఛికం)'}
+        </Text>
+        <TextInput
+          style={styles.input}
+          placeholder="https://linkedin.com/in/your_name"
+          placeholderTextColor="#9CA3AF"
+          autoCapitalize="none"
+          value={linkedinUrl}
+          onChangeText={setLinkedinUrl}
+        />
+
+        <Text style={styles.label}>
+          {language === 'en' ? 'Twitter / X Profile URL (Optional)' : 'ట్విట్టర్ / X ప్రొఫైల్ (ఐచ్ఛికం)'}
+        </Text>
+        <TextInput
+          style={styles.input}
+          placeholder="https://x.com/your_handle"
+          placeholderTextColor="#9CA3AF"
+          autoCapitalize="none"
+          value={twitterUrl}
+          onChangeText={setTwitterUrl}
+        />
+
+        <Text style={styles.label}>
+          {language === 'en' ? 'Facebook Profile URL (Optional)' : 'ఫేస్‌బుక్ ప్రొఫైల్ (ఐచ్ఛికం)'}
+        </Text>
+        <TextInput
+          style={styles.input}
+          placeholder="https://facebook.com/your_profile"
+          placeholderTextColor="#9CA3AF"
+          autoCapitalize="none"
+          value={facebookUrl}
+          onChangeText={setFacebookUrl}
+        />
+
+        <Text style={styles.label}>
+          {language === 'en' ? 'Personal Website / Portfolio (Optional)' : 'వెబ్‌సైట్ / పోర్ట్‌ఫోలియో (ఐచ్ఛికం)'}
+        </Text>
+        <TextInput
+          style={styles.input}
+          placeholder="https://yourportfolio.com"
+          placeholderTextColor="#9CA3AF"
+          autoCapitalize="none"
+          value={websiteUrl}
+          onChangeText={setWebsiteUrl}
         />
 
         {/* Bio / Description */}

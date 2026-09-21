@@ -78,7 +78,7 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Home' }} />
-      <Tab.Screen name="Directory" component={DirectoryScreen} options={{ tabBarLabel: 'Directory' }} />
+      <Tab.Screen name="Directory" component={DirectoryScreen} options={{ tabBarLabel: 'Businesses' }} />
       <Tab.Screen name="Explore" component={ExploreScreen} options={{ tabBarLabel: 'Explore' }} />
       <Tab.Screen name="Offers" component={OffersScreen} options={{ tabBarLabel: 'Offers' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />

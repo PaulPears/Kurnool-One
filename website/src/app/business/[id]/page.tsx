@@ -115,7 +115,7 @@ export default async function BusinessDetailPage({ params }: PageProps) {
             className="inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-blue-600 transition"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back to Directory</span>
+            <span>Back to Businesses</span>
           </Link>
           <span className="text-xs text-slate-400 font-medium">Kurnool One Business Profile</span>
         </div>
@@ -268,19 +268,60 @@ export default async function BusinessDetailPage({ params }: PageProps) {
                   </div>
                 </div>
 
-                {business.website && (
-                  <div className="flex items-start gap-3 pt-4 border-t border-slate-200/80">
-                    <Globe className="w-5 h-5 text-purple-600 shrink-0 mt-0.5" />
-                    <div className="text-sm">
-                      <div className="font-bold text-slate-900">Official Website</div>
-                      <a
-                        href={business.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-purple-600 font-bold hover:underline break-all"
-                      >
-                        {business.website} ↗
-                      </a>
+                {business.socialLinks && Object.values(business.socialLinks).some(Boolean) && (
+                  <div className="pt-4 border-t border-slate-200/80">
+                    <div className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Social & Online Profiles</div>
+                    <div className="flex flex-wrap gap-2">
+                      {business.socialLinks.instagram && (
+                        <a
+                          href={business.socialLinks.instagram}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1 rounded-lg bg-pink-50 text-pink-700 hover:bg-pink-100 text-xs font-bold transition flex items-center gap-1"
+                        >
+                          Instagram ↗
+                        </a>
+                      )}
+                      {business.socialLinks.facebook && (
+                        <a
+                          href={business.socialLinks.facebook}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-bold transition flex items-center gap-1"
+                        >
+                          Facebook ↗
+                        </a>
+                      )}
+                      {business.socialLinks.youtube && (
+                        <a
+                          href={business.socialLinks.youtube}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 text-xs font-bold transition flex items-center gap-1"
+                        >
+                          YouTube ↗
+                        </a>
+                      )}
+                      {business.socialLinks.twitter && (
+                        <a
+                          href={business.socialLinks.twitter}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 hover:bg-slate-200 text-xs font-bold transition flex items-center gap-1"
+                        >
+                          Twitter / X ↗
+                        </a>
+                      )}
+                      {business.socialLinks.linkedin && (
+                        <a
+                          href={business.socialLinks.linkedin}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 text-xs font-bold transition flex items-center gap-1"
+                        >
+                          LinkedIn ↗
+                        </a>
+                      )}
                     </div>
                   </div>
                 )}
