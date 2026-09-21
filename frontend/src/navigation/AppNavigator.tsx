@@ -23,6 +23,9 @@ import NotificationScreen from '../screens/NotificationScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import CreatePostScreen from '../screens/CreatePostScreen';
 import VerticalImageViewer from '../screens/VerticalImageViewer';
+import ManageBusinessScreen from '../screens/ManageBusinessScreen';
+import RegisterProfessionalScreen from '../screens/RegisterProfessionalScreen';
+import ManageProfessionalScreen from '../screens/ManageProfessionalScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -101,6 +104,9 @@ export default function AppNavigator() {
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
         <Stack.Screen name="AdminBanners" component={AdminBannerScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
+        <Stack.Screen name="ManageBusiness" component={ManageBusinessScreen} />
+        <Stack.Screen name="RegisterProfessional" component={RegisterProfessionalScreen} />
+        <Stack.Screen name="ManageProfessional" component={ManageProfessionalScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, SafeAreaView, ScrollView, TouchableOpacity,
-  FlatList, ActivityIndicator, Alert, RefreshControl, Image,
+  FlatList, ActivityIndicator, Alert, RefreshControl, Image, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -316,21 +316,89 @@ export default function AdminDashboardScreen({ navigation }: any) {
       keyExtractor={(item) => item.id.toString()}
       className="p-4"
       renderItem={({ item }) => (
-        <View className="bg-white p-4 rounded-3xl mb-4 shadow-sm border border-gray-100">
-          <View className="flex-row justify-between items-center mb-2">
-            <Text className="font-bold text-lg flex-1 mr-2" numberOfLines={1}>{item.name_en || item.name_te}</Text>
+        <View className="bg-white p-5 rounded-3xl mb-4 shadow-sm border border-gray-100">
+          <View className="flex-row items-center mb-3">
+            {item.images && item.images.length > 0 ? (
+              <Image source={{ uri: item.images[0] }} className="w-14 h-14 rounded-2xl mr-3 bg-gray-100" />
+            ) : (
+              <View className="w-14 h-14 rounded-2xl mr-3 bg-blue-50 items-center justify-center">
+                <Ionicons name="storefront-outline" size={26} color="#2563EB" />
+              </View>
+            )}
+            <View className="flex-1">
+              <Text className="font-bold text-lg text-gray-900" numberOfLines={1}>{item.name_en || item.name_te}</Text>
+              <Text className="text-gray-500 text-xs mt-0.5">📞 {item.phone}</Text>
+              <View className="flex-row items-center gap-1.5 mt-1.5">
+                <View className={`px-2 py-0.5 rounded-md ${item.planId === 'premium' ? 'bg-amber-100' : item.planId === 'verified' ? 'bg-emerald-100' : 'bg-gray-100'}`}>
+                  <Text className={`text-[9px] font-black uppercase ${item.planId === 'premium' ? 'text-amber-800' : item.planId === 'verified' ? 'text-emerald-800' : 'text-gray-600'}`}>
+                    {item.planId === 'premium' ? '👑 Premium (₹1,499)' : item.planId === 'verified' ? '🛡️ Verified (₹499)' : 'Basic Free'}
+                  </Text>
+                </View>
+                <View className={`px-2 py-0.5 rounded-md ${item.paymentStatus === 'paid' ? 'bg-green-100' : 'bg-gray-100'}`}>
+                  <Text className={`text-[9px] font-black uppercase ${item.paymentStatus === 'paid' ? 'text-green-800' : 'text-gray-500'}`}>
+                    {item.paymentStatus === 'paid' ? '💳 PAID' : 'FREE / UNPAID'}
+                  </Text>
+                </View>
+              </View>
+            </View>
             <View className="bg-amber-100 px-3 py-1 rounded-full">
-              <Text className="text-amber-700 text-[10px] font-bold uppercase">Pending Review</Text>
+              <Text className="text-amber-700 text-[10px] font-bold uppercase">Pending</Text>
             </View>
           </View>
-          <Text className="text-gray-600 text-sm mb-1">{item.address}</Text>
-          <Text className="text-gray-500 text-xs mb-3">Phone: {item.phone}</Text>
+
+          <Text className="text-gray-600 text-xs mb-3">📍 {item.address}</Text>
+
+          {/* Website and Map Verification Links */}
+          <View className="flex-row flex-wrap gap-2 mb-4">
+            {item.website ? (
+              <TouchableOpacity
+                onPress={() => Linking.openURL(item.website).catch(() => Alert.alert('Error', 'Cannot open website URL'))}
+                className="flex-row items-center bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-xl"
+              >
+                <Ionicons name="globe-outline" size={14} color="#7C3AED" />
+                <Text className="text-purple-700 text-xs font-bold ml-1.5" numberOfLines={1}>
+                  Open Website ↗
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View className="flex-row items-center bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-xl">
+                <Text className="text-gray-400 text-xs">No Website</Text>
+              </View>
+            )}
+
+            {item.googleMapsUrl ? (
+              <TouchableOpacity
+                onPress={() => Linking.openURL(item.googleMapsUrl).catch(() => Alert.alert('Error', 'Cannot open Google Maps URL'))}
+                className="flex-row items-center bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl"
+              >
+                <Ionicons name="map-outline" size={14} color="#0284C7" />
+                <Text className="text-sky-700 text-xs font-bold ml-1.5">
+                  View on Map ↗
+                </Text>
+              </TouchableOpacity>
+            ) : item.address ? (
+              <TouchableOpacity
+                onPress={() => {
+                  const q = encodeURIComponent(`${item.name_en || ''}, ${item.address}, Kurnool`);
+                  Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`).catch(() => {});
+                }}
+                className="flex-row items-center bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl"
+              >
+                <Ionicons name="navigate-outline" size={14} color="#6B7280" />
+                <Text className="text-gray-600 text-xs font-bold ml-1.5">
+                  Search Location ↗
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          {/* Action Buttons */}
           <View className="flex-row gap-3">
-            <TouchableOpacity onPress={() => handleBusinessAction(item.id, 'approve')} className="flex-1 bg-green-500 py-3 rounded-2xl items-center">
-              <Text className="text-white font-bold">Approve & Verify</Text>
+            <TouchableOpacity onPress={() => handleBusinessAction(item.id, 'approve')} className="flex-1 bg-green-500 py-3 rounded-2xl items-center shadow-sm">
+              <Text className="text-white font-bold text-sm">Approve & Verify</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => handleBusinessAction(item.id, 'reject')} className="flex-1 bg-red-50 py-3 rounded-2xl items-center border border-red-100">
-              <Text className="text-red-500 font-bold">Reject</Text>
+              <Text className="text-red-500 font-bold text-sm">Reject</Text>
             </TouchableOpacity>
           </View>
         </View>

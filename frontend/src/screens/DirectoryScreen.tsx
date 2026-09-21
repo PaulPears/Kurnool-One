@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
 import {
-  MASTER_CATEGORIES, fetchBusinesses, fetchProfessionals,
+  MASTER_CATEGORIES, PROFESSIONAL_CATEGORIES, fetchBusinesses, fetchProfessionals,
   BusinessItem, ProfessionalItem, CategoryItem,
 } from '../services/directoryService';
 
@@ -33,7 +33,7 @@ export default function DirectoryScreen({ route, navigation }: any) {
         const data = await fetchBusinesses(selectedCategory, searchQuery);
         setBusinesses(data);
       } else {
-        const data = await fetchProfessionals(selectedCategory);
+        const data = await fetchProfessionals(selectedCategory, searchQuery);
         setProfessionals(data);
       }
     } catch (e) {
@@ -48,6 +48,9 @@ export default function DirectoryScreen({ route, navigation }: any) {
     if (activeTab === 'businesses') {
       const data = await fetchBusinesses(selectedCategory, text);
       setBusinesses(data);
+    } else {
+      const data = await fetchProfessionals(selectedCategory, text);
+      setProfessionals(data);
     }
   };
 
@@ -80,11 +83,15 @@ export default function DirectoryScreen({ route, navigation }: any) {
           </Text>
         </View>
         <TouchableOpacity
-          onPress={() => navigation.navigate('RegisterBusiness')}
+          onPress={() => navigation.navigate(activeTab === 'professionals' ? 'RegisterProfessional' : 'RegisterBusiness')}
           style={styles.addBizBtn}
         >
           <Ionicons name="add" size={18} color="#FFFFFF" />
-          <Text style={styles.addBizText}>{language === 'en' ? 'List Shop' : 'నమోదు'}</Text>
+          <Text style={styles.addBizText}>
+            {activeTab === 'professionals'
+              ? (language === 'en' ? 'List Yourself' : 'నమోదు')
+              : (language === 'en' ? 'List Shop' : 'నమోదు')}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -136,34 +143,36 @@ export default function DirectoryScreen({ route, navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* Category Horizontal Filter */}
-      {activeTab === 'businesses' && (
-        <View style={styles.categoryScrollWrap}>
-          <FlatList
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={[{ id: 'all', name_en: 'All', name_te: 'అన్నీ' }, ...MASTER_CATEGORIES]}
-            keyExtractor={item => item.id}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, gap: 8 }}
-            renderItem={({ item }) => {
-              const isSelected = selectedCategory === item.id;
-              return (
-                <TouchableOpacity
-                  onPress={() => {
-                    setSelectedCategory(item.id);
-                    setSelectedSubcategory('all');
-                  }}
-                  style={[styles.categoryChip, isSelected && styles.categoryChipActive]}
-                >
-                  <Text style={[styles.categoryChipText, isSelected && styles.categoryChipTextActive]}>
-                    {language === 'en' ? item.name_en : item.name_te}
-                  </Text>
-                </TouchableOpacity>
-              );
-            }}
-          />
-        </View>
-      )}
+      {/* Category Horizontal Filter (Businesses & Professionals) */}
+      <View style={styles.categoryScrollWrap}>
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={
+            activeTab === 'professionals'
+              ? [{ id: 'all', name_en: 'All Pros', name_te: 'అందరూ' }, ...PROFESSIONAL_CATEGORIES]
+              : [{ id: 'all', name_en: 'All', name_te: 'అన్నీ' }, ...MASTER_CATEGORIES]
+          }
+          keyExtractor={item => item.id}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, gap: 8 }}
+          renderItem={({ item }) => {
+            const isSelected = selectedCategory === item.id;
+            return (
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedCategory(item.id);
+                  setSelectedSubcategory('all');
+                }}
+                style={[styles.categoryChip, isSelected && styles.categoryChipActive]}
+              >
+                <Text style={[styles.categoryChipText, isSelected && styles.categoryChipTextActive]}>
+                  {language === 'en' ? item.name_en : item.name_te}
+                </Text>
+              </TouchableOpacity>
+            );
+          }}
+        />
+      </View>
 
       {/* List Content */}
       {loading ? (
@@ -275,7 +284,11 @@ export default function DirectoryScreen({ route, navigation }: any) {
             >
               <View style={styles.proHeader}>
                 <View style={styles.proAvatar}>
-                  <Text style={styles.proAvatarText}>{item.fullName.charAt(0)}</Text>
+                  {item.avatarUrl ? (
+                    <Image source={{ uri: item.avatarUrl }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+                  ) : (
+                    <Text style={styles.proAvatarText}>{item.fullName.charAt(0)}</Text>
+                  )}
                 </View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>

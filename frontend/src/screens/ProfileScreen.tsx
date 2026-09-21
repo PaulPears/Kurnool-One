@@ -256,6 +256,68 @@ export default function ProfileScreen({ route, navigation }: any) {
 
         {/* Menu List Cards */}
         <View style={styles.menuContainer}>
+          {isSelf && (
+            <>
+              {/* Business Portal Section */}
+              <View style={{ marginBottom: 12 }}>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: '#1E40AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginLeft: 4 }}>
+                  Commercial Business Portal
+                </Text>
+
+                <TouchableOpacity style={styles.menuCard} onPress={() => navigation.navigate('ManageBusiness')}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: '#DBEAFE' }]}>
+                    <Ionicons name="storefront" size={22} color="#2563EB" />
+                  </View>
+                  <View style={styles.menuContent}>
+                    <Text style={styles.menuTitle}>{language === 'en' ? 'Business Dashboard' : 'వ్యాపార డాష్‌బోర్డ్'}</Text>
+                    <Text style={styles.menuSubtitle}>{language === 'en' ? 'Shop hours, analytics & post offers' : 'సమయాలు, అనలిటిక్స్ మరియు ఆఫర్లు'}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.menuCard} onPress={() => navigation.navigate('RegisterBusiness')}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: '#EFF6FF' }]}>
+                    <Ionicons name="add-circle" size={22} color="#2563EB" />
+                  </View>
+                  <View style={styles.menuContent}>
+                    <Text style={styles.menuTitle}>{language === 'en' ? 'Register Business / Shop' : 'వ్యాపారం నమోదు చేయండి'}</Text>
+                    <Text style={styles.menuSubtitle}>{language === 'en' ? 'Get verified & receive customer calls' : 'ధృవీకరణ & కస్టమర్ కాల్స్ పొందండి'}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Professional Portal Section */}
+              <View style={{ marginBottom: 12 }}>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: '#0F766E', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginLeft: 4 }}>
+                  Professional & Creator Portal
+                </Text>
+
+                <TouchableOpacity style={styles.menuCard} onPress={() => navigation.navigate('ManageProfessional')}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: '#CCFBF1' }]}>
+                    <Ionicons name="briefcase" size={22} color="#0D9488" />
+                  </View>
+                  <View style={styles.menuContent}>
+                    <Text style={styles.menuTitle}>{language === 'en' ? 'Professional Dashboard' : 'ప్రొఫెషనల్ డాష్‌బోర్డ్'}</Text>
+                    <Text style={styles.menuSubtitle}>{language === 'en' ? 'Manage rates, leads & social links' : 'ధరలు, లీడ్స్ & సోషల్ లింకులు'}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.menuCard} onPress={() => navigation.navigate('RegisterProfessional')}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: '#F0FDFA' }]}>
+                    <Ionicons name="person-add" size={22} color="#0D9488" />
+                  </View>
+                  <View style={styles.menuContent}>
+                    <Text style={styles.menuTitle}>{language === 'en' ? 'List Pro Profile' : 'వ్యక్తిగత ప్రొఫైల్ నమోదు'}</Text>
+                    <Text style={styles.menuSubtitle}>{language === 'en' ? 'Doctor, Influencer, Tech & Freelancer' : 'డాక్టర్, ఇన్‌ఫ్లుయెన్సర్, టెక్నీషియన్ & ఫ్రీలాన్సర్'}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+
           {user && (user.role === 'admin' || user.role === 'super_admin') && isSelf && (
             <TouchableOpacity style={styles.menuCard} onPress={() => navigation.navigate('AdminDashboard')}>
               <View style={[styles.menuIconContainer, { backgroundColor: '#FEE2E2' }]}>

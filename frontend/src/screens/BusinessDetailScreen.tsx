@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
 import {
-  fetchBusinessById, fetchBusinessReviews, addBusinessReview,
+  fetchBusinessById, fetchBusinessReviews, addBusinessReview, trackBusinessInteraction,
   BusinessItem, BusinessReview,
 } from '../services/directoryService';
 import { auth } from '../config/firebase';
@@ -35,6 +35,7 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
       const data = await fetchBusinessById(businessId);
       setBusiness(data);
       if (businessId) {
+        trackBusinessInteraction(businessId, 'view');
         const revs = await fetchBusinessReviews(businessId);
         setReviews(revs);
       }
@@ -47,12 +48,14 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
 
   const handleCall = () => {
     if (business?.phone) {
+      if (businessId) trackBusinessInteraction(businessId, 'call');
       Linking.openURL(`tel:${business.phone}`).catch(() => {});
     }
   };
 
   const handleWhatsApp = () => {
     if (business?.whatsapp) {
+      if (businessId) trackBusinessInteraction(businessId, 'whatsapp');
       const clean = business.whatsapp.replace(/[^0-9]/g, '');
       const waNumber = clean.startsWith('91') ? clean : `91${clean}`;
       Linking.openURL(`https://wa.me/${waNumber}?text=Hello, I found your listing on Kurnool One.`).catch(() => {});
@@ -60,11 +63,25 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
   };
 
   const handleDirections = () => {
-    if (business?.latitude && business?.longitude) {
+    if (business?.googleMapsUrl) {
+      Linking.openURL(business.googleMapsUrl).catch(() => {});
+    } else if (business?.latitude && business?.longitude) {
       Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${business.latitude},${business.longitude}`).catch(() => {});
     } else if (business?.address) {
       const query = encodeURIComponent(`${business.name_en}, ${business.address}, Kurnool`);
       Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`).catch(() => {});
+    }
+  };
+
+  const handleWebsite = () => {
+    if (business?.website) {
+      let url = business.website.trim();
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = `https://${url}`;
+      }
+      Linking.openURL(url).catch(() => {
+        Alert.alert('Unable to open link', 'Please verify the website URL.');
+      });
     }
   };
 
@@ -184,21 +201,28 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
           {/* Big Action Buttons */}
           <View style={styles.actionButtonsGrid}>
             <TouchableOpacity onPress={handleCall} style={styles.actionBtnCall}>
-              <Ionicons name="call" size={18} color="#FFFFFF" />
+              <Ionicons name="call" size={16} color="#FFFFFF" />
               <Text style={styles.actionBtnText}>Call</Text>
             </TouchableOpacity>
 
-            {business.whatsapp && (
+            {business.whatsapp ? (
               <TouchableOpacity onPress={handleWhatsApp} style={styles.actionBtnWa}>
-                <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" />
+                <Ionicons name="logo-whatsapp" size={16} color="#FFFFFF" />
                 <Text style={styles.actionBtnText}>WhatsApp</Text>
               </TouchableOpacity>
-            )}
+            ) : null}
 
             <TouchableOpacity onPress={handleDirections} style={styles.actionBtnDir}>
-              <Ionicons name="navigate" size={18} color="#FFFFFF" />
-              <Text style={styles.actionBtnText}>Directions</Text>
+              <Ionicons name="navigate" size={16} color="#FFFFFF" />
+              <Text style={styles.actionBtnText}>Map</Text>
             </TouchableOpacity>
+
+            {business.website ? (
+              <TouchableOpacity onPress={handleWebsite} style={styles.actionBtnWeb}>
+                <Ionicons name="globe-outline" size={16} color="#FFFFFF" />
+                <Text style={styles.actionBtnText}>Website</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
 
           {/* Information Cards */}
@@ -224,6 +248,30 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
                   <Text style={styles.infoValue}>{business.timing}</Text>
                 </View>
               </View>
+            ) : null}
+
+            {business.website ? (
+              <TouchableOpacity onPress={handleWebsite} style={[styles.infoRow, { marginTop: 14 }]}>
+                <Ionicons name="globe-outline" size={18} color="#7C3AED" />
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.infoLabel}>Website</Text>
+                  <Text style={[styles.infoValue, { color: '#2563EB', textDecorationLine: 'underline' }]}>
+                    {business.website} ↗
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ) : null}
+
+            {business.googleMapsUrl ? (
+              <TouchableOpacity onPress={handleDirections} style={[styles.infoRow, { marginTop: 14 }]}>
+                <Ionicons name="map-outline" size={18} color="#0284C7" />
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.infoLabel}>Google Maps Location</Text>
+                  <Text style={[styles.infoValue, { color: '#0284C7' }]}>
+                    Open in Google Maps App ↗
+                  </Text>
+                </View>
+              </TouchableOpacity>
             ) : null}
           </View>
 
@@ -393,6 +441,10 @@ const styles = StyleSheet.create({
   actionBtnDir: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, backgroundColor: '#0284C7', paddingVertical: 12, borderRadius: 14,
+  },
+  actionBtnWeb: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, backgroundColor: '#7C3AED', paddingVertical: 12, borderRadius: 14,
   },
   actionBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
   card: {

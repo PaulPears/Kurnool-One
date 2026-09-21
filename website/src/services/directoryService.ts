@@ -1,12 +1,10 @@
 import {
-  collection, doc, getDoc, getDocs, addDoc, setDoc,
-  updateDoc, deleteDoc, query, where, orderBy, limit,
-  serverTimestamp, increment,
+  collection, doc, getDoc, getDocs, addDoc, updateDoc, increment, query, where, limit, serverTimestamp,
 } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { db, storage, auth } from '../config/firebase';
+import { db, storage } from '../config/firebase';
 
-// ─── TYPES & INTERFACES ──────────────────────────────────────────────────────
+// ─── TYPES ───────────────────────────────────────────────────────────────────
 
 export interface CategoryItem {
   id: string;
@@ -168,26 +166,10 @@ export interface PlaceItem {
   timings: string;
   entryFee?: string;
   bestTimeToVisit?: string;
-  dressCodeRules?: string;
   photos: string[];
   latitude?: number;
   longitude?: number;
   isPromoted: boolean;
-}
-
-export interface EventItem {
-  id: string;
-  title_en: string;
-  title_te?: string;
-  dateStr: string;
-  timeStr: string;
-  venue: string;
-  organizerName: string;
-  contactPhone: string;
-  posterUrl: string;
-  entryType: 'free' | 'ticketed';
-  ticketUrl?: string;
-  status: 'approved' | 'pending';
 }
 
 export interface OfferItem {
@@ -205,15 +187,22 @@ export interface OfferItem {
   category: string;
 }
 
-export interface BusinessReview {
+export interface EventItem {
   id: string;
-  businessId: string;
-  userId: string;
-  userName: string;
-  userPhoto?: string;
-  rating: number;
-  comment: string;
-  createdAt: string;
+  title_en: string;
+  title_te?: string;
+  category?: 'cultural' | 'expo' | 'sports' | 'devotional' | 'general';
+  dateStr: string;
+  timeStr: string;
+  venue: string;
+  organizerName: string;
+  contactPhone: string;
+  posterUrl: string;
+  entryType: 'free' | 'ticketed';
+  ticketPrice?: string;
+  ticketUrl?: string;
+  tier?: 'free' | 'featured' | 'mega';
+  status: 'approved' | 'pending';
 }
 
 // ─── MASTER CATEGORIES ───────────────────────────────────────────────────────
@@ -223,7 +212,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'restaurants_cafes',
     name_en: 'Restaurants & Cafes',
     name_te: 'రెస్టారెంట్లు & కేఫ్‌లు',
-    icon: 'restaurant',
+    icon: 'Utensils',
     subcategories: [
       { id: 'family_restaurant', name_en: 'Family Restaurant', name_te: 'ఫ్యామిలీ రెస్టారెంట్' },
       { id: 'cafes', name_en: 'Cafes & Coffee Shops', name_te: 'కేఫ్‌లు & కాఫీ షాపులు' },
@@ -235,7 +224,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'hotels_lodges',
     name_en: 'Hotels & Lodges',
     name_te: 'హోటళ్ళు & లాడ్జీలు',
-    icon: 'bed',
+    icon: 'Hotel',
     subcategories: [
       { id: 'luxury_hotels', name_en: 'Luxury & Business Hotels', name_te: 'లగ్జరీ హోటళ్ళు' },
       { id: 'budget_lodges', name_en: 'Budget Lodges & Rooms', name_te: 'బడ్జెట్ లాడ్జీలు' },
@@ -246,7 +235,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'supermarkets_groceries',
     name_en: 'Supermarkets & Grocery Stores',
     name_te: 'సూపర్‌మార్కెట్లు & కిరాణా దుకాణాలు',
-    icon: 'cart',
+    icon: 'ShoppingBag',
     subcategories: [
       { id: 'supermarkets', name_en: 'Supermarkets', name_te: 'సూపర్‌మార్కెట్లు' },
       { id: 'kirana_stores', name_en: 'Kirana & General Stores', name_te: 'కిరాణా దుకాణాలు' },
@@ -257,7 +246,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'clothing_fashion',
     name_en: 'Clothing & Fashion Stores',
     name_te: 'వస్త్ర & ఫ్యాషన్ దుకాణాలు',
-    icon: 'shirt',
+    icon: 'Shirt',
     subcategories: [
       { id: 'saree_showrooms', name_en: 'Saree & Pattu Showrooms', name_te: 'చీరలు & పట్టు వస్త్రాలు' },
       { id: 'mens_wear', name_en: "Men's Clothing", name_te: 'పురుషుల దుస్తులు' },
@@ -268,7 +257,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'electronics_mobiles',
     name_en: 'Electronics & Mobile Stores',
     name_te: 'ఎలక్ట్రానిక్స్ & మొబైల్ స్టోర్లు',
-    icon: 'phone-portrait',
+    icon: 'Smartphone',
     subcategories: [
       { id: 'mobile_showrooms', name_en: 'Mobile Phone Showrooms', name_te: 'మొబైల్ షోరూమ్‌లు' },
       { id: 'home_appliances', name_en: 'TV, Fridge & AC Showrooms', name_te: 'గృహోపకరణాలు' },
@@ -279,7 +268,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'hospitals_clinics',
     name_en: 'Hospitals & Clinics',
     name_te: 'ఆసుపత్రులు & క్లినిక్‌లు',
-    icon: 'medkit',
+    icon: 'HeartPulse',
     subcategories: [
       { id: 'multispeciality', name_en: 'Multi-Speciality Hospitals', name_te: 'మల్టీ-స్పెషాలిటీ ఆసుపత్రులు' },
       { id: 'dental_clinics', name_en: 'Dental Clinics', name_te: 'డెంటల్ క్లినిక్‌లు' },
@@ -291,7 +280,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'pharmacies_medical',
     name_en: 'Pharmacies & Medical Stores',
     name_te: 'మందుల దుకాణాలు',
-    icon: 'flask',
+    icon: 'Pill',
     subcategories: [
       { id: '24hr_pharmacy', name_en: '24/7 Medical Stores', name_te: '24 గంటల మందుల షాపులు' },
       { id: 'ayurvedic', name_en: 'Ayurvedic & Homeo Stores', name_te: 'ఆయుర్వేదిక్ & హోమియో' },
@@ -302,7 +291,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'educational_institutions',
     name_en: 'Educational Institutions',
     name_te: 'విద్యా సంస్థలు',
-    icon: 'school',
+    icon: 'GraduationCap',
     subcategories: [
       { id: 'schools', name_en: 'Private & CBSE Schools', name_te: 'పాఠశాలలు' },
       { id: 'colleges', name_en: 'Junior & Degree Colleges', name_te: 'జూనియర్ & డిగ్రీ కాలేజీలు' },
@@ -313,7 +302,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'coaching_training',
     name_en: 'Coaching & Training Centers',
     name_te: 'కోచింగ్ & శిక్షణా సంస్థలు',
-    icon: 'book',
+    icon: 'BookOpen',
     subcategories: [
       { id: 'govt_job_coaching', name_en: 'Govt Job & Bank Coaching', name_te: 'ప్రభుత్వ ఉద్యోగాల కోచింగ్' },
       { id: 'iit_neet_coaching', name_en: 'IIT-JEE & NEET Coaching', name_te: 'ఐఐటీ & నీట్ కోచింగ్' },
@@ -324,7 +313,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'it_software',
     name_en: 'IT & Software Companies',
     name_te: 'ఐటీ & సాఫ్ట్‌వేర్ సంస్థలు',
-    icon: 'laptop',
+    icon: 'Laptop',
     subcategories: [
       { id: 'web_app_development', name_en: 'Web & App Development', name_te: 'వెబ్ & యాప్ డెవలప్‌మెంట్' },
       { id: 'software_products', name_en: 'SaaS & Enterprise Software', name_te: 'ఎంటర్‌ప్రైజ్ సాఫ్ట్‌వేర్' },
@@ -335,7 +324,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'digital_marketing',
     name_en: 'Digital Marketing Agencies',
     name_te: 'డిజిటల్ మార్కెటింగ్ ఏజెన్సీలు',
-    icon: 'megaphone',
+    icon: 'Megaphone',
     subcategories: [
       { id: 'social_media_marketing', name_en: 'Social Media Management', name_te: 'సోషల్ మీడియా మార్కెటింగ్' },
       { id: 'seo_branding', name_en: 'SEO & Brand Promotions', name_te: 'ఎస్ఈఓ & బ్రాండింగ్' },
@@ -346,7 +335,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'real_estate',
     name_en: 'Real Estate & Properties',
     name_te: 'రియల్ ఎస్టేట్ & ప్రాపర్టీస్',
-    icon: 'home',
+    icon: 'Building2',
     subcategories: [
       { id: 'open_plots', name_en: 'Open Plots & Ventures', name_te: 'ఓపెన్ ప్లాట్లు & వెంచర్లు' },
       { id: 'apartments_villas', name_en: 'Flats & Luxury Villas', name_te: 'ఫ్లాట్లు & విల్లాలు' },
@@ -357,7 +346,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'construction_builders',
     name_en: 'Construction & Builders',
     name_te: 'కన్‌స్ట్రక్షన్ & బిల్డర్స్',
-    icon: 'construct',
+    icon: 'Hammer',
     subcategories: [
       { id: 'civil_contractors', name_en: 'Civil & Building Contractors', name_te: 'భవన కాంట్రాక్టర్లు' },
       { id: 'architects_engineers', name_en: 'Architects & Interior Designers', name_te: 'ఆర్కిటెక్ట్స్ & డిజైనర్లు' },
@@ -368,7 +357,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'automobile_dealers',
     name_en: 'Automobile Dealers',
     name_te: 'కార్ & బైక్ షోరూమ్‌లు',
-    icon: 'car-sport',
+    icon: 'Car',
     subcategories: [
       { id: 'two_wheeler_dealers', name_en: 'Two-Wheeler Showrooms', name_te: 'బైక్ & స్కూటర్ షోరూమ్‌లు' },
       { id: 'car_dealers', name_en: 'New & Used Car Showrooms', name_te: 'కార్ల షోరూమ్‌లు' },
@@ -379,7 +368,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'automobile_service',
     name_en: 'Automobile Service & Repair',
     name_te: 'ఆటోమొబైల్ సర్వీస్ & రిపేర్',
-    icon: 'build',
+    icon: 'Wrench',
     subcategories: [
       { id: 'bike_mechanics', name_en: 'Two-Wheeler Service Centers', name_te: 'బైక్ రిపేర్ సెంటర్లు' },
       { id: 'car_garages', name_en: 'Car Garages & Denting/Painting', name_te: 'కార్ గ్యారేజీలు' },
@@ -390,7 +379,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'beauty_salons',
     name_en: 'Beauty Parlours & Salons',
     name_te: 'బ్యూటీ పార్లర్లు & సెలూన్లు',
-    icon: 'sparkles',
+    icon: 'Sparkles',
     subcategories: [
       { id: 'women_parlours', name_en: "Ladies Beauty Parlours", name_te: 'మహిళల బ్యూటీ పార్లర్లు' },
       { id: 'mens_salons', name_en: "Men's Hair Salons & Grooming", name_te: 'పురుషుల సెలూన్లు' },
@@ -401,7 +390,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'fitness_gyms',
     name_en: 'Fitness Centers & Gyms',
     name_te: 'ఫిట్‌నెస్ సెంటర్లు & జిమ్‌లు',
-    icon: 'barbell',
+    icon: 'Dumbbell',
     subcategories: [
       { id: 'unisex_gyms', name_en: 'Gyms & Weight Training', name_te: 'జిమ్‌లు & వర్కవుట్ సెంటర్లు' },
       { id: 'yoga_zumba', name_en: 'Yoga & Aerobics Studios', name_te: 'యోగా & ఏరోబిక్స్' },
@@ -412,7 +401,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'jewellery_stores',
     name_en: 'Jewellery Stores',
     name_te: 'బంగారు & వెండి నగల దుకాణాలు',
-    icon: 'diamond',
+    icon: 'Gem',
     subcategories: [
       { id: 'gold_diamond', name_en: 'Gold & Diamond Showrooms', name_te: 'బంగారు & డైమండ్ నగల దుకాణాలు' },
       { id: 'silver_ornaments', name_en: 'Silver Ornaments & Articles', name_te: 'వెండి ఆభరణాలు' },
@@ -423,7 +412,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'furniture_home_decor',
     name_en: 'Furniture & Home Decor',
     name_te: 'ఫర్నిచర్ & హోమ్ డెకర్',
-    icon: 'bed',
+    icon: 'Armchair',
     subcategories: [
       { id: 'wooden_furniture', name_en: 'Sofas, Beds & Dining Sets', name_te: 'చెక్క ఫర్నిచర్' },
       { id: 'office_furniture', name_en: 'Office Chairs & Desks', name_te: 'ఆఫీస్ ఫర్నిచర్' },
@@ -434,7 +423,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'hardware_electrical',
     name_en: 'Hardware & Electrical Stores',
     name_te: 'హార్డ్‌వేర్ & ఎలక్ట్రికల్ దుకాణాలు',
-    icon: 'hardware-chip',
+    icon: 'Zap',
     subcategories: [
       { id: 'electrical_goods', name_en: 'Wires, Lights & Fans', name_te: 'ఎలక్ట్రికల్ వస్తువులు' },
       { id: 'paints_sanitary', name_en: 'Paints & Sanitary Ware', name_te: 'పెయింట్లు & శానిటరీ' },
@@ -445,7 +434,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'wholesale_distributors',
     name_en: 'Wholesale & Distributors',
     name_te: 'హోల్‌సేల్ & డిస్ట్రిబ్యూటర్లు',
-    icon: 'cube',
+    icon: 'Package',
     subcategories: [
       { id: 'fmcg_distributors', name_en: 'FMCG & Provision Distributors', name_te: 'ఎఫ్‌ఎంసీజీ డిస్ట్రిబ్యూటర్లు' },
       { id: 'pharma_distributors', name_en: 'Pharma Wholesalers', name_te: 'ఫార్మా హోల్‌సేలర్లు' },
@@ -456,7 +445,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'manufacturing_industries',
     name_en: 'Manufacturing & Industries',
     name_te: 'తయారీ & పరిశ్రమలు',
-    icon: 'business',
+    icon: 'Factory',
     subcategories: [
       { id: 'cement_granite', name_en: 'Slab, Cement & Granite Units', name_te: 'గ్రానైట్ & సిమెంట్ యూనిట్లు' },
       { id: 'plastic_packaging', name_en: 'Packaging & Plastics', name_te: 'ప్యాకేజింగ్ & ప్లాస్టిక్స్' },
@@ -467,7 +456,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'agriculture_farming',
     name_en: 'Agriculture & Farming Businesses',
     name_te: 'వ్యవసాయం & విత్తన వ్యాపారాలు',
-    icon: 'leaf',
+    icon: 'Sprout',
     subcategories: [
       { id: 'seeds_fertilizers', name_en: 'Seeds & Fertilizer Shops', name_te: 'విత్తనాలు & ఎరువుల దుకాణాలు' },
       { id: 'farm_machinery', name_en: 'Tractors & Farm Equipment', name_te: 'ట్రాక్టర్లు & పనిముట్లు' },
@@ -478,7 +467,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'travel_tourism',
     name_en: 'Travel & Tourism Agencies',
     name_te: 'ట్రావెల్స్ & టూరిజం ఏజెన్సీలు',
-    icon: 'airplane',
+    icon: 'Plane',
     subcategories: [
       { id: 'tour_operators', name_en: 'Pilgrimage & Holiday Packages', name_te: 'తీర్థయాత్రలు & టూర్ ప్యాకేజీలు' },
       { id: 'car_rentals', name_en: 'Taxi Services & Self-Drive Cars', name_te: 'కార్ రెంటల్స్ & ట్యాక్సీ' },
@@ -489,7 +478,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'event_management',
     name_en: 'Event Management Services',
     name_te: 'ఈవెంట్ మేనేజ్‌మెంట్',
-    icon: 'calendar',
+    icon: 'Calendar',
     subcategories: [
       { id: 'corporate_events', name_en: 'Corporate Events & Launches', name_te: 'కార్పొరేట్ ఈవెంట్లు' },
       { id: 'stage_lighting', name_en: 'Stage, Sound & LED Walls', name_te: 'సౌండ్ & లైటింగ్ సిస్టమ్స్' },
@@ -500,7 +489,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'wedding_planners',
     name_en: 'Wedding Planners & Decorators',
     name_te: 'వెడ్డింగ్ ప్లానర్స్ & డెకరేటర్స్',
-    icon: 'rose',
+    icon: 'PartyPopper',
     subcategories: [
       { id: 'wedding_decorators', name_en: 'Mandapam & Flower Decorators', name_te: 'మండపం & పూల అలంకరణ' },
       { id: 'destination_weddings', name_en: 'Complete Wedding Planners', name_te: 'సంపూర్ణ వివాహ ప్రణాళిక' },
@@ -511,7 +500,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'photography_studios',
     name_en: 'Photography & Videography Studios',
     name_te: 'ఫోటో & వీడియో స్టూడియోలు',
-    icon: 'camera',
+    icon: 'Camera',
     subcategories: [
       { id: 'wedding_photography', name_en: 'Candid Wedding Photographers', name_te: 'వివాహ ఫోటోగ్రఫీ' },
       { id: 'drone_cinematography', name_en: 'Drone Shoots & 4K Video', name_te: 'డ్రోన్ & 4K వీడియోగ్రఫీ' },
@@ -522,7 +511,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'financial_services',
     name_en: 'Financial Services & Consultants',
     name_te: 'ఆర్థిక సేవలు & కన్సల్టెంట్లు',
-    icon: 'cash',
+    icon: 'CreditCard',
     subcategories: [
       { id: 'loan_consultants', name_en: 'Home & Business Loans', name_te: 'రుణాల కన్సల్టెంట్లు' },
       { id: 'mutual_funds_tax', name_en: 'Mutual Funds, Stocks & Tax Planning', name_te: 'మ్యూచువల్ ఫండ్స్ & పన్ను ప్రణాళిక' },
@@ -533,7 +522,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'banks_insurance',
     name_en: 'Banks & Insurance Services',
     name_te: 'బ్యాంకులు & ఇన్సూరెన్స్ సేవలు',
-    icon: 'card',
+    icon: 'Landmark',
     subcategories: [
       { id: 'public_private_banks', name_en: 'Bank Branches & ATMs', name_te: 'బ్యాంకు శాఖలు & ఏటీఎంలు' },
       { id: 'life_health_insurance', name_en: 'Life & Health Insurance Agents', name_te: 'జీవిత & ఆరోగ్య బీమా' },
@@ -544,7 +533,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'legal_consultancy',
     name_en: 'Legal & Consultancy Services',
     name_te: 'న్యాయ & కన్సల్టెన్సీ సేవలు',
-    icon: 'briefcase',
+    icon: 'Scale',
     subcategories: [
       { id: 'advocates_chambers', name_en: 'Civil & Criminal Advocates', name_te: 'న్యాయవాదుల కార్యాలయాలు' },
       { id: 'doc_registration', name_en: 'Property Registration Document Writers', name_te: 'డాక్యుమెంట్ రైటర్లు' },
@@ -555,7 +544,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'courier_logistics',
     name_en: 'Courier & Logistics Services',
     name_te: 'కొరియర్ & లాజిస్టిక్స్ సర్వీసెస్',
-    icon: 'paper-plane',
+    icon: 'Truck',
     subcategories: [
       { id: 'domestic_couriers', name_en: 'Domestic Parcel Services', name_te: 'దేశీయ కొరియర్ సేవలు' },
       { id: 'international_courier', name_en: 'International Courier Agencies', name_te: 'అంతర్జాతీయ కొరియర్' },
@@ -566,7 +555,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'transportation_services',
     name_en: 'Transportation Services',
     name_te: 'రవాణా & ట్రాన్స్‌పోర్ట్ సర్వీసులు',
-    icon: 'bus',
+    icon: 'Bus',
     subcategories: [
       { id: 'lorry_goods_transport', name_en: 'Lorry & Truck Transport Office', name_te: 'లారీ & గూడ్స్ రవాణా' },
       { id: 'auto_cab_stands', name_en: 'Auto & Taxi Union Stands', name_te: 'ఆటో & క్యాబ్ స్టాండ్లు' },
@@ -577,7 +566,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'home_services_repairs',
     name_en: 'Home Services & Repairs',
     name_te: 'గృహ మరమ్మతులు & సర్వీసులు',
-    icon: 'hammer',
+    icon: 'Wrench',
     subcategories: [
       { id: 'plumbing_electrical', name_en: 'Plumbers & Electricians', name_te: 'ప్లంబింగ్ & ఎలక్ట్రికల్' },
       { id: 'appliance_repairs', name_en: 'RO, Fridge & Washing Machine Repair', name_te: 'గృహోపకరణాల మరమ్మతు' },
@@ -588,7 +577,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'cleaning_pest_control',
     name_en: 'Cleaning & Pest Control Services',
     name_te: 'క్లీనింగ్ & పెస్ట్ కంట్రోల్',
-    icon: 'shield-checkmark',
+    icon: 'Sparkle',
     subcategories: [
       { id: 'pest_control', name_en: 'Termite & Cockroach Pest Control', name_te: 'చీడపీడల నియంత్రణ' },
       { id: 'deep_cleaning', name_en: 'Deep Home & Office Cleaning', name_te: 'డీప్ క్లీనింగ్ సేవలు' },
@@ -599,7 +588,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'printing_advertising',
     name_en: 'Printing & Advertising Agencies',
     name_te: 'ప్రింటింగ్ & అడ్వర్టైజింగ్',
-    icon: 'print',
+    icon: 'Printer',
     subcategories: [
       { id: 'flex_banners', name_en: 'Flex Banners & Hoardings', name_te: 'ఫ్లెక్స్ బ్యానర్లు & హోర్డింగ్స్' },
       { id: 'offset_printing', name_en: 'Wedding Cards & Book Printing', name_te: 'పెళ్లి పత్రికలు & ఆఫ్‌సెట్ ప్రింటింగ్' },
@@ -610,7 +599,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'bakeries_sweets',
     name_en: 'Bakeries & Sweet Shops',
     name_te: 'బేకరీలు & స్వీట్ షాపులు',
-    icon: 'fast-food',
+    icon: 'Cake',
     subcategories: [
       { id: 'traditional_sweets', name_en: 'Kurnool Traditional Sweets & Ghee Treats', name_te: 'సంప్రదాయ స్వీట్స్' },
       { id: 'cake_pastry_bakeries', name_en: 'Fresh Cakes, Puffs & Bakery Items', name_te: 'కేకులు & బేకరీ తినుబండారాలు' },
@@ -621,7 +610,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'food_catering',
     name_en: 'Food & Catering Services',
     name_te: 'క్యాటరింగ్ & భోజన సేవలు',
-    icon: 'restaurant',
+    icon: 'UtensilsCrossed',
     subcategories: [
       { id: 'wedding_catering', name_en: 'Wedding & Function Catering', name_te: 'వివాహ & ఫంక్షన్ క్యాటరింగ్' },
       { id: 'mess_tiffin_services', name_en: 'Tiffin Services & Daily Mess', name_te: 'టిఫిన్ సెంటర్లు & మెస్' },
@@ -632,7 +621,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'dairy_milk',
     name_en: 'Dairy & Milk Products',
     name_te: 'డెయిరీ & పాల ఉత్పత్తులు',
-    icon: 'water',
+    icon: 'Milk',
     subcategories: [
       { id: 'fresh_milk_centers', name_en: 'Fresh Milk & Curd Centers', name_te: 'తాజా పాలు & పెరుగు కేంద్రాలు' },
       { id: 'paneer_ghee_stores', name_en: 'Pure Ghee, Paneer & Butter', name_te: 'స్వచ్ఛమైన నెయ్యి & పనీర్' },
@@ -643,7 +632,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'gift_toy_stores',
     name_en: 'Gift & Toy Stores',
     name_te: 'గిఫ్ట్ & బొమ్మల దుకాణాలు',
-    icon: 'gift',
+    icon: 'Gift',
     subcategories: [
       { id: 'gift_articles', name_en: 'Gift Articles & Novelties', name_te: 'గిఫ్ట్ ఆర్టికల్స్' },
       { id: 'toy_shops', name_en: "Kids Toys & Games", name_te: 'పిల్లల బొమ్మల దుకాణాలు' },
@@ -654,7 +643,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'sports_fitness_stores',
     name_en: 'Sports & Fitness Stores',
     name_te: 'స్పోర్ట్స్ & ఫిట్‌నెస్ స్టోర్లు',
-    icon: 'football',
+    icon: 'Trophy',
     subcategories: [
       { id: 'sports_gear', name_en: 'Cricket, Badminton & Sports Gear', name_te: 'క్రీడా సామాగ్రి' },
       { id: 'fitness_equipment', name_en: 'Treadmills, Dumbbells & Gym Gear', name_te: 'ఫిట్‌నెస్ ఎక్విప్‌మెంట్' },
@@ -665,7 +654,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'pet_shops_veterinary',
     name_en: 'Pet Shops & Veterinary Services',
     name_te: 'పెట్ షాపులు & వెటర్నరీ క్లినిక్స్',
-    icon: 'paw',
+    icon: 'Dog',
     subcategories: [
       { id: 'pet_supplies', name_en: 'Dog & Cat Food, Accessories', name_te: 'పెట్ ఫుడ్ & ఉపకరణాలు' },
       { id: 'veterinary_doctors', name_en: 'Veterinary Clinics & Doctors', name_te: 'పశువైద్య శాలలు' },
@@ -676,7 +665,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'ngos_social_orgs',
     name_en: 'NGOs & Social Organizations',
     name_te: 'ఎన్జీఓలు & సేవా సంస్థలు',
-    icon: 'people',
+    icon: 'Users',
     subcategories: [
       { id: 'charity_trusts', name_en: 'Charitable Trusts & Foundations', name_te: 'ఛారిటబుల్ ట్రస్ట్‌లు' },
       { id: 'blood_banks', name_en: 'Voluntary Blood Donation Societies', name_te: 'బ్లడ్ బ్యాంకులు' },
@@ -687,7 +676,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'coworking_spaces',
     name_en: 'Coworking Spaces',
     name_te: 'కో-వర్కింగ్ స్పేసెస్',
-    icon: 'desktop',
+    icon: 'Building',
     subcategories: [
       { id: 'shared_desks', name_en: 'Hot Desks & Shared Workstations', name_te: 'వర్క్‌స్పేస్ డెస్క్‌లు' },
       { id: 'private_cabins', name_en: 'Private Offices & Team Cabins', name_te: 'ప్రైవేట్ క్యాబిన్లు' },
@@ -698,7 +687,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'shopping_malls',
     name_en: 'Shopping Malls & Commercial Complexes',
     name_te: 'షాపింగ్ మాల్స్ & కాంప్లెక్స్‌లు',
-    icon: 'business',
+    icon: 'Store',
     subcategories: [
       { id: 'shopping_centers', name_en: 'Shopping Malls', name_te: 'షాపింగ్ మాల్స్' },
       { id: 'commercial_plazas', name_en: 'Commercial Shopping Plazas', name_te: 'వాణిజ్య సముదాయాలు' },
@@ -708,7 +697,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'ecommerce_online',
     name_en: 'E-commerce & Online Businesses',
     name_te: 'ఈ-కామర్స్ & ఆన్‌లైన్ వ్యాపారాలు',
-    icon: 'globe',
+    icon: 'Globe',
     subcategories: [
       { id: 'd2c_brands', name_en: 'Online D2C Retailers & Brands', name_te: 'ఆన్‌లైన్ బ్రాండ్లు' },
       { id: 'drop_shipping', name_en: 'E-commerce Fulfillment Centers', name_te: 'ఈ-కామర్స్ ఆర్డర్ డెలివరీ' },
@@ -719,7 +708,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'repair_services',
     name_en: 'Mobile & Computer Repair Services',
     name_te: 'మొబైల్ & కంప్యూటర్ రిపేరింగ్',
-    icon: 'hardware-chip',
+    icon: 'Cpu',
     subcategories: [
       { id: 'mobile_repair', name_en: 'Mobile Screen & Motherboard Repair', name_te: 'మొబైల్ స్క్రీన్ రిపేర్' },
       { id: 'laptop_service', name_en: 'Laptop & Desktop Repair Centers', name_te: 'ల్యాప్‌టాప్ సర్వీసింగ్' },
@@ -730,7 +719,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'tailoring_boutiques',
     name_en: 'Tailoring & Boutique Shops',
     name_te: 'టైలరింగ్ & బొటిక్ షాపులు',
-    icon: 'cut',
+    icon: 'Scissors',
     subcategories: [
       { id: 'ladies_tailors', name_en: 'Blouse, Maggam Work & Salwar Tailors', name_te: 'మగ్గం వర్క్ & లేడీస్ టైలర్స్' },
       { id: 'designer_boutiques', name_en: 'Designer Bridal Boutiques', name_te: 'డిజైనర్ బొటిక్స్' },
@@ -741,7 +730,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'handicrafts_local',
     name_en: 'Handicrafts & Local Products',
     name_te: 'హస్తకళలు & స్థానిక ఉత్పత్తులు',
-    icon: 'color-palette',
+    icon: 'Palette',
     subcategories: [
       { id: 'handloom_cotton', name_en: 'Handloom Cotton & Traditional Weaves', name_te: 'చేనేత వస్త్రాలు' },
       { id: 'clay_metal_crafts', name_en: 'Terracotta, Brass & Clay Crafts', name_te: 'మట్టి & ఇత్తడి కళారూపాలు' },
@@ -752,7 +741,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'entertainment_recreation',
     name_en: 'Entertainment & Recreation Centers',
     name_te: 'వినోదం & ఆట స్థలాలు',
-    icon: 'game-controller',
+    icon: 'Gamepad2',
     subcategories: [
       { id: 'movie_theatres', name_en: 'Cinema Theatres & Multiplexes', name_te: 'సినిమా థియేటర్లు' },
       { id: 'gaming_zones', name_en: 'Bowling, VR & Gaming Arcades', name_te: 'గేమింగ్ జోన్లు' },
@@ -763,7 +752,7 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     id: 'other_businesses',
     name_en: 'Other Businesses',
     name_te: 'ఇతర వ్యాపారాలు',
-    icon: 'apps',
+    icon: 'Layers',
     subcategories: [
       { id: 'general_enterprises', name_en: 'General Enterprises & Services', name_te: 'ఇతర వ్యాపార సంస్థలు' },
     ],
@@ -784,137 +773,112 @@ export const LEGACY_BUSINESS_CATEGORY_MAP: Record<string, string> = {
   professional_services: 'legal_consultancy',
 };
 
-// ─── INITIAL SEED DATA (KURNOOL ATTRACTIONS & HERITAGE) ─────────────────────
+// ─── SEED DATA ───────────────────────────────────────────────────────────────
 
-export const SEED_PLACES: PlaceItem[] = [
+export const SEED_BUSINESSES: BusinessItem[] = [
   {
-    id: 'konda_reddy_fort',
-    type: 'landmark',
-    name_en: 'Konda Reddy Fort (Buruju)',
-    name_te: 'కొండారెడ్డి బురుజు',
-    description_en: 'The most iconic historical symbol of Kurnool city, built in the 12th century by Vijayanagara rulers. Notable for its circular bastion and historic underground tunnels.',
-    description_te: 'కర్నూలు నగర చారిత్రక చిహ్నం, 12వ శతాబ్దంలో విజయనగర రాజులు నిర్మించారు. కొండారెడ్డి బురుజు కర్నూలు గుండెకాయ వంటిది.',
-    address: 'Near Old City, Kurnool, Andhra Pradesh 518001',
-    timings: '09:00 AM - 06:00 PM',
-    entryFee: 'Free',
-    bestTimeToVisit: 'Morning & Evening',
-    photos: ['https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?w=800'],
-    latitude: 15.8281,
-    longitude: 78.0373,
-    isPromoted: true,
+    id: 'biz_1',
+    name_en: 'Mourya Inn Restaurant & Hotel',
+    name_te: 'మౌర్య ఇన్ రెస్టారెంట్ & హోటల్',
+    categoryId: 'restaurants_cafes',
+    subcategoryId: 'family_restaurant',
+    description_en: 'Premium family multi-cuisine restaurant serving authentic Rayalaseema delicacies, Kurnool Biryani, North & South Indian meals.',
+    description_te: 'కర్నూలులోని ప్రముఖ ఫ్యామిలీ రెస్టారెంట్, రాయలసీమ మరియు బిర్యానీ స్పెషల్స్.',
+    address: 'Opp. Old Bus Stand, Kurnool, AP',
+    landmark: 'Old Bus Stand',
+    phone: '08518224999',
+    whatsapp: '9848055555',
+    timing: '11:00 AM - 11:00 PM',
+    images: ['https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800'],
+    website: 'https://mouryainn.com',
+    googleMapsUrl: 'https://maps.google.com/?q=Mourya+Inn+Kurnool',
+    amenities: ['AC Dining', 'Valet Parking', 'UPI Accepted', 'Takeaway'],
+    priceRange: '₹₹',
+    claimStatus: 'verified',
+    tier: 'featured',
+    verificationBadge: 'verified_business',
+    ratingAvg: 4.8,
+    ratingCount: 142,
+    status: 'published',
   },
   {
-    id: 'orvakal_rock_garden',
-    type: 'tourist',
-    name_en: 'Orvakal Rock Garden',
-    name_te: 'ఓర్వకల్లు రాతి ఉద్యానవనం',
-    description_en: 'Magnificent 1000-acre natural park with rare quartz and silica rock formations carved over millions of years around natural water ponds. A major film shooting and picnic destination.',
-    description_te: 'ఓర్వకల్లు వద్ద సహజసిద్ధమైన అద్భుతమైన క్వార్ట్జ్ రాతి నిర్మాణాలు, సరస్సులు మరియు బోటింగ్ సౌకర్యాలు ఉన్నాయి.',
-    address: 'NH 40, Orvakal, Kurnool Dist (24 km from city)',
-    timings: '08:00 AM - 06:00 PM',
-    entryFee: '₹20 adults / ₹10 children',
-    bestTimeToVisit: 'October to February',
-    photos: ['https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800'],
-    latitude: 15.6886,
-    longitude: 78.2257,
-    isPromoted: true,
+    id: 'biz_2',
+    name_en: 'MedPlus Pharmacy & Diagnostics',
+    name_te: 'మెడ్‌ప్లస్ మెడికల్ స్టోర్',
+    categoryId: 'pharmacies_medical',
+    subcategoryId: '24hr_pharmacy',
+    description_en: 'Genuine medicines, wellness products, sample collections with fast home delivery across Kurnool city.',
+    description_te: 'అన్ని రకాల మందులు మరియు వైద్య ఉత్పత్తులు లభించును.',
+    address: 'Near Nandyal Checkpost, Kurnool',
+    landmark: 'Nandyal Checkpost',
+    phone: '08518230000',
+    whatsapp: '9848066666',
+    timing: '07:00 AM - 11:30 PM',
+    images: ['https://images.unsplash.com/photo-1586015555751-63c25b3cf17d?w=800'],
+    website: 'https://medplusmart.com',
+    googleMapsUrl: 'https://maps.google.com/?q=Nandyal+Checkpost+Kurnool',
+    amenities: ['Home Delivery', 'Online UPI', 'Pharmacist On Duty'],
+    priceRange: '₹',
+    claimStatus: 'verified',
+    tier: 'featured',
+    verificationBadge: 'verified_business',
+    ratingAvg: 4.6,
+    ratingCount: 88,
+    status: 'published',
   },
   {
-    id: 'rollapadu_sanctuary',
-    type: 'tourist',
-    name_en: 'Rollapadu Wildlife Sanctuary',
-    name_te: 'రోళ్లపాడు వన్యప్రాణుల సంరక్షణ కేంద్రం',
-    description_en: 'Renowned grasslands sanctuary home to the endangered Great Indian Bustard, Blackbucks, and diverse migratory birds.',
-    description_te: 'రోళ్లపాడు గడ్డిభూములు మరియు అంతరించిపోతున్న గ్రేట్ ఇండియన్ బస్టర్డ్, జింకల సంరక్షణ కేంద్రం.',
-    address: 'Rollapadu Village, near Nandikotkur, Kurnool District',
-    timings: '07:00 AM - 05:30 PM',
-    entryFee: '₹30',
-    bestTimeToVisit: 'November to March',
-    photos: ['https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800'],
-    latitude: 15.7483,
-    longitude: 78.3752,
-    isPromoted: false,
+    id: 'biz_3',
+    name_en: 'Kurnool Mega Silks & Sarees',
+    name_te: 'కర్నూలు మెగా సిల్క్స్ & శారీస్',
+    categoryId: 'clothing_fashion',
+    subcategoryId: 'saree_showrooms',
+    description_en: 'Grand wedding collection, Kanchi pattu, Gadwal & Dharmavaram sarees, kids & gents ethnic wear showroom.',
+    description_te: 'పెళ్లి పట్టు చీరలు మరియు ఫ్యాషన్ వస్త్రాల షోరూమ్.',
+    address: 'Main Bazaar Road, Near Raj Vihar Centre, Kurnool',
+    landmark: 'Raj Vihar Centre',
+    phone: '08518245555',
+    whatsapp: '9848077777',
+    timing: '10:00 AM - 09:30 PM',
+    images: ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800'],
+    googleMapsUrl: 'https://maps.google.com/?q=Raj+Vihar+Kurnool',
+    amenities: ['AC Showroom', 'Trial Rooms', 'Card & UPI Payment'],
+    priceRange: '₹₹₹',
+    claimStatus: 'verified',
+    tier: 'featured',
+    verificationBadge: 'verified_business',
+    ratingAvg: 4.7,
+    ratingCount: 95,
+    status: 'published',
   },
   {
-    id: 'tungabhadra_riverfront',
-    type: 'landmark',
-    name_en: 'Tungabhadra Riverfront & Ghats',
-    name_te: 'తుంగభద్ర నదీ తీరం & పుష్కర ఘాట్లు',
-    description_en: 'Scenic sacred riverfront where Kurnool residents gather for evening walks, cultural celebrations, and morning tranquility.',
-    description_te: 'కర్నూలు నగర తుంగభద్ర నదీ తీరం, సాయంత్రపు నడకలకు మరియు పుష్కర ఘాట్లకు ప్రసిద్ధి.',
-    address: 'River Road, Kurnool',
-    timings: 'Open 24 Hours',
-    entryFee: 'Free',
-    photos: ['https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800'],
-    latitude: 15.8344,
-    longitude: 78.0468,
-    isPromoted: false,
-  },
-];
-
-export const SEED_WORSHIP_PLACES: PlaceItem[] = [
-  {
-    id: 'mantralayam_raghavendra',
-    type: 'temple',
-    name_en: 'Mantralayam Sri Raghavendra Swamy Matha',
-    name_te: 'మంత్రాలయం శ్రీ రాఘవేంద్ర స్వామి మఠం',
-    description_en: 'World-renowned holy pilgrimage center on the banks of Tungabhadra where the saint Sri Raghavendra Swamy entered Jeeva Samadhi in 1671.',
-    description_te: 'తుంగభద్ర తీరంలో వెలసిన ప్రముఖ పుణ్యక్షేత్రం, శ్రీ రాఘవేంద్ర స్వామి సజీవ సమాధి చెందిన పవిత్ర స్థలం.',
-    address: 'Mantralayam, Kurnool District (70 km from Kurnool)',
-    timings: '06:00 AM - 02:00 PM, 04:00 PM - 09:00 PM',
-    photos: ['https://images.unsplash.com/photo-1544816155-12df9643f363?w=800'],
-    latitude: 15.9409,
-    longitude: 77.4304,
-    isPromoted: true,
-  },
-  {
-    id: 'kurnool_jumma_masjid',
-    type: 'masjid',
-    name_en: 'Historic Kurnool Jumma Masjid',
-    name_te: 'చారిత్రక కర్నూలు జుమ్మా మసీదు',
-    description_en: 'Historic and grand congregational mosque in the heart of Kurnool city, built during the era of the Nawabs of Kurnool.',
-    description_te: 'నవాబుల కాలంలో నిర్మించిన కర్నూలు నగర కేంద్రంలోని చారిత్రక మరియు అందమైన జుమ్మా మసీదు.',
-    address: 'Old City, near One Town, Kurnool, Andhra Pradesh 518001',
-    timings: 'Open for all 5 daily prayers',
-    photos: ['https://images.unsplash.com/photo-1542838132-92c53300491e?w=800'],
-    latitude: 15.8305,
-    longitude: 78.0388,
-    isPromoted: true,
-  },
-  {
-    id: 'st_anthonys_shrine',
-    type: 'church',
-    name_en: "St. Anthony's Shrine & Cathedral",
-    name_te: "సెయింట్ ఆంథోనీస్ కేథడ్రల్ చర్చి",
-    description_en: 'A peaceful and sacred Roman Catholic cathedral known for its serene prayer hall and community welfare services.',
-    description_te: 'కర్నూలులోని ప్రముఖ రోమన్ కాథలిక్ చర్చి మరియు ఆధ్యాత్మిక కేంద్రం.',
-    address: 'Budhawarapet, Kurnool, Andhra Pradesh 518002',
-    timings: '06:00 AM - 08:00 PM',
-    photos: ['https://images.unsplash.com/photo-1548625361-195feeed8230?w=800'],
-    latitude: 15.8234,
-    longitude: 78.0412,
-    isPromoted: true,
-  },
-  {
-    id: 'chennakesava_temple',
-    type: 'temple',
-    name_en: 'Sri Chennakesava Swamy Temple',
-    name_te: 'శ్రీ చెన్నకేశవ స్వామి దేవాలయం',
-    description_en: 'Ancient temple of Lord Vishnu dedicated to Sri Chennakesava with serene architecture and daily traditional rituals.',
-    description_te: 'కర్నూలులోని ప్రాచీన మరియు ప్రసిద్ధ శ్రీ చెన్నకేశవ స్వామి దేవాలయం.',
-    address: 'One Town, Kurnool',
-    timings: '06:30 AM - 12:00 PM, 05:00 PM - 08:30 PM',
-    photos: ['https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=800'],
-    latitude: 15.8291,
-    longitude: 78.0354,
-    isPromoted: false,
+    id: 'biz_4',
+    name_en: 'Sri Sai Diagnostic & Scan Centre',
+    name_te: 'శ్రీ సాయి డయాగ్నస్టిక్ సెంటర్',
+    categoryId: 'hospitals_clinics',
+    subcategoryId: 'multispeciality',
+    description_en: 'Fully automated pathology, digital X-Ray, 2D Echo, Ultrasound and ECG with same-day reports.',
+    description_te: 'అధునాతన రక్త పరీక్షలు మరియు ఎక్స్-రే సేవలు.',
+    address: 'Near Govt General Hospital (GGH), Kurnool',
+    landmark: 'GGH Hospital Road',
+    phone: '08518256666',
+    whatsapp: '9848088888',
+    timing: '06:30 AM - 09:00 PM',
+    images: ['https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800'],
+    amenities: ['Home Blood Collection', 'Online Reports', 'Wheelchair Access'],
+    priceRange: '₹₹',
+    claimStatus: 'verified',
+    tier: 'featured',
+    verificationBadge: 'verified_business',
+    ratingAvg: 4.7,
+    ratingCount: 64,
+    status: 'published',
   },
 ];
 
 export const SEED_PROFESSIONALS: ProfessionalItem[] = [
   {
     id: 'pro_1',
-    fullName: 'Ramesh Electrician & Wiring',
+    fullName: 'Ramesh Electrical & Inverter Works',
     category: 'Electrician',
     categoryName_te: 'ఎలక్ట్రీషియన్',
     experienceYears: 8,
@@ -966,16 +930,16 @@ export const SEED_PROFESSIONALS: ProfessionalItem[] = [
   },
   {
     id: 'pro_4',
-    fullName: 'Chandra Photography & Films',
+    fullName: 'Chandra Photography & 4K Films',
     category: 'Wedding Photographer',
     categoryName_te: 'వెడ్డింగ్ ఫోటోగ్రఫీ',
     experienceYears: 7,
-    serviceAreas: ['Kurnool & Surrounding Districts'],
+    serviceAreas: ['All Kurnool & Surrounding Areas'],
     phone: '9848045678',
     whatsapp: '9848045678',
-    description: 'Pre-wedding candid shoots, traditional Telugu wedding photography, 4K cinematography and drone aerial coverage.',
     visitingCharges: '₹500 (Consultation/Booking)',
     hourlyRate: 'Custom Event Packages',
+    description: 'Pre-wedding candid shoots, traditional Telugu wedding rituals, 4K cinematic highlights and drone aerial cinematography.',
     portfolioPhotos: [],
     verifiedProfessional: true,
     ratingAvg: 5.0,
@@ -1075,137 +1039,143 @@ export const SEED_PROFESSIONALS: ProfessionalItem[] = [
   },
 ];
 
-export const SEED_BUSINESSES: BusinessItem[] = [
+export const SEED_PLACES: PlaceItem[] = [
   {
-    id: 'biz_1',
-    name_en: 'Mourya Inn Restaurant & Hotel',
-    name_te: 'మౌర్య ఇన్ రెస్టారెంట్ & హోటల్',
-    categoryId: 'restaurants_cafes',
-    subcategoryId: 'family_restaurant',
-    description_en: 'Premium family multi-cuisine restaurant serving authentic Rayalaseema delicacies, Kurnool Biryani, North & South Indian meals.',
-    description_te: 'కర్నూలులోని ప్రముఖ ఫ్యామిలీ రెస్టారెంట్, రాయలసీమ మరియు బిర్యానీ స్పెషల్స్.',
-    address: 'Opp. Old Bus Stand, Kurnool, AP',
-    landmark: 'Old Bus Stand',
-    phone: '08518224999',
-    whatsapp: '9848055555',
-    timing: '11:00 AM - 11:00 PM',
-    images: ['https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800'],
-    website: 'https://mouryainn.com',
-    googleMapsUrl: 'https://maps.google.com/?q=Mourya+Inn+Kurnool',
-    amenities: ['AC Dining', 'Valet Parking', 'UPI Accepted', 'Takeaway'],
-    priceRange: '₹₹',
-    claimStatus: 'verified',
-    tier: 'featured',
-    verificationBadge: 'verified_business',
-    ratingAvg: 4.5,
-    ratingCount: 120,
-    latitude: 15.8275,
-    longitude: 78.0355,
-    status: 'published',
+    id: 'place_1',
+    type: 'landmark',
+    name_en: 'Konda Reddy Buruju (Fort)',
+    name_te: 'కొండారెడ్డి బురుజు',
+    description_en: 'The historic military bastion in the heart of Kurnool, built during Vijayanagara empire. A prominent symbol and pride of Kurnool city.',
+    description_te: 'కర్నూలు నగర నడిబొడ్డున ఉన్న చారిత్రక కట్టడం మరియు కర్నూలు ముఖ్యమైన గుర్తింపు.',
+    address: 'Old City, Kurnool, Andhra Pradesh 518001',
+    timings: '09:00 AM - 06:00 PM (Everyday)',
+    entryFee: '₹10 per person',
+    bestTimeToVisit: 'Morning & Evening Sunset',
+    photos: ['https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?w=800'],
+    latitude: 15.8281,
+    longitude: 78.0373,
+    isPromoted: true,
   },
   {
-    id: 'biz_2',
-    name_en: 'MedPlus Pharmacy & Healthcare',
-    name_te: 'మెడ్‌ప్లస్ మెడికల్ స్టోర్',
-    categoryId: 'pharmacies_medical',
-    subcategoryId: '24hr_pharmacy',
-    description_en: 'Genuine medicines, wellness products, diagnostic sample collections with instant home delivery across Kurnool.',
-    description_te: 'అన్ని రకాల మందులు మరియు వైద్య ఉత్పత్తులు లభించును.',
-    address: 'Near Nandyal Checkpost, Kurnool',
-    landmark: 'Nandyal Checkpost',
-    phone: '08518230000',
-    whatsapp: '9848066666',
-    timing: '07:00 AM - 11:30 PM',
-    images: ['https://images.unsplash.com/photo-1586015555751-63c25b3cf17d?w=800'],
-    amenities: ['Home Delivery', 'Online UPI', 'Pharmacist On Duty'],
-    priceRange: '₹',
-    claimStatus: 'verified',
-    tier: 'free',
-    verificationBadge: 'verified_business',
-    ratingAvg: 4.6,
-    ratingCount: 45,
-    latitude: 15.8190,
-    longitude: 78.0450,
-    status: 'published',
+    id: 'place_2',
+    type: 'tourist',
+    name_en: 'Orvakal Rock Garden',
+    name_te: 'ఓర్వకల్లు రాక్ గార్డెన్',
+    description_en: 'Spectacular natural 3 billion-year-old silica and quartz rock formations surrounding a natural water reservoir. 20 km from Kurnool.',
+    description_te: 'సహజసిద్ధమైన రాతి ఆకారాలు మరియు సుందరమైన ప్రకృతి సరస్సుతో కూడిన విహార ప్రదేశం.',
+    address: 'NH 40, Near Orvakal Village, Kurnool District',
+    timings: '08:00 AM - 06:30 PM',
+    entryFee: '₹20 (Adults), ₹10 (Children)',
+    bestTimeToVisit: 'Winter & Monsoon seasons',
+    photos: ['https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800'],
+    latitude: 15.6983,
+    longitude: 78.2238,
+    isPromoted: true,
   },
   {
-    id: 'biz_3',
-    name_en: 'Kurnool Mega Silks & Sarees',
-    name_te: 'కర్నూలు మెగా సిల్క్స్ & శారీస్',
-    categoryId: 'clothing_fashion',
-    subcategoryId: 'saree_showrooms',
-    description_en: 'Famous bridal wedding pattu sarees, handloom silks, fancy lehengas and family clothing collection.',
-    description_te: 'పెళ్లి పట్టు చీరలు, డ్రెస్సులు మరియు ఫ్యామిలీ బట్టల షోరూమ్.',
-    address: 'Park Road, One Town, Kurnool',
-    phone: '08518241234',
-    whatsapp: '9848077777',
-    timing: '10:00 AM - 09:30 PM',
-    images: ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800'],
-    amenities: ['AC Showroom', 'Cards Accepted', 'Trial Rooms'],
-    priceRange: '₹₹₹',
-    claimStatus: 'verified',
-    tier: 'featured',
-    verificationBadge: 'verified_business',
-    ratingAvg: 4.7,
-    ratingCount: 88,
-    latitude: 15.8260,
-    longitude: 78.0340,
-    status: 'published',
+    id: 'place_3',
+    type: 'temple',
+    name_en: 'Ahobilam Narasimha Swamy Temple',
+    name_te: 'అహోబిలం నరసింహ స్వామి ఆలయం',
+    description_en: 'Sacred pilgrimage hill shrine with nine forms of Lord Narasimha (Nava Narasimha) nestled in the lush Nallamala forest hills.',
+    description_te: 'నవ నరసింహ క్షేత్రం, ప్రసిద్ధ పుణ్యక్షేత్రం.',
+    address: 'Allagadda, Kurnool District',
+    timings: '06:00 AM - 08:30 PM',
+    photos: ['https://images.unsplash.com/photo-1544717305-2782549b5136?w=800'],
+    latitude: 15.1378,
+    longitude: 78.7188,
+    isPromoted: false,
   },
 ];
 
 export const SEED_OFFERS: OfferItem[] = [
   {
     id: 'off_1',
-    title_en: 'Flat 20% OFF on Wedding Outfits',
-    title_te: 'పెళ్లి బట్టలపై 20% తగ్గింపు',
-    description_en: 'Special festive discount on designer silk sarees and bridal collections at Kurnool Mega Silks.',
-    description_te: 'మెగా సిల్క్స్ లో పట్టు చీరలపై ప్రత్యేక తగ్గింపు.',
-    discountText: '20% OFF',
-    businessName: 'Kurnool Mega Silks',
-    validUntil: 'Valid till Sunday',
-    phone: '08518241234',
-    category: 'Shopping',
+    title_en: 'Flat 20% Off on Family Dinners',
+    title_te: 'ఫ్యామిలీ డిన్నర్‌పై 20% డిస్కౌంట్',
+    description_en: 'Valid on orders above ₹1,000 every Monday to Thursday. Authentic Rayalaseema specials included.',
+    description_te: 'ప్రతి సోమ-గురువారాల్లో రూ. 1,000 పైబడిన బిల్లుపై 20% రాయితీ.',
+    discountText: 'FLAT 20% OFF',
+    businessName: 'Mourya Inn Restaurant',
+    validUntil: 'Valid until 31st Oct',
+    bannerUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800',
+    phone: '08518224999',
+    category: 'Food & Dining',
   },
   {
     id: 'off_2',
-    title_en: 'Family Combo Meal @ ₹599 Only',
-    title_te: 'ఫ్యామిలీ కాంబో మీల్ @ ₹599 మాత్రమే',
-    description_en: '2 Special Biryanis + 1 Starter + Beverages at Mourya Inn Restaurant.',
-    description_te: 'రెండు బిర్యానీలు మరియు స్టార్టర్ కాంబో ఆఫర్.',
-    discountText: 'COMBO ₹599',
-    businessName: 'Mourya Inn Restaurant',
-    validUntil: 'Every Weekend',
-    phone: '08518224999',
-    category: 'Food',
+    title_en: 'Free Home Sample Collection + 15% Off',
+    title_te: 'ఉచిత హోమ్ బ్లడ్ కలెక్షన్ + 15% రాయితీ',
+    description_en: 'Full body health checkup packages starting at ₹499 with free sample pickup at your doorstep.',
+    discountText: '15% OFF + FREE PICKUP',
+    businessName: 'MedPlus Diagnostics Kurnool',
+    validUntil: 'Limited Time Offer',
+    bannerUrl: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800',
+    phone: '08518230000',
+    category: 'Health & Medical',
   },
 ];
 
 export const SEED_EVENTS: EventItem[] = [
   {
     id: 'eve_1',
-    title_en: 'Kurnool District Agri & Handloom Expo 2026',
-    title_te: 'కర్నూలు జిల్లా వ్యవసాయ & చేనేత ఎగ్జిబిషన్',
-    dateStr: 'This Weekend',
-    timeStr: '10:00 AM - 09:00 PM',
-    venue: 'Government Arts College Grounds, Kurnool',
-    organizerName: 'District Industrial Promotion Cell',
-    contactPhone: '08518250000',
-    posterUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800',
+    title_en: 'Kurnool Mega Handloom & Craft Expo 2026',
+    title_te: 'కర్నూలు చేనేత & హస్తకళల ప్రదర్శన 2026',
+    category: 'expo',
+    dateStr: 'Oct 15 - Oct 22, 2026',
+    timeStr: '10:00 AM - 09:30 PM',
+    venue: 'Municipal Grounds, Near Collectorate, Kurnool',
+    organizerName: 'AP Handloom & Weavers Association',
+    contactPhone: '9848011223',
+    posterUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=800',
     entryType: 'free',
+    tier: 'featured',
     status: 'approved',
   },
   {
     id: 'eve_2',
-    title_en: 'Tungabhadra Evening Cultural Aarti & Classical Music',
-    title_te: 'తుంగభద్ర సాయంత్రపు హారతి & సాంస్కృతిక వేడుక',
-    dateStr: 'Every Friday Evening',
-    timeStr: '06:30 PM - 08:00 PM',
-    venue: 'Pushkara Ghat, Riverfront, Kurnool',
-    organizerName: 'Kurnool Heritage Society',
+    title_en: 'Tungabhadra Evening Cultural Aarti & Classical Sangeetham',
+    title_te: 'తుంగభద్ర సాయంత్రపు హారతి & శాస్త్రీయ సంగీత విభావరి',
+    category: 'cultural',
+    dateStr: 'Every Friday & Sunday Evening',
+    timeStr: '06:30 PM - 08:30 PM',
+    venue: 'Pushkara Ghat, Riverfront Promenade, Kurnool',
+    organizerName: 'Kurnool Heritage Society & AP Tourism',
     contactPhone: '9848099999',
     posterUrl: 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=800',
     entryType: 'free',
+    tier: 'mega',
+    status: 'approved',
+  },
+  {
+    id: 'eve_3',
+    title_en: 'Rayalaseema Food & Biryani Festival 2026',
+    title_te: 'రాయలసీమ ఆహార & బిర్యానీ ఉత్సవం',
+    category: 'cultural',
+    dateStr: 'Nov 05 - Nov 08, 2026',
+    timeStr: '12:00 PM - 10:30 PM',
+    venue: 'Outdoor Stadium Grounds, Kurnool',
+    organizerName: 'Kurnool Restaurant Owners Association',
+    contactPhone: '9848055555',
+    posterUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800',
+    entryType: 'ticketed',
+    ticketPrice: '₹50 (Entry)',
+    tier: 'featured',
+    status: 'approved',
+  },
+  {
+    id: 'eve_4',
+    title_en: 'Kurnool District Youth Badminton Championship',
+    title_te: 'కర్నూలు జిల్లా యూత్ బ్యాడ్మింటన్ టోర్నమెంట్',
+    category: 'sports',
+    dateStr: 'Nov 14 - Nov 16, 2026',
+    timeStr: '08:00 AM - 06:00 PM',
+    venue: 'Indoor Stadium, Near Collector Complex, Kurnool',
+    organizerName: 'District Sports Authority Kurnool',
+    contactPhone: '9848012345',
+    posterUrl: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800',
+    entryType: 'free',
+    tier: 'free',
     status: 'approved',
   },
 ];
@@ -1218,12 +1188,12 @@ export const fetchBusinesses = async (
 ): Promise<BusinessItem[]> => {
   try {
     const coll = collection(db, 'businesses');
-    let q = query(coll, where('status', '==', 'published'), limit(50));
+    let q = query(coll, where('status', '==', 'published'), limit(60));
     let targetCategory = categoryId;
     if (categoryId && categoryId !== 'all') {
       const mapped = LEGACY_BUSINESS_CATEGORY_MAP[categoryId];
       if (mapped) targetCategory = mapped;
-      q = query(coll, where('status', '==', 'published'), where('categoryId', 'in', [categoryId, targetCategory]), limit(50));
+      q = query(coll, where('status', '==', 'published'), where('categoryId', 'in', [categoryId, targetCategory]), limit(60));
     }
     const snap = await getDocs(q);
     if (snap.empty) {
@@ -1233,10 +1203,11 @@ export const fetchBusinesses = async (
       }
       if (searchQuery) {
         const queryLower = searchQuery.toLowerCase();
-        list = list.filter(b => 
+        list = list.filter(b =>
           b.name_en.toLowerCase().includes(queryLower) ||
-          b.name_te.includes(searchQuery) ||
-          b.description_en.toLowerCase().includes(queryLower)
+          b.name_te?.includes(searchQuery) ||
+          b.description_en.toLowerCase().includes(queryLower) ||
+          b.address.toLowerCase().includes(queryLower)
         );
       }
       return list;
@@ -1245,15 +1216,15 @@ export const fetchBusinesses = async (
     let results = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessItem));
     if (searchQuery) {
       const queryLower = searchQuery.toLowerCase();
-      results = results.filter(b => 
+      results = results.filter(b =>
         b.name_en.toLowerCase().includes(queryLower) ||
         b.name_te?.includes(searchQuery) ||
-        b.description_en?.toLowerCase().includes(queryLower)
+        b.description_en?.toLowerCase().includes(queryLower) ||
+        b.address?.toLowerCase().includes(queryLower)
       );
     }
     return results;
-  } catch (error) {
-    console.error('fetchBusinesses error:', error);
+  } catch {
     return SEED_BUSINESSES;
   }
 };
@@ -1265,72 +1236,32 @@ export const fetchBusinessById = async (id: string): Promise<BusinessItem | null
     if (snap.exists()) {
       return { id: snap.id, ...snap.data() } as BusinessItem;
     }
-    const seed = SEED_BUSINESSES.find(b => b.id === id);
-    return seed || null;
+    return SEED_BUSINESSES.find(b => b.id === id) || null;
   } catch {
     return SEED_BUSINESSES.find(b => b.id === id) || null;
   }
 };
 
-export const fetchProfessionals = async (category?: string, searchQuery?: string): Promise<ProfessionalItem[]> => {
+export const fetchProfessionals = async (): Promise<ProfessionalItem[]> => {
   try {
     const coll = collection(db, 'professionals');
-    const q = query(coll, where('status', '==', 'active'), limit(50));
+    const q = query(coll, where('status', '==', 'active'), limit(30));
     const snap = await getDocs(q);
-    let list = snap.empty
-      ? SEED_PROFESSIONALS
-      : snap.docs.map(d => ({ id: d.id, ...d.data() } as ProfessionalItem));
-
-    if (category && category !== 'all') {
-      const catObj = PROFESSIONAL_CATEGORIES.find(c => c.id === category);
-      const matchName = catObj ? catObj.name_en.toLowerCase() : category.toLowerCase();
-      list = list.filter(p => p.category.toLowerCase().includes(matchName) || (p.categoryName_te && p.categoryName_te.includes(category)));
-    }
-
-    if (searchQuery) {
-      const qLower = searchQuery.toLowerCase();
-      list = list.filter(p =>
-        p.fullName.toLowerCase().includes(qLower) ||
-        p.category.toLowerCase().includes(qLower) ||
-        (p.categoryName_te && p.categoryName_te.includes(searchQuery)) ||
-        p.serviceAreas.some(a => a.toLowerCase().includes(qLower))
-      );
-    }
-    return list;
+    if (snap.empty) return SEED_PROFESSIONALS;
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as ProfessionalItem));
   } catch {
     return SEED_PROFESSIONALS;
   }
 };
 
-export const fetchPlaces = async (type?: string): Promise<PlaceItem[]> => {
+export const fetchPlaces = async (): Promise<PlaceItem[]> => {
   try {
     const coll = collection(db, 'places');
     const snap = await getDocs(coll);
-    if (snap.empty) {
-      if (type && type !== 'all') {
-        return SEED_PLACES.filter(p => p.type === type);
-      }
-      return SEED_PLACES;
-    }
+    if (snap.empty) return SEED_PLACES;
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as PlaceItem));
   } catch {
     return SEED_PLACES;
-  }
-};
-
-export const fetchWorshipPlaces = async (type?: string): Promise<PlaceItem[]> => {
-  try {
-    const coll = collection(db, 'places_of_worship');
-    const snap = await getDocs(coll);
-    if (snap.empty) {
-      if (type && type !== 'all') {
-        return SEED_WORSHIP_PLACES.filter(p => p.type === type);
-      }
-      return SEED_WORSHIP_PLACES;
-    }
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as PlaceItem));
-  } catch {
-    return SEED_WORSHIP_PLACES;
   }
 };
 
@@ -1345,140 +1276,29 @@ export const fetchOffers = async (): Promise<OfferItem[]> => {
   }
 };
 
-export const fetchEvents = async (): Promise<EventItem[]> => {
-  try {
-    const coll = collection(db, 'events');
-    const snap = await getDocs(coll);
-    if (snap.empty) return SEED_EVENTS;
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as EventItem));
-  } catch {
-    return SEED_EVENTS;
-  }
-};
-
-export const uploadBusinessImage = async (uri: string): Promise<string> => {
-  const filename = `biz_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+export const uploadBusinessImage = async (file: File): Promise<string> => {
+  const filename = `biz_${Date.now()}_${Math.random().toString(36).substring(7)}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
   const storageRef = ref(storage, `businesses/${filename}`);
-  const response = await fetch(uri);
-  const blob = await response.blob();
-  const task = await uploadBytesResumable(storageRef, blob);
+  const task = await uploadBytesResumable(storageRef, file);
   return await getDownloadURL(task.ref);
 };
 
 export const registerBusiness = async (data: Partial<BusinessItem>): Promise<string> => {
-  const user = auth.currentUser;
   const coll = collection(db, 'businesses');
   const docRef = await addDoc(coll, {
     ...data,
-    ownerUid: user?.uid || '',
-    claimStatus: user ? 'pending' : 'unclaimed',
-    tier: 'free',
-    verificationBadge: 'none',
+    claimStatus: 'unclaimed',
+    tier: data.tier || 'free',
+    verificationBadge: data.verificationBadge || 'none',
     ratingAvg: 0,
     ratingCount: 0,
-    status: 'pending_approval',
+    viewCount: 0,
+    callCount: 0,
+    whatsappCount: 0,
+    status: data.status || 'pending_approval',
     createdAt: serverTimestamp(),
   });
   return docRef.id;
-};
-
-export const uploadProfessionalAvatar = async (uri: string): Promise<string> => {
-  const filename = `pro_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
-  const storageRef = ref(storage, `professionals/${filename}`);
-  const response = await fetch(uri);
-  const blob = await response.blob();
-  const task = await uploadBytesResumable(storageRef, blob);
-  return await getDownloadURL(task.ref);
-};
-
-export const registerProfessional = async (
-  data: Partial<ProfessionalItem>
-): Promise<string> => {
-  const user = auth.currentUser;
-  const coll = collection(db, 'professionals');
-  const docRef = await addDoc(coll, {
-    ...data,
-    userId: user?.uid || '',
-    ratingAvg: 5.0,
-    ratingCount: 1,
-    verifiedProfessional: data.verifiedProfessional ?? false,
-    status: data.status || 'active',
-    createdAt: serverTimestamp(),
-  });
-  return docRef.id;
-};
-
-export const fetchMyProfessionalProfile = async (userId: string): Promise<ProfessionalItem | null> => {
-  try {
-    const coll = collection(db, 'professionals');
-    const q = query(coll, where('userId', '==', userId), limit(1));
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-      const d = snap.docs[0];
-      return { id: d.id, ...d.data() } as ProfessionalItem;
-    }
-    return null;
-  } catch (err) {
-    console.error('Error fetching professional profile:', err);
-    return null;
-  }
-};
-
-export const updateProfessionalProfile = async (
-  proId: string,
-  updates: Partial<ProfessionalItem>
-): Promise<void> => {
-  const docRef = doc(db, 'professionals', proId);
-  await updateDoc(docRef, {
-    ...updates,
-    updatedAt: serverTimestamp(),
-  });
-};
-
-
-export const addBusinessReview = async (
-  businessId: string,
-  rating: number,
-  comment: string,
-): Promise<void> => {
-  const user = auth.currentUser;
-  if (!user) throw new Error('Sign in required');
-  const userSnap = await getDoc(doc(db, 'users', user.uid));
-  const userData = userSnap.data();
-
-  const reviewRef = collection(db, 'businesses', businessId, 'reviews');
-  await addDoc(reviewRef, {
-    businessId,
-    userId: user.uid,
-    userName: userData?.name || user.displayName || 'Resident',
-    userPhoto: userData?.photoURL || user.photoURL || '',
-    rating,
-    comment: comment.trim(),
-    createdAt: serverTimestamp(),
-  });
-
-  const bizRef = doc(db, 'businesses', businessId);
-  await updateDoc(bizRef, {
-    ratingCount: increment(1),
-  });
-};
-
-export const fetchBusinessReviews = async (businessId: string): Promise<BusinessReview[]> => {
-  try {
-    const q = query(
-      collection(db, 'businesses', businessId, 'reviews'),
-      orderBy('createdAt', 'desc'),
-      limit(20),
-    );
-    const snap = await getDocs(q);
-    return snap.docs.map(d => ({
-      id: d.id,
-      ...d.data(),
-      createdAt: d.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-    } as BusinessReview));
-  } catch {
-    return [];
-  }
 };
 
 export const trackBusinessInteraction = async (
@@ -1497,7 +1317,7 @@ export const trackBusinessInteraction = async (
       [fieldMap[type]]: increment(1),
     });
   } catch (err) {
-    // Ignore seed doc updates
+    // Ignore seed/mock doc updates gracefully
   }
 };
 
@@ -1541,6 +1361,56 @@ export const fetchMyBusinesses = async (ownerUid?: string): Promise<BusinessItem
   }
 };
 
+export const uploadProfessionalAvatar = async (file: File): Promise<string> => {
+  const filename = `pro_${Date.now()}_${Math.random().toString(36).substring(7)}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+  const storageRef = ref(storage, `professionals/${filename}`);
+  const task = await uploadBytesResumable(storageRef, file);
+  return await getDownloadURL(task.ref);
+};
+
+export const registerProfessional = async (
+  data: Partial<ProfessionalItem>
+): Promise<string> => {
+  const coll = collection(db, 'professionals');
+  const docRef = await addDoc(coll, {
+    ...data,
+    ratingAvg: 5.0,
+    ratingCount: 1,
+    verifiedProfessional: data.verifiedProfessional ?? false,
+    status: data.status || 'active',
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+};
+
+export const fetchMyProfessionalProfile = async (userId: string): Promise<ProfessionalItem | null> => {
+  try {
+    const coll = collection(db, 'professionals');
+    const q = query(coll, where('userId', '==', userId), limit(1));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const d = snap.docs[0];
+      return { id: d.id, ...d.data() } as ProfessionalItem;
+    }
+    return null;
+  } catch (err) {
+    console.error('Error fetching professional profile:', err);
+    return null;
+  }
+};
+
+export const updateProfessionalProfile = async (
+  proId: string,
+  updates: Partial<ProfessionalItem>
+): Promise<void> => {
+  const docRef = doc(db, 'professionals', proId);
+  await updateDoc(docRef, {
+    ...updates,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+
 // ─── KURNOOL CITY LOCALITIES ─────────────────────────────────────────────
 
 export const KURNOOL_AREAS: string[] = [
@@ -1566,13 +1436,21 @@ export const KURNOOL_AREAS: string[] = [
   'Other Area in Kurnool',
 ];
 
+// ─── EVENTS API & PRICING TIERS ──────────────────────────────────────────────
+
 export interface PricingPlan {
   id: string;
   name: string;
-  name_te: string;
+  name_te?: string;
   price: number;
-  period: string;
+  period?: string;
+  duration?: string;
+  pricePerMonth?: string;
+  savings?: string | null;
+  popular?: boolean;
   badge?: string;
+  tag?: string;
+  originalPrice?: number;
   features: string[];
   recommended?: boolean;
 }
@@ -1694,5 +1572,32 @@ export const EVENT_PRICING_PLANS: PricingPlan[] = [
     ],
   },
 ];
+
+export const fetchEvents = async (category?: string): Promise<EventItem[]> => {
+  try {
+    const coll = collection(db, 'events');
+    const snap = await getDocs(coll);
+    let list = snap.empty
+      ? SEED_EVENTS
+      : snap.docs.map(d => ({ id: d.id, ...d.data() } as EventItem));
+
+    if (category && category !== 'all') {
+      list = list.filter(e => e.category === category);
+    }
+    return list;
+  } catch {
+    return SEED_EVENTS;
+  }
+};
+
+export const registerEvent = async (data: Partial<EventItem>): Promise<string> => {
+  const coll = collection(db, 'events');
+  const docRef = await addDoc(coll, {
+    ...data,
+    status: data.status || 'pending',
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+};
 
 
