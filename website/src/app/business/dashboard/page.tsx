@@ -29,6 +29,8 @@ import {
   fetchMyBusinesses,
   updateBusinessProfile,
   createBusinessOffer,
+  uploadBusinessLogo,
+  uploadBusinessCover,
   BusinessItem,
 } from '@/services/directoryService';
 import { useAuth } from '@/context/AuthContext';
@@ -73,6 +75,8 @@ export default function BusinessDashboardPage() {
 
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   // New offer form state
   const [offerTitle, setOfferTitle] = useState('');
@@ -101,6 +105,42 @@ export default function BusinessDashboardPage() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedBiz || !e.target.files || !e.target.files[0]) return;
+    const file = e.target.files[0];
+    setUploadingLogo(true);
+    try {
+      const url = await uploadBusinessLogo(file);
+      await updateBusinessProfile(selectedBiz.id, { logoUrl: url });
+      setSelectedBiz(prev => (prev ? { ...prev, logoUrl: url } : null));
+      setBusinesses(prev => prev.map(b => (b.id === selectedBiz.id ? { ...b, logoUrl: url } : b)));
+      alert('Business Logo updated successfully!');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to upload business logo');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleUploadCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedBiz || !e.target.files || !e.target.files[0]) return;
+    const file = e.target.files[0];
+    setUploadingCover(true);
+    try {
+      const url = await uploadBusinessCover(file);
+      await updateBusinessProfile(selectedBiz.id, { coverImage: url, bannerUrl: url });
+      setSelectedBiz(prev => (prev ? { ...prev, coverImage: url, bannerUrl: url } : null));
+      setBusinesses(prev => prev.map(b => (b.id === selectedBiz.id ? { ...b, coverImage: url, bannerUrl: url } : b)));
+      alert('Business Cover Image updated successfully!');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to upload business cover image');
+    } finally {
+      setUploadingCover(false);
     }
   };
 
@@ -215,13 +255,7 @@ export default function BusinessDashboardPage() {
             >
               Sign In to Business Portal
             </Link>
-            <button
-              onClick={() => loginWithDemo('merchant')}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold text-xs transition-all"
-            >
-              <Sparkles className="w-4 h-4 text-amber-600" />
-              1-Click Demo Merchant Login
-            </button>
+
           </div>
         </div>
       </div>
@@ -234,6 +268,40 @@ export default function BusinessDashboardPage() {
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Loading Merchant Dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (businesses.length === 0) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center p-4 bg-slate-50">
+        <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-slate-200/80 shadow-xl text-center space-y-5">
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+            <Building2 className="w-8 h-8" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">No Business Listing Found</h2>
+            <p className="text-slate-600 text-xs sm:text-sm mt-1 leading-relaxed">
+              You do not have any registered business under your account ({user?.email}) yet. Register your store today to get customer inquiries and phone calls!
+            </p>
+          </div>
+          <div className="space-y-3 pt-2">
+            <Link
+              href="/register-business"
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Register Your Business Now
+            </Link>
+            <button
+              onClick={logout}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign Out
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -407,6 +475,83 @@ export default function BusinessDashboardPage() {
                 Business details and operating hours updated successfully!
               </div>
             )}
+
+            <div className="mb-8 p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-5">
+              <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-blue-600" />
+                Business Visual Branding (Logo & Cover Image)
+              </h3>
+              <p className="text-xs text-slate-500">
+                Upload your official Business Logo and high-resolution Storefront Cover Image to stand out in the directory.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
+                {/* 1. Business Logo */}
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Business Logo (Square 1:1)
+                    </label>
+                    {uploadingLogo && <Loader2 className="w-3.5 h-3.5 text-blue-600 animate-spin" />}
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-20 h-20 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center">
+                      {selectedBiz?.logoUrl ? (
+                        <img src={selectedBiz.logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                      ) : (
+                        <Building2 className="w-8 h-8 text-slate-400" />
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <label className="inline-block py-2 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer transition shadow-xs">
+                        Change Logo
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleUploadLogo}
+                          disabled={uploadingLogo}
+                          className="hidden"
+                        />
+                      </label>
+                      <p className="text-[10px] text-slate-400">PNG or JPG, Recommended 500x500px</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Cover Image */}
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Storefront Cover (16:9 Landscape)
+                    </label>
+                    {uploadingCover && <Loader2 className="w-3.5 h-3.5 text-blue-600 animate-spin" />}
+                  </div>
+                  <div className="space-y-2">
+                    <div className="w-full h-24 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center">
+                      {selectedBiz?.coverImage || selectedBiz?.bannerUrl ? (
+                        <img
+                          src={selectedBiz.coverImage || selectedBiz.bannerUrl}
+                          alt="Cover"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Building2 className="w-8 h-8 text-slate-400" />
+                      )}
+                    </div>
+                    <label className="inline-block py-2 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer transition shadow-xs">
+                      Change Cover Image
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleUploadCover}
+                        disabled={uploadingCover}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <form onSubmit={handleSaveProfile} className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

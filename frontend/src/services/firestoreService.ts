@@ -92,6 +92,88 @@ export const uploadProfilePhoto = async (uid: string, uri: string): Promise<stri
   return url;
 };
 
+// ─── PHONE AUTH & ROLE EXCLUSIVITY ──────────────────────────────────────────
+
+export const sanitizePhone = (rawPhone: string): string => {
+  const cleaned = rawPhone.trim().replace(/[^\d+]/g, '');
+  if (cleaned.startsWith('+91')) return cleaned;
+  if (cleaned.startsWith('91') && cleaned.length === 12) return `+${cleaned}`;
+  const digitsOnly = cleaned.replace(/\D/g, '');
+  if (digitsOnly.length === 10) return `+91${digitsOnly}`;
+  return cleaned;
+};
+
+export interface PhoneExclusivityResult {
+  allowed: boolean;
+  existingRole?: 'business' | 'professional';
+  message?: string;
+  phoneDoc?: any;
+}
+
+export const checkPhoneRoleExclusivity = async (
+  phone: string,
+  requestedRole: 'business' | 'professional'
+): Promise<PhoneExclusivityResult> => {
+  const formattedPhone = sanitizePhone(phone);
+  if (!formattedPhone || formattedPhone.replace(/\D/g, '').length < 10) {
+    return { allowed: false, message: 'Please enter a valid 10-digit mobile number.' };
+  }
+
+  try {
+    const phoneRef = doc(db, 'registered_phones', formattedPhone);
+    const snap = await getDoc(phoneRef);
+
+    if (snap.exists()) {
+      const data = snap.data();
+      const existingRole = data.role as 'business' | 'professional';
+      if (existingRole && existingRole !== requestedRole) {
+        const opposingName = existingRole === 'business' ? 'Business Account' : 'Professional Account';
+        const requestedName = requestedRole === 'business' ? 'Business Account' : 'Professional Account';
+        return {
+          allowed: false,
+          existingRole,
+          phoneDoc: data,
+          message: `This mobile number (${formattedPhone}) is already registered as a ${opposingName}. Separate credentials are strictly required for Business and Professional accounts. You cannot use this phone number for a ${requestedName}.`,
+        };
+      }
+      return { allowed: true, phoneDoc: data, existingRole };
+    }
+    return { allowed: true };
+  } catch (error) {
+    console.warn('Phone role check error/offline fallback:', error);
+    return { allowed: true };
+  }
+};
+
+export const registerPhoneRole = async (
+  phone: string,
+  role: 'business' | 'professional',
+  uid: string,
+  extra?: { name?: string; businessName?: string }
+): Promise<void> => {
+  const formattedPhone = sanitizePhone(phone);
+  try {
+    const phoneRef = doc(db, 'registered_phones', formattedPhone);
+    await setDoc(phoneRef, {
+      phone: formattedPhone,
+      role,
+      uid,
+      name: extra?.name || '',
+      businessName: extra?.businessName || '',
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+
+    const userRef = doc(db, 'users', uid);
+    await setDoc(userRef, {
+      phone: formattedPhone,
+      role,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  } catch (err) {
+    console.warn('registerPhoneRole non-fatal warning:', err);
+  }
+};
+
 // ─── CATEGORIES ─────────────────────────────────────────────────────────────
 
 const DEFAULT_CATEGORIES = [

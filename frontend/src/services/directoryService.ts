@@ -91,6 +91,21 @@ export interface BusinessItem {
   createdAt?: string;
 }
 
+export interface LeadItem {
+  id?: string;
+  targetId: string; // Business or Pro ID
+  targetType: 'business' | 'professional';
+  targetOwnerUid?: string;
+  targetName: string;
+  actionType: 'view' | 'call' | 'whatsapp' | 'quote';
+  citizenUid?: string;
+  citizenName: string;
+  citizenPhone: string;
+  citizenArea?: string;
+  citizenGender?: string;
+  createdAt?: any;
+}
+
 export interface ProfessionalItem {
   id: string;
   userId?: string;
@@ -118,6 +133,10 @@ export interface ProfessionalItem {
   ratingCount: number;
   reviewCount?: number;
   planId?: string;
+  paymentStatus?: 'paid' | 'unpaid' | 'free';
+  paymentId?: string;
+  orderId?: string;
+  planExpiresAt?: string;
   status: 'active' | 'pending' | 'suspended';
 }
 
@@ -918,312 +937,229 @@ export const SEED_WORSHIP_PLACES: PlaceItem[] = [
 
 export const SEED_PROFESSIONALS: ProfessionalItem[] = [
   {
-    id: 'pro_1',
-    fullName: 'Ramesh Electrician & Wiring',
-    category: 'Electrician',
+    id: 'pro_venkat_electrician',
+    fullName: 'P. Venkat Ramana',
+    category: 'electrician',
     categoryName_te: 'ఎలక్ట్రీషియన్',
     experienceYears: 8,
-    serviceAreas: ['Camp Area', 'B-Camp', 'Collectorate', 'Santosh Nagar'],
-    phone: '9848012345',
-    whatsapp: '9848012345',
-    visitingCharges: '₹150',
-    hourlyRate: '₹250/hr',
-    description: 'Expert residential & commercial electrical wiring, short circuits, switchboards, fan installations and inverter setups.',
-    avatarUrl: 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=400',
-    instagramUrl: 'https://instagram.com/kurnool_electricals',
-    portfolioPhotos: [],
-    verifiedProfessional: true,
+    serviceAreas: ['Bhagya Nagar', 'Collectorate', 'Prakash Nagar', 'Santosh Nagar'],
+    phone: '+919848123450',
+    whatsapp: '+919848123450',
     ratingAvg: 4.8,
-    ratingCount: 34,
+    ratingCount: 62,
+    startingPrice: '₹250',
+    pricingUnit: 'per visit',
+    about_en: 'Expert in house electrical wiring, short circuit repair, MCB fixes, ceiling fan installation, and inverter setups across Kurnool.',
+    about_te: 'ఇంటి వైరింగ్, షార్ట్ సర్క్యూట్ రిపేర్ మరియు ఇన్వర్టర్ సెటప్ నిపుణుడు.',
     status: 'active',
+    verifiedProfessional: true,
   },
   {
-    id: 'pro_2',
-    fullName: 'Srinivas Plumber Services',
-    category: 'Plumber',
+    id: 'pro_suresh_plumber',
+    fullName: 'K. Suresh Kumar',
+    category: 'plumber',
     categoryName_te: 'ప్లంబర్',
     experienceYears: 11,
-    serviceAreas: ['Nandyal Checkpost', 'Prakash Nagar', 'Budhawarapet', 'All Kurnool'],
-    phone: '9848023456',
-    whatsapp: '9848023456',
-    visitingCharges: '₹150',
-    description: 'Leakages, bathroom fittings, motor pump repairs, overhead water tank connections and sanitary piping.',
-    avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400',
-    portfolioPhotos: [],
-    verifiedProfessional: true,
-    ratingAvg: 4.9,
-    ratingCount: 52,
+    serviceAreas: ['Old City', 'C-Camp', 'Joharapuram', 'B-Camp'],
+    phone: '+919848234561',
+    whatsapp: '+919848234561',
+    ratingAvg: 4.7,
+    ratingCount: 48,
+    startingPrice: '₹300',
+    pricingUnit: 'per service',
+    about_en: 'Complete bathroom plumbing solutions, pipeline leakage repair, water motor pump installations, and water tank cleaning.',
+    about_te: 'పైప్‌లైన్ లీకేజ్ రిపేర్, మోటార్ పంపు బిగింపు మరియు వాటర్ ట్యాంక్ క్లీనింగ్.',
     status: 'active',
+    verifiedProfessional: true,
   },
   {
-    id: 'pro_3',
-    fullName: 'Krishna Cool Care (AC Technician)',
-    category: 'AC & Appliance',
-    categoryName_te: 'ఏసీ సర్వీసింగ్',
+    id: 'pro_rajesh_ac_tech',
+    fullName: 'M. Rajesh',
+    category: 'ac_repair',
+    categoryName_te: 'ఏసీ & ఫ్రిజ్ టెక్నీషియన్',
     experienceYears: 6,
     serviceAreas: ['All Kurnool City Areas'],
-    phone: '9848034567',
-    whatsapp: '9848034567',
-    visitingCharges: '₹200',
-    description: 'Split and window AC gas refilling, jet pump wet servicing, PCB repairs and refrigerator cooling fixes.',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
-    portfolioPhotos: [],
-    verifiedProfessional: true,
-    ratingAvg: 4.7,
-    ratingCount: 29,
-    status: 'active',
-  },
-  {
-    id: 'pro_4',
-    fullName: 'Chandra Photography & Films',
-    category: 'Wedding Photographer',
-    categoryName_te: 'వెడ్డింగ్ ఫోటోగ్రఫీ',
-    experienceYears: 7,
-    serviceAreas: ['Kurnool & Surrounding Districts'],
-    phone: '9848045678',
-    whatsapp: '9848045678',
-    description: 'Pre-wedding candid shoots, traditional Telugu wedding photography, 4K cinematography and drone aerial coverage.',
-    visitingCharges: '₹500 (Consultation/Booking)',
-    hourlyRate: 'Custom Event Packages',
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400',
-    instagramUrl: 'https://instagram.com/chandra_wedding_films',
-    youtubeUrl: 'https://youtube.com/@chandraweddings',
-    portfolioPhotos: [],
-    verifiedProfessional: true,
-    ratingAvg: 5.0,
-    ratingCount: 41,
-    status: 'active',
-  },
-  {
-    id: 'pro_5',
-    fullName: 'Master Venkat Home & Online Tuitions',
-    category: 'Home Tutor',
-    categoryName_te: 'హోమ్ ట్యూషన్స్',
-    experienceYears: 10,
-    serviceAreas: ['Santosh Nagar', 'Camp Area', 'Roza Dargah', 'Gayatri Estate'],
-    phone: '9848056789',
-    whatsapp: '9848056789',
-    visitingCharges: 'Free Demo Class',
-    hourlyRate: '₹3,000 / month',
-    description: 'Dedicated 1-on-1 coaching for Classes 6-10 CBSE & State Syllabus in Mathematics, Physics and Chemistry. Proven 95%+ marks track record.',
-    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400',
-    portfolioPhotos: [],
-    verifiedProfessional: true,
+    phone: '+919848345672',
+    whatsapp: '+919848345672',
     ratingAvg: 4.9,
-    ratingCount: 38,
+    ratingCount: 75,
+    startingPrice: '₹450',
+    pricingUnit: 'per AC service',
+    about_en: 'Split and window AC gas charging, deep jet cleaning, PCB repair, and refrigerator troubleshooting.',
+    about_te: 'ఏసీ గ్యాస్ ఛార్జింగ్, డీప్ జెట్ క్లీనింగ్ మరియు ఫ్రిజ్ రిపేర్ సేవలు.',
     status: 'active',
-  },
-  {
-    id: 'pro_6',
-    fullName: 'K. Subba Rao Advocate & Notary',
-    category: 'Legal & Documentation',
-    categoryName_te: 'న్యాయవాది & పత్ర లేఖకుడు',
-    experienceYears: 15,
-    serviceAreas: ['District Court Kurnool', 'Collectorate', 'All City'],
-    phone: '9848067890',
-    whatsapp: '9848067890',
-    visitingCharges: '₹300 (Legal Consultation)',
-    hourlyRate: 'Documentation Fees per deed',
-    description: 'Property registration, title search reports, partition deeds, gift settlements, affidavit notary and civil litigation advisory.',
-    avatarUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400',
-    linkedinUrl: 'https://linkedin.com/in/k-subba-rao-advocate',
-    portfolioPhotos: [],
     verifiedProfessional: true,
-    ratingAvg: 4.8,
-    ratingCount: 47,
-    status: 'active',
-  },
-  {
-    id: 'pro_7',
-    fullName: 'Anand Carpenter & Interior Woodworks',
-    category: 'Carpenter',
-    categoryName_te: 'వడ్రంగి & ఇంటీరియర్ వుడ్‌వర్క్',
-    experienceYears: 12,
-    serviceAreas: ['Nandyal Road', 'Budhawarapet', 'B-Camp', 'All Kurnool'],
-    phone: '9848078901',
-    whatsapp: '9848078901',
-    visitingCharges: '₹150',
-    hourlyRate: 'Day wage or Job quotation',
-    description: 'Modular kitchen woodwork, sliding wardrobes, door frame repairs, locks replacement, customized TV units and Italian wood polish.',
-    avatarUrl: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=400',
-    portfolioPhotos: [],
-    verifiedProfessional: true,
-    ratingAvg: 4.7,
-    ratingCount: 31,
-    status: 'active',
-  },
-  {
-    id: 'pro_8',
-    fullName: 'Renu Vlogs (Kurnool Foodie & Lifestyle)',
-    category: 'Social Media Influencers',
-    categoryName_te: 'సోషల్ మీడియా ఇన్‌ఫ్లుయెన్సర్',
-    experienceYears: 4,
-    serviceAreas: ['All Kurnool & Rayalaseema'],
-    phone: '9848089012',
-    whatsapp: '9848089012',
-    visitingCharges: '₹1,500 / Store Visit Reel',
-    hourlyRate: 'Brand Collaboration Packages',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
-    instagramUrl: 'https://instagram.com/kurnool_food_vlogs',
-    youtubeUrl: 'https://youtube.com/@kurnoolfoodvlogs',
-    description: 'Popular Kurnool food & lifestyle influencer with 65k+ active followers. Restaurant reviews, store launch promotions, food testing and viral Instagram reels.',
-    portfolioPhotos: [],
-    verifiedProfessional: true,
-    ratingAvg: 4.9,
-    ratingCount: 64,
-    status: 'active',
-  },
-  {
-    id: 'pro_9',
-    fullName: 'Venkatesh Wall Painting & Texture Art',
-    category: 'Painters & Wall Artists',
-    categoryName_te: 'పెయింటర్ & వాల్ ఆర్ట్',
-    experienceYears: 9,
-    serviceAreas: ['Camp Area', 'Budhawarapet', 'Santosh Nagar', 'All Kurnool'],
-    phone: '9848090123',
-    whatsapp: '9848090123',
-    visitingCharges: '₹150 (Wall Inspection & Measurement)',
-    hourlyRate: '₹12 / sq.ft (Asian Paints Royal Finish)',
-    avatarUrl: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=400',
-    description: 'Interior & exterior emulsion painting, waterproofing, designer stencil textures, kid room murals and enamel gloss woodwork.',
-    portfolioPhotos: [],
-    verifiedProfessional: true,
-    ratingAvg: 4.8,
-    ratingCount: 39,
-    status: 'active',
   },
 ];
 
 export const SEED_BUSINESSES: BusinessItem[] = [
   {
-    id: 'biz_1',
-    name_en: 'Mourya Inn Restaurant & Hotel',
-    name_te: 'మౌర్య ఇన్ రెస్టారెంట్ & హోటల్',
-    categoryId: 'restaurants_cafes',
-    subcategoryId: 'family_restaurant',
-    description_en: 'Premium family multi-cuisine restaurant serving authentic Rayalaseema delicacies, Kurnool Biryani, North & South Indian meals.',
-    description_te: 'కర్నూలులోని ప్రముఖ ఫ్యామిలీ రెస్టారెంట్, రాయలసీమ మరియు బిర్యానీ స్పెషల్స్.',
-    address: 'Opp. Old Bus Stand, Kurnool, AP',
-    landmark: 'Old Bus Stand',
-    phone: '08518224999',
-    whatsapp: '9848055555',
-    timing: '11:00 AM - 11:00 PM',
-    images: ['https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800'],
-    website: 'https://mouryainn.com',
-    googleMapsUrl: 'https://maps.google.com/?q=Mourya+Inn+Kurnool',
-    amenities: ['AC Dining', 'Valet Parking', 'UPI Accepted', 'Takeaway'],
-    priceRange: '₹₹',
-    claimStatus: 'verified',
-    tier: 'featured',
-    verificationBadge: 'verified_business',
+    id: 'biz_mourya_inn',
+    name_en: 'Hotel Mourya Inn',
+    name_te: 'హోటల్ మౌర్య ఇన్',
+    categoryId: 'hotels_lodges',
+    address: 'Bhagya Nagar, Near Old Bus Stand, Kurnool, AP 518001',
+    landmark: 'Near Old Bus Stand',
+    phone: '+918518224999',
+    whatsapp: '+919848011223',
     ratingAvg: 4.5,
-    ratingCount: 120,
-    latitude: 15.8275,
-    longitude: 78.0355,
+    ratingCount: 128,
+    description_en: 'Premier luxury hotel offering premium AC suites, multi-cuisine restaurants, and banquet halls in the heart of Kurnool city.',
+    description_te: 'కర్నూలు నడిబొడ్డున ఉన్న ప్రముఖ లగ్జరీ హోటల్, ఏసీ గదులు మరియు బ్యాంక్వెట్ హాళ్ళు.',
+    images: ['https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800'],
     status: 'published',
-  },
-  {
-    id: 'biz_2',
-    name_en: 'MedPlus Pharmacy & Healthcare',
-    name_te: 'మెడ్‌ప్లస్ మెడికల్ స్టోర్',
-    categoryId: 'pharmacies_medical',
-    subcategoryId: '24hr_pharmacy',
-    description_en: 'Genuine medicines, wellness products, diagnostic sample collections with instant home delivery across Kurnool.',
-    description_te: 'అన్ని రకాల మందులు మరియు వైద్య ఉత్పత్తులు లభించును.',
-    address: 'Near Nandyal Checkpost, Kurnool',
-    landmark: 'Nandyal Checkpost',
-    phone: '08518230000',
-    whatsapp: '9848066666',
-    timing: '07:00 AM - 11:30 PM',
-    images: ['https://images.unsplash.com/photo-1586015555751-63c25b3cf17d?w=800'],
-    amenities: ['Home Delivery', 'Online UPI', 'Pharmacist On Duty'],
-    priceRange: '₹',
-    claimStatus: 'verified',
-    tier: 'free',
-    verificationBadge: 'verified_business',
-    ratingAvg: 4.6,
-    ratingCount: 45,
-    latitude: 15.8190,
-    longitude: 78.0450,
-    status: 'published',
-  },
-  {
-    id: 'biz_3',
-    name_en: 'Kurnool Mega Silks & Sarees',
-    name_te: 'కర్నూలు మెగా సిల్క్స్ & శారీస్',
-    categoryId: 'clothing_fashion',
-    subcategoryId: 'saree_showrooms',
-    description_en: 'Famous bridal wedding pattu sarees, handloom silks, fancy lehengas and family clothing collection.',
-    description_te: 'పెళ్లి పట్టు చీరలు, డ్రెస్సులు మరియు ఫ్యామిలీ బట్టల షోరూమ్.',
-    address: 'Park Road, One Town, Kurnool',
-    phone: '08518241234',
-    whatsapp: '9848077777',
-    timing: '10:00 AM - 09:30 PM',
-    images: ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800'],
-    amenities: ['AC Showroom', 'Cards Accepted', 'Trial Rooms'],
-    priceRange: '₹₹₹',
-    claimStatus: 'verified',
     tier: 'featured',
     verificationBadge: 'verified_business',
+    claimStatus: 'verified',
+  },
+  {
+    id: 'biz_kurnool_ruchulu',
+    name_en: 'Kurnool Ruchulu Restaurant',
+    name_te: 'కర్నూలు రుచులు రెస్టారెంట్',
+    categoryId: 'restaurants_cafes',
+    address: 'Collectorate Complex Road, Kurnool, AP 518002',
+    landmark: 'Opp. ZP Office',
+    phone: '+919440054321',
+    whatsapp: '+919440054321',
     ratingAvg: 4.7,
-    ratingCount: 88,
-    latitude: 15.8260,
-    longitude: 78.0340,
+    ratingCount: 214,
+    description_en: 'Authentic Rayalaseema cuisine, famous Kurnool spicy Natu Kodi Pulao, Uggani Bajji, and Ragi Sangati with mutton curry.',
+    description_te: 'ప్రసిద్ధ రాయలసీమ వంటకాలు, నాటుకోడి పులావ్ మరియు రాగి సంకటి.',
+    images: ['https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800'],
     status: 'published',
+    tier: 'featured',
+    verificationBadge: 'verified_business',
+    claimStatus: 'verified',
+  },
+  {
+    id: 'biz_balaji_supermarket',
+    name_en: 'Sri Balaji Supermarket',
+    name_te: 'శ్రీ బాలాజీ సూపర్ మార్కెట్',
+    categoryId: 'supermarkets_grocery',
+    address: 'Prakash Nagar Main Road, Kurnool, AP 518004',
+    landmark: 'Near Venkateswara Swamy Temple',
+    phone: '+919848523456',
+    whatsapp: '+919848523456',
+    ratingAvg: 4.6,
+    ratingCount: 95,
+    description_en: 'One-stop grocery and daily essentials store featuring fresh organic produce, daily household items, and doorstep delivery across Kurnool.',
+    description_te: 'తాజా కూరగాయలు, కిరాణా సరుకులు మరియు హోమ్ డెలివరీ సౌకర్యం.',
+    images: ['https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=800'],
+    status: 'published',
+    tier: 'featured',
+    verificationBadge: 'verified_business',
+    claimStatus: 'verified',
+  },
+  {
+    id: 'biz_sai_silk_palace',
+    name_en: 'Sri Sai Silk Palace',
+    name_te: 'శ్రీ సాయి సిల్క్ ప్యాలెస్',
+    categoryId: 'clothing_fashion',
+    address: 'Park Road, Old City, Kurnool, AP 518001',
+    landmark: 'Near Raj Vihar Centre',
+    phone: '+919848012345',
+    whatsapp: '+919848012345',
+    ratingAvg: 4.8,
+    ratingCount: 160,
+    description_en: 'Exclusive bridal silk sarees, Gadwal & Dharmavaram handlooms, wedding sherwanis, and festive wear collections.',
+    description_te: 'వివాహ పట్టుచీరలు, గద్వాల & ధర్మవరం చేనేత వస్త్రాల ప్రత్యేక షోరూమ్.',
+    images: ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800'],
+    status: 'published',
+    tier: 'premium',
+    verificationBadge: 'verified_business',
+    claimStatus: 'verified',
+  },
+  {
+    id: 'biz_konda_reddy_clinic',
+    name_en: 'Konda Reddy Diagnostics & Clinic',
+    name_te: 'కొండారెడ్డి డయాగ్నస్టిక్స్ & క్లినిక్',
+    categoryId: 'hospitals_clinics',
+    address: 'Gayatri Estate, Near Government General Hospital, Kurnool, AP 518002',
+    landmark: 'Near GGH Kurnool',
+    phone: '+918518233445',
+    whatsapp: '+919441188990',
+    ratingAvg: 4.6,
+    ratingCount: 84,
+    description_en: 'Full diagnostic lab facilities, 24/7 emergency pharmacy, digital X-Ray, ultrasound, and specialist doctor consultations.',
+    description_te: '24/7 డయాగ్నస్టిక్ ల్యాబ్, డిజిటల్ ఎక్స్-రే మరియు స్పెషలిస్ట్ వైద్యుల సంప్రదింపులు.',
+    images: ['https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800'],
+    status: 'published',
+    tier: 'featured',
+    verificationBadge: 'verified_business',
+    claimStatus: 'verified',
+  },
+  {
+    id: 'biz_raghavendra_sweets',
+    name_en: 'Sri Raghavendra Sweets & Bakery',
+    name_te: 'శ్రీ రాఘవేంద్ర స్వీట్స్',
+    categoryId: 'restaurants_cafes',
+    address: 'Mourya Inn Circle, Kurnool, AP 518001',
+    landmark: 'Mourya Circle',
+    phone: '+919849123789',
+    whatsapp: '+919849123789',
+    ratingAvg: 4.9,
+    ratingCount: 310,
+    description_en: 'Traditional pure ghee sweets, famous Kurnool Kova, Mysore Pak, Bellam Jalebi, hot savouries, and fresh bakery items.',
+    description_te: 'స్వచ్ఛమైన నెయ్యి స్వీట్లు, ప్రసిద్ధ కర్నూలు కోవా మరియు మైసూర్ పాక్.',
+    images: ['https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800'],
+    status: 'published',
+    tier: 'premium',
+    verificationBadge: 'verified_business',
+    claimStatus: 'verified',
   },
 ];
 
 export const SEED_OFFERS: OfferItem[] = [
   {
-    id: 'off_1',
-    title_en: 'Flat 20% OFF on Wedding Outfits',
-    title_te: 'పెళ్లి బట్టలపై 20% తగ్గింపు',
-    description_en: 'Special festive discount on designer silk sarees and bridal collections at Kurnool Mega Silks.',
-    description_te: 'మెగా సిల్క్స్ లో పట్టు చీరలపై ప్రత్యేక తగ్గింపు.',
-    discountText: '20% OFF',
-    businessName: 'Kurnool Mega Silks',
-    validUntil: 'Valid till Sunday',
-    phone: '08518241234',
-    category: 'Shopping',
+    id: 'offer_silk_saree_kurnool',
+    title_en: 'Festive Season Saree Offer',
+    title_te: 'పండుగల పట్టుచీరల ప్రత్యేక ఆఫర్',
+    description_en: 'Get flat 20% off on all bridal silk sarees & traditional dhotis with complimentary fall and edging.',
+    description_te: 'అన్ని వివాహ పట్టుచీరలపై 20% ఫ్లాట్ డిస్కౌంట్ మరియు ఉచిత ఫాల్ అండ్ పీకో.',
+    discountText: 'FLAT 20% OFF',
+    businessName: 'Sri Sai Silk Palace, Kurnool',
+    validUntil: 'Valid till 31 Oct 2026',
+    category: 'clothing_fashion',
+    phone: '+919848012345',
   },
   {
-    id: 'off_2',
-    title_en: 'Family Combo Meal @ ₹599 Only',
-    title_te: 'ఫ్యామిలీ కాంబో మీల్ @ ₹599 మాత్రమే',
-    description_en: '2 Special Biryanis + 1 Starter + Beverages at Mourya Inn Restaurant.',
-    description_te: 'రెండు బిర్యానీలు మరియు స్టార్టర్ కాంబో ఆఫర్.',
-    discountText: 'COMBO ₹599',
-    businessName: 'Mourya Inn Restaurant',
-    validUntil: 'Every Weekend',
-    phone: '08518224999',
-    category: 'Food',
+    id: 'offer_uggani_bajji_combo',
+    title_en: 'Rayalaseema Dining Special',
+    title_te: 'రాయలసీమ స్పెషల్ భోజనం & ఉగ్గాని బజ్జీ',
+    description_en: 'Enjoy special Rayalaseema authentic combos with complimentary famous Kurnool Uggani Bajji sampler on orders over ₹399.',
+    description_te: '₹399 పై ఆర్డర్లపై ప్రసిద్ధ కర్నూలు ఉగ్గాని బజ్జీ ఉచితం.',
+    discountText: 'COMPLIMENTARY DISH',
+    businessName: 'Kurnool Ruchulu Restaurant',
+    validUntil: 'Valid this Month',
+    category: 'restaurants_cafes',
+    phone: '+919440054321',
   },
 ];
 
 export const SEED_EVENTS: EventItem[] = [
   {
-    id: 'eve_1',
-    title_en: 'Kurnool District Agri & Handloom Expo 2026',
-    title_te: 'కర్నూలు జిల్లా వ్యవసాయ & చేనేత ఎగ్జిబిషన్',
-    dateStr: 'This Weekend',
-    timeStr: '10:00 AM - 09:00 PM',
-    venue: 'Government Arts College Grounds, Kurnool',
-    organizerName: 'District Industrial Promotion Cell',
-    contactPhone: '08518250000',
-    posterUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800',
+    id: 'event_konda_reddy_walk',
+    title_en: 'Konda Reddy Buruju Historic Heritage Walk',
+    title_te: 'కొండారెడ్డి బురుజు హెరిటేజ్ వాక్',
+    dateStr: 'Every Sunday Morning',
+    timeStr: '06:30 AM - 08:30 AM',
+    venue: 'Konda Reddy Fort Bastion Gate, Kurnool',
+    organizerName: 'Kurnool Heritage Society',
+    contactPhone: '+919849067890',
+    posterUrl: 'https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?w=800',
     entryType: 'free',
     status: 'approved',
   },
   {
-    id: 'eve_2',
-    title_en: 'Tungabhadra Evening Cultural Aarti & Classical Music',
-    title_te: 'తుంగభద్ర సాయంత్రపు హారతి & సాంస్కృతిక వేడుక',
-    dateStr: 'Every Friday Evening',
-    timeStr: '06:30 PM - 08:00 PM',
-    venue: 'Pushkara Ghat, Riverfront, Kurnool',
-    organizerName: 'Kurnool Heritage Society',
-    contactPhone: '9848099999',
-    posterUrl: 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=800',
+    id: 'event_kurnool_expo',
+    title_en: 'Kurnool Handloom & Artisans Trade Expo',
+    title_te: 'కర్నూలు చేనేత & కుటీర పరిశ్రమల ప్రదర్శన',
+    dateStr: 'Upcoming Weekend',
+    timeStr: '10:00 AM - 09:00 PM',
+    venue: 'Municipal Corporation Grounds, Kurnool',
+    organizerName: 'Rayalaseema Crafts Forum',
+    contactPhone: '+919441122334',
+    posterUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800',
     entryType: 'free',
     status: 'approved',
   },
@@ -1246,19 +1182,19 @@ export const fetchBusinesses = async (
     }
     const snap = await getDocs(q);
     if (snap.empty) {
-      let list = SEED_BUSINESSES;
+      let filtered = [...SEED_BUSINESSES];
       if (categoryId && categoryId !== 'all') {
-        list = list.filter(b => b.categoryId === categoryId || b.categoryId === targetCategory);
+        filtered = filtered.filter(b => b.categoryId === categoryId);
       }
       if (searchQuery) {
         const queryLower = searchQuery.toLowerCase();
-        list = list.filter(b => 
+        filtered = filtered.filter(b => 
           b.name_en.toLowerCase().includes(queryLower) ||
-          b.name_te.includes(searchQuery) ||
-          b.description_en.toLowerCase().includes(queryLower)
+          b.name_te?.includes(searchQuery) ||
+          b.description_en?.toLowerCase().includes(queryLower)
         );
       }
-      return list;
+      return filtered;
     }
 
     let results = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessItem));
@@ -1287,7 +1223,8 @@ export const fetchBusinessById = async (id: string): Promise<BusinessItem | null
     const seed = SEED_BUSINESSES.find(b => b.id === id);
     return seed || null;
   } catch {
-    return SEED_BUSINESSES.find(b => b.id === id) || null;
+    const seed = SEED_BUSINESSES.find(b => b.id === id);
+    return seed || null;
   }
 };
 
@@ -1296,9 +1233,7 @@ export const fetchProfessionals = async (category?: string, searchQuery?: string
     const coll = collection(db, 'professionals');
     const q = query(coll, where('status', '==', 'active'), limit(50));
     const snap = await getDocs(q);
-    let list = snap.empty
-      ? SEED_PROFESSIONALS
-      : snap.docs.map(d => ({ id: d.id, ...d.data() } as ProfessionalItem));
+    let list = snap.empty ? [...SEED_PROFESSIONALS] : snap.docs.map(d => ({ id: d.id, ...d.data() } as ProfessionalItem));
 
     if (category && category !== 'all') {
       const catObj = PROFESSIONAL_CATEGORIES.find(c => c.id === category);
@@ -1389,13 +1324,13 @@ export const registerBusiness = async (data: Partial<BusinessItem>): Promise<str
   const coll = collection(db, 'businesses');
   const docRef = await addDoc(coll, {
     ...data,
-    ownerUid: user?.uid || '',
-    claimStatus: user ? 'pending' : 'unclaimed',
-    tier: 'free',
-    verificationBadge: 'none',
-    ratingAvg: 0,
-    ratingCount: 0,
-    status: 'pending_approval',
+    ownerUid: data.ownerUid || user?.uid || '',
+    claimStatus: (data.ownerUid || user) ? 'verified' : 'unclaimed',
+    tier: data.tier || 'featured',
+    verificationBadge: data.verificationBadge || 'verified_business',
+    ratingAvg: 5.0,
+    ratingCount: 1,
+    status: data.status || 'active',
     createdAt: serverTimestamp(),
   });
   return docRef.id;
@@ -1417,24 +1352,35 @@ export const registerProfessional = async (
   const coll = collection(db, 'professionals');
   const docRef = await addDoc(coll, {
     ...data,
-    userId: user?.uid || '',
+    userId: data.userId || user?.uid || '',
     ratingAvg: 5.0,
     ratingCount: 1,
-    verifiedProfessional: data.verifiedProfessional ?? false,
+    verifiedProfessional: data.verifiedProfessional ?? true,
     status: data.status || 'active',
     createdAt: serverTimestamp(),
   });
   return docRef.id;
 };
 
-export const fetchMyProfessionalProfile = async (userId: string): Promise<ProfessionalItem | null> => {
+export const fetchMyProfessionalProfile = async (userId?: string, phone?: string): Promise<ProfessionalItem | null> => {
   try {
     const coll = collection(db, 'professionals');
-    const q = query(coll, where('userId', '==', userId), limit(1));
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-      const d = snap.docs[0];
-      return { id: d.id, ...d.data() } as ProfessionalItem;
+    if (userId) {
+      const q = query(coll, where('userId', '==', userId), limit(1));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const d = snap.docs[0];
+        return { id: d.id, ...d.data() } as ProfessionalItem;
+      }
+    }
+    if (phone) {
+      const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+      const qPhone = query(coll, where('phone', '==', cleanPhone), limit(1));
+      const snapPhone = await getDocs(qPhone);
+      if (!snapPhone.empty) {
+        const d = snapPhone.docs[0];
+        return { id: d.id, ...d.data() } as ProfessionalItem;
+      }
     }
     return null;
   } catch (err) {
@@ -1543,21 +1489,126 @@ export const createBusinessOffer = async (
   return docRef.id;
 };
 
-export const fetchMyBusinesses = async (ownerUid?: string): Promise<BusinessItem[]> => {
+export const fetchMyBusinesses = async (ownerUid?: string, phone?: string): Promise<BusinessItem[]> => {
   try {
     const coll = collection(db, 'businesses');
-    let q = query(coll, limit(20));
+    let results: BusinessItem[] = [];
+
     if (ownerUid) {
-      q = query(coll, where('ownerUid', '==', ownerUid), limit(20));
+      const q = query(coll, where('ownerUid', '==', ownerUid), limit(50));
+      const snap = await getDocs(q);
+      snap.forEach(d => results.push({ id: d.id, ...d.data() } as BusinessItem));
     }
-    const snap = await getDocs(q);
-    if (snap.empty) {
-      return SEED_BUSINESSES;
+
+    // Also check by phone if provided and not yet found
+    if (phone && results.length === 0) {
+      const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+      const qPhone = query(coll, where('phone', '==', cleanPhone), limit(10));
+      const snapPhone = await getDocs(qPhone);
+      snapPhone.forEach(d => {
+        if (!results.find(r => r.id === d.id)) {
+          results.push({ id: d.id, ...d.data() } as BusinessItem);
+        }
+      });
     }
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessItem));
-  } catch {
-    return SEED_BUSINESSES;
+
+    return results;
+  } catch (err) {
+    console.error('Error fetching user businesses:', err);
+    return [];
   }
+};
+
+export const recordCustomerLead = async (lead: Omit<LeadItem, 'createdAt' | 'id'>): Promise<void> => {
+  try {
+    const leadsColl = collection(db, 'leads');
+    await addDoc(leadsColl, {
+      ...lead,
+      createdAt: serverTimestamp(),
+    });
+
+    // In-app notification to business / pro owner if targetOwnerUid exists
+    if (lead.targetOwnerUid) {
+      const notifColl = collection(db, 'users', lead.targetOwnerUid, 'notifications');
+      let title = 'New Profile Lead! 🔔';
+      let body = `${lead.citizenName || 'A Kurnool resident'} viewed your profile on Kurnool One.`;
+      if (lead.actionType === 'call') {
+        title = 'Direct Call Lead! 📞';
+        body = `${lead.citizenName || 'A customer'} initiated a phone call to your listing.`;
+      } else if (lead.actionType === 'whatsapp') {
+        title = 'WhatsApp Inquiry Lead! 💬';
+        body = `${lead.citizenName || 'A customer'} opened a WhatsApp chat with you.`;
+      }
+      await addDoc(notifColl, {
+        title,
+        body,
+        actionType: lead.actionType,
+        targetId: lead.targetId,
+        citizenPhone: lead.citizenPhone || '',
+        read: false,
+        createdAt: serverTimestamp(),
+      });
+    }
+  } catch (err) {
+    console.warn('Failed to record customer lead:', err);
+  }
+};
+
+export const fetchMyLeads = async (targetOwnerUid?: string, targetId?: string): Promise<LeadItem[]> => {
+  try {
+    const coll = collection(db, 'leads');
+    let leads: LeadItem[] = [];
+    if (targetOwnerUid) {
+      const q = query(coll, where('targetOwnerUid', '==', targetOwnerUid), limit(50));
+      const snap = await getDocs(q);
+      snap.forEach(d => leads.push({ id: d.id, ...d.data() } as LeadItem));
+    }
+    if (targetId && leads.length === 0) {
+      const q = query(coll, where('targetId', '==', targetId), limit(50));
+      const snap = await getDocs(q);
+      snap.forEach(d => {
+        if (!leads.find(l => l.id === d.id)) {
+          leads.push({ id: d.id, ...d.data() } as LeadItem);
+        }
+      });
+    }
+    return leads.sort((a, b) => {
+      const timeA = a.createdAt?.seconds || 0;
+      const timeB = b.createdAt?.seconds || 0;
+      return timeB - timeA;
+    });
+  } catch (err) {
+    console.error('Error fetching leads:', err);
+    return [];
+  }
+};
+
+export const uploadBusinessLogo = async (uri: string): Promise<string> => {
+  const filename = `logo_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+  const storageRef = ref(storage, `businesses/logos/${filename}`);
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  const task = await uploadBytesResumable(storageRef, blob);
+  return await getDownloadURL(task.ref);
+};
+
+export const uploadBusinessCover = async (uri: string): Promise<string> => {
+  const filename = `cover_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+  const storageRef = ref(storage, `businesses/covers/${filename}`);
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  const task = await uploadBytesResumable(storageRef, blob);
+  return await getDownloadURL(task.ref);
+};
+
+export const deleteBusiness = async (businessId: string): Promise<void> => {
+  const docRef = doc(db, 'businesses', businessId);
+  await deleteDoc(docRef);
+};
+
+export const deleteProfessional = async (proId: string): Promise<void> => {
+  const docRef = doc(db, 'professionals', proId);
+  await deleteDoc(docRef);
 };
 
 // ─── KURNOOL CITY LOCALITIES ─────────────────────────────────────────────

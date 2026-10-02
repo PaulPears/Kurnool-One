@@ -7,24 +7,24 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() && (
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin'
-      );
-    }
-
-    function isSuperAdmin() {
       return isAuthenticated() && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin';
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin');
     }
     
     // User accounts
     match /users/{userId} {
       allow read: if true;
-      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated() && request.auth.uid == userId && 
+        (!request.resource.data.keys().hasAny(['role']) || request.resource.data.role in ['user', 'business', 'professional', 'merchant']);
       allow update: if isAuthenticated() && (
         isAdmin() || 
-        (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isBanned']))
+        (request.auth.uid == userId && 
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) || 
+           request.resource.data.role in ['user', 'business', 'professional', 'merchant']) &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isBanned'])
+        )
       );
       allow delete: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
       
@@ -32,6 +32,31 @@ service cloud.firestore {
         allow read: if true;
         allow write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
       }
+    }
+
+    // Registered phone role exclusivity
+    match /registered_phones/{phone} {
+      allow read: if true;
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // Payments audit records
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    // Customer Leads (Justdial-style views, calls, inquiries)
+    match /leads/{leadId} {
+      allow read: if isAuthenticated() && (
+        resource.data.targetOwnerUid == request.auth.uid ||
+        resource.data.citizenUid == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if request.resource.data.keys().hasAll(['targetId', 'targetType', 'actionType']);
+      allow update, delete: if isAuthenticated() && (resource.data.targetOwnerUid == request.auth.uid || isAdmin());
     }
     
     // Businesses directory
@@ -42,7 +67,7 @@ service cloud.firestore {
         isAdmin() || 
         (resource.data.ownerUid == request.auth.uid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['tier', 'verificationBadge', 'status']))
       );
-      allow delete: if isAdmin();
+      allow delete: if isAuthenticated() && (resource.data.ownerUid == request.auth.uid || isAdmin());
 
       match /reviews/{reviewId} {
         allow read: if true;
@@ -59,7 +84,7 @@ service cloud.firestore {
         isAdmin() || 
         (resource.data.userId == request.auth.uid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['verifiedProfessional', 'status']))
       );
-      allow delete: if isAdmin();
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
     // Places and landmarks

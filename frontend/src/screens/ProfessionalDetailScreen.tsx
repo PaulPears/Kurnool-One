@@ -1,24 +1,70 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View, Text, SafeAreaView, ScrollView, TouchableOpacity,
   Linking, Share, StyleSheet, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
-import { ProfessionalItem } from '../services/directoryService';
+import { ProfessionalItem, recordCustomerLead } from '../services/directoryService';
+import { auth } from '../config/firebase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ProfessionalDetailScreen({ route, navigation }: any) {
   const { pro } = route.params as { pro: ProfessionalItem };
   const { language } = useLanguage();
 
+  const logProLead = async (actionType: 'view' | 'call' | 'whatsapp') => {
+    try {
+      if (!pro) return;
+      const currentUser = auth.currentUser;
+      if (pro.userId && currentUser && pro.userId === currentUser.uid) {
+        return;
+      }
+      let citizenName = currentUser?.displayName || 'Kurnool Resident';
+      let citizenPhone = currentUser?.phoneNumber || '';
+      let citizenArea = '';
+      let citizenGender = '';
+
+      const stored = await AsyncStorage.getItem('user');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed.name) citizenName = parsed.name;
+          if (parsed.phone) citizenPhone = parsed.phone;
+          if (parsed.location) citizenArea = parsed.location;
+          if (parsed.gender) citizenGender = parsed.gender;
+        } catch {}
+      }
+
+      await recordCustomerLead({
+        targetId: pro.id,
+        targetType: 'professional',
+        targetOwnerUid: pro.userId,
+        targetName: pro.fullName,
+        actionType,
+        citizenUid: currentUser?.uid,
+        citizenName,
+        citizenPhone,
+        citizenArea,
+        citizenGender,
+      });
+    } catch {}
+  };
+
+  useEffect(() => {
+    logProLead('view');
+  }, [pro?.id]);
+
   const handleCall = () => {
     if (pro.phone) {
+      logProLead('call');
       Linking.openURL(`tel:${pro.phone}`).catch(() => {});
     }
   };
 
   const handleWhatsApp = () => {
     if (pro.whatsapp || pro.phone) {
+      logProLead('whatsapp');
       const num = (pro.whatsapp || pro.phone).replace(/[^0-9]/g, '');
       const waNumber = num.startsWith('91') ? num : `91${num}`;
       Linking.openURL(`https://wa.me/${waNumber}?text=Hello ${pro.fullName}, I found your profile on Kurnool One and need your service.`).catch(() => {});

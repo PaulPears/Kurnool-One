@@ -87,6 +87,21 @@ export default function OffersScreen({ navigation }: any) {
           keyExtractor={item => item.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIconCircle}>
+                <Ionicons name="pricetag-outline" size={36} color="#2563EB" />
+              </View>
+              <Text style={styles.emptyTitle}>
+                {language === 'en' ? 'No Active Offers Today' : 'ఈ రోజు క్రియాశీల ఆఫర్లు లేవు'}
+              </Text>
+              <Text style={styles.emptySubtitle}>
+                {language === 'en'
+                  ? 'Local shops and businesses will post discounts here soon. Check back often!'
+                  : 'స్థానిక దుకాణాలు త్వరలో ఇక్కడ ఆఫర్లను పోస్ట్ చేస్తాయి.'}
+              </Text>
+            </View>
+          }
           renderItem={({ item }) => (
             <View style={styles.offerCard}>
               <View style={styles.offerHeader}>
@@ -126,6 +141,21 @@ export default function OffersScreen({ navigation }: any) {
           keyExtractor={item => item.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIconCircle}>
+                <Ionicons name="calendar-outline" size={36} color="#2563EB" />
+              </View>
+              <Text style={styles.emptyTitle}>
+                {language === 'en' ? 'No Upcoming Events' : 'రాబోయే నగర కార్యక్రమాలు లేవు'}
+              </Text>
+              <Text style={styles.emptySubtitle}>
+                {language === 'en'
+                  ? 'City cultural festivals, expo fairs, and meetups will appear here.'
+                  : 'నగర ఉత్సవాలు మరియు కార్యక్రమాలు ఇక్కడ కనిపిస్తాయి.'}
+              </Text>
+            </View>
+          }
           renderItem={({ item }) => (
             <View style={styles.eventCard}>
               {item.posterUrl ? (
@@ -246,4 +276,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#2563EB', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8,
   },
   contactOrgText: { color: '#FFFFFF', fontWeight: '700', fontSize: 11 },
+  emptyContainer: {
+    alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 60, paddingHorizontal: 24,
+  },
+  emptyIconCircle: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 17, fontWeight: '800', color: '#1F2937', textAlign: 'center', marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 13, color: '#6B7280', textAlign: 'center', lineHeight: 20, maxWidth: 280,
+  },
 });

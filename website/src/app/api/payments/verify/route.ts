@@ -14,24 +14,35 @@ import {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    const resolvedOrderId = body.razorpay_order_id || body.orderId || '';
+    const resolvedPaymentId = body.razorpay_payment_id || body.paymentId || '';
+    const resolvedSignature = body.razorpay_signature || body.signature || '';
     const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
       businessId,
+      professionalId,
+      proId,
+      eventId,
       planId,
+      entityType,
     } = body;
 
-    const keySecret = process.env.RAZORPAY_KEY_SECRET || 'test_secret_kurnool_one';
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
-    // Signature Verification
-    if (process.env.RAZORPAY_KEY_SECRET) {
+    // Strict signature verification when secret is configured
+    if (keySecret) {
+      if (!resolvedOrderId || !resolvedPaymentId || !resolvedSignature) {
+        return NextResponse.json(
+          { success: false, error: 'Missing payment signature verification parameters' },
+          { status: 400 }
+        );
+      }
+
       const generatedSignature = crypto
         .createHmac('sha256', keySecret)
-        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+        .update(`${resolvedOrderId}|${resolvedPaymentId}`)
         .digest('hex');
 
-      if (generatedSignature !== razorpay_signature) {
+      if (generatedSignature !== resolvedSignature) {
         return NextResponse.json(
           { success: false, error: 'Cryptographic signature verification failed' },
           { status: 400 }
@@ -42,17 +53,19 @@ export async function POST(req: NextRequest) {
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + 365); // 1 Year subscription validity
 
-    // Update business document in Firestore
+    const activePayId = resolvedPaymentId || `pay_${Date.now()}`;
+
+    // 1. Update business document in Firestore
     if (businessId) {
       try {
         const bizRef = doc(db, 'businesses', businessId);
         await updateDoc(bizRef, {
           paymentStatus: 'paid',
-          paymentId: razorpay_payment_id || `demo_pay_${Date.now()}`,
-          orderId: razorpay_order_id || '',
-          planId: planId || 'verified',
-          tier: planId === 'premium' ? 'featured' : 'free',
-          verificationBadge: planId !== 'free' ? 'verified_business' : 'none',
+          paymentId: activePayId,
+          orderId: resolvedOrderId,
+          planId: planId || 'biz_yearly',
+          tier: planId?.includes('monthly') ? 'standard' : 'featured',
+          verificationBadge: 'verified_business',
           status: 'published',
           planExpiresAt: expiryDate.toISOString(),
           paidAt: serverTimestamp(),
@@ -62,20 +75,56 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // 2. Update professional document in Firestore
+    const targetProId = professionalId || proId;
+    if (targetProId) {
+      try {
+        const proRef = doc(db, 'professionals', targetProId);
+        await updateDoc(proRef, {
+          paymentStatus: 'paid',
+          paymentId: activePayId,
+          orderId: resolvedOrderId,
+          planId: planId || 'pro_yearly',
+          verifiedProfessional: true,
+          status: 'published',
+          planExpiresAt: expiryDate.toISOString(),
+          paidAt: serverTimestamp(),
+        });
+      } catch (proErr) {
+        console.warn('Failed to update professional doc:', proErr);
+      }
+    }
+
+    // 3. Update event document in Firestore
+    if (eventId) {
+      try {
+        const eventRef = doc(db, 'events', eventId);
+        await updateDoc(eventRef, {
+          paymentStatus: 'paid',
+          paymentId: activePayId,
+          orderId: resolvedOrderId,
+          status: 'published',
+          paidAt: serverTimestamp(),
+        });
+      } catch (eventErr) {
+        console.warn('Failed to update event doc:', eventErr);
+      }
+    }
+
     // Update payments audit record
     try {
-      if (razorpay_order_id) {
+      if (resolvedOrderId) {
         const q = query(
           collection(db, 'payments'),
-          where('orderId', '==', razorpay_order_id)
+          where('orderId', '==', resolvedOrderId)
         );
         const snap = await getDocs(q);
         if (!snap.empty) {
           const paymentDocRef = snap.docs[0].ref;
           await updateDoc(paymentDocRef, {
             status: 'paid',
-            paymentId: razorpay_payment_id || `demo_pay_${Date.now()}`,
-            signature: razorpay_signature || 'verified_demo',
+            paymentId: resolvedPaymentId || `pay_${Date.now()}`,
+            signature: resolvedSignature || 'verified_paid',
             verifiedAt: serverTimestamp(),
           });
         }

@@ -21,11 +21,10 @@ import AdminBannerScreen from '../screens/AdminBannerScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import NotificationScreen from '../screens/NotificationScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
-import CreatePostScreen from '../screens/CreatePostScreen';
-import VerticalImageViewer from '../screens/VerticalImageViewer';
 import ManageBusinessScreen from '../screens/ManageBusinessScreen';
 import RegisterProfessionalScreen from '../screens/RegisterProfessionalScreen';
 import ManageProfessionalScreen from '../screens/ManageProfessionalScreen';
+import SplashScreen from '../screens/SplashScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -89,17 +88,16 @@ function MainTabs() {
 export default function AppNavigator() {
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="MobileFirebaseLogin">
+      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Splash">
+        <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="MobileFirebaseLogin" component={MobileFirebaseLogin} />
         <Stack.Screen name="Main" component={MainTabs} />
         <Stack.Screen name="BusinessDetail" component={BusinessDetailScreen} />
         <Stack.Screen name="ProfessionalDetail" component={ProfessionalDetailScreen} />
         <Stack.Screen name="RegisterBusiness" component={RegisterBusinessScreen} />
         <Stack.Screen name="Search" component={SearchScreen} />
-        <Stack.Screen name="CreatePost" component={CreatePostScreen} />
         <Stack.Screen name="Notifications" component={NotificationScreen} />
         <Stack.Screen name="UserProfile" component={ProfileScreen} />
-        <Stack.Screen name="VerticalImageViewer" component={VerticalImageViewer} />
         <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
         <Stack.Screen name="AdminBanners" component={AdminBannerScreen} />

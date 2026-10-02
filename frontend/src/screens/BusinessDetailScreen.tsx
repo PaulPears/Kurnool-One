@@ -7,9 +7,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
 import {
   fetchBusinessById, fetchBusinessReviews, addBusinessReview, trackBusinessInteraction,
-  BusinessItem, BusinessReview,
+  recordCustomerLead, BusinessItem, BusinessReview,
 } from '../services/directoryService';
 import { auth } from '../config/firebase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function BusinessDetailScreen({ route, navigation }: any) {
   const { businessId } = route.params || {};
@@ -29,11 +30,52 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
     loadBusiness();
   }, [businessId]);
 
+  const logLead = async (b: BusinessItem | null, actionType: 'view' | 'call' | 'whatsapp') => {
+    try {
+      if (!b) return;
+      const currentUser = auth.currentUser;
+      if (b.ownerUid && currentUser && b.ownerUid === currentUser.uid) {
+        return; // Don't log owner viewing own business
+      }
+      let citizenName = currentUser?.displayName || 'Kurnool Resident';
+      let citizenPhone = currentUser?.phoneNumber || '';
+      let citizenArea = '';
+      let citizenGender = '';
+
+      const stored = await AsyncStorage.getItem('user');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed.name) citizenName = parsed.name;
+          if (parsed.phone) citizenPhone = parsed.phone;
+          if (parsed.location) citizenArea = parsed.location;
+          if (parsed.gender) citizenGender = parsed.gender;
+        } catch {}
+      }
+
+      await recordCustomerLead({
+        targetId: b.id,
+        targetType: 'business',
+        targetOwnerUid: b.ownerUid,
+        targetName: b.name_en,
+        actionType,
+        citizenUid: currentUser?.uid,
+        citizenName,
+        citizenPhone,
+        citizenArea,
+        citizenGender,
+      });
+    } catch {}
+  };
+
   const loadBusiness = async () => {
     setLoading(true);
     try {
       const data = await fetchBusinessById(businessId);
       setBusiness(data);
+      if (data) {
+        logLead(data, 'view');
+      }
       if (businessId) {
         trackBusinessInteraction(businessId, 'view');
         const revs = await fetchBusinessReviews(businessId);
@@ -49,6 +91,7 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
   const handleCall = () => {
     if (business?.phone) {
       if (businessId) trackBusinessInteraction(businessId, 'call');
+      logLead(business, 'call');
       Linking.openURL(`tel:${business.phone}`).catch(() => {});
     }
   };
@@ -56,6 +99,7 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
   const handleWhatsApp = () => {
     if (business?.whatsapp) {
       if (businessId) trackBusinessInteraction(businessId, 'whatsapp');
+      logLead(business, 'whatsapp');
       const clean = business.whatsapp.replace(/[^0-9]/g, '');
       const waNumber = clean.startsWith('91') ? clean : `91${clean}`;
       Linking.openURL(`https://wa.me/${waNumber}?text=Hello, I found your listing on Kurnool One.`).catch(() => {});

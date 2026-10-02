@@ -1,6 +1,7 @@
 # Logs
 logs
 *.log
+*.apk
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -68,6 +69,11 @@ node_modules/
 
 # dotenv environment variables file
 .env
+.env*.local
+*.env.local
+
+# Temporary debug screen captures in frontend
+frontend/*.png
 
 # dataconnect generated files
 .dataconnect

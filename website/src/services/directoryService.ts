@@ -1,5 +1,5 @@
 import {
-  collection, doc, getDoc, getDocs, addDoc, updateDoc, increment, query, where, limit, serverTimestamp,
+  collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, increment, query, where, limit, serverTimestamp,
 } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
@@ -764,6 +764,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
   },
 ];
 
+export const BUSINESS_CATEGORIES = MASTER_CATEGORIES;
+
 // Legacy mapping support for seamless query backward compatibility
 export const LEGACY_BUSINESS_CATEGORY_MAP: Record<string, string> = {
   food_dining: 'restaurants_cafes',
@@ -780,283 +782,9 @@ export const LEGACY_BUSINESS_CATEGORY_MAP: Record<string, string> = {
 
 // ─── SEED DATA ───────────────────────────────────────────────────────────────
 
-export const SEED_BUSINESSES: BusinessItem[] = [
-  {
-    id: 'biz_1',
-    name_en: 'Mourya Inn Restaurant & Hotel',
-    name_te: 'మౌర్య ఇన్ రెస్టారెంట్ & హోటల్',
-    categoryId: 'restaurants_cafes',
-    subcategoryId: 'family_restaurant',
-    description_en: 'Premium family multi-cuisine restaurant serving authentic Rayalaseema delicacies, Kurnool Biryani, North & South Indian meals.',
-    description_te: 'కర్నూలులోని ప్రముఖ ఫ్యామిలీ రెస్టారెంట్, రాయలసీమ మరియు బిర్యానీ స్పెషల్స్.',
-    address: 'Opp. Old Bus Stand, Kurnool, AP',
-    landmark: 'Old Bus Stand',
-    phone: '08518224999',
-    whatsapp: '9848055555',
-    timing: '11:00 AM - 11:00 PM',
-    images: ['https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800'],
-    website: 'https://mouryainn.com',
-    googleMapsUrl: 'https://maps.google.com/?q=Mourya+Inn+Kurnool',
-    amenities: ['AC Dining', 'Valet Parking', 'UPI Accepted', 'Takeaway'],
-    priceRange: '₹₹',
-    claimStatus: 'verified',
-    tier: 'featured',
-    verificationBadge: 'verified_business',
-    ratingAvg: 4.8,
-    ratingCount: 142,
-    status: 'published',
-  },
-  {
-    id: 'biz_2',
-    name_en: 'MedPlus Pharmacy & Diagnostics',
-    name_te: 'మెడ్‌ప్లస్ మెడికల్ స్టోర్',
-    categoryId: 'pharmacies_medical',
-    subcategoryId: '24hr_pharmacy',
-    description_en: 'Genuine medicines, wellness products, sample collections with fast home delivery across Kurnool city.',
-    description_te: 'అన్ని రకాల మందులు మరియు వైద్య ఉత్పత్తులు లభించును.',
-    address: 'Near Nandyal Checkpost, Kurnool',
-    landmark: 'Nandyal Checkpost',
-    phone: '08518230000',
-    whatsapp: '9848066666',
-    timing: '07:00 AM - 11:30 PM',
-    images: ['https://images.unsplash.com/photo-1586015555751-63c25b3cf17d?w=800'],
-    website: 'https://medplusmart.com',
-    googleMapsUrl: 'https://maps.google.com/?q=Nandyal+Checkpost+Kurnool',
-    amenities: ['Home Delivery', 'Online UPI', 'Pharmacist On Duty'],
-    priceRange: '₹',
-    claimStatus: 'verified',
-    tier: 'featured',
-    verificationBadge: 'verified_business',
-    ratingAvg: 4.6,
-    ratingCount: 88,
-    status: 'published',
-  },
-  {
-    id: 'biz_3',
-    name_en: 'Kurnool Mega Silks & Sarees',
-    name_te: 'కర్నూలు మెగా సిల్క్స్ & శారీస్',
-    categoryId: 'clothing_fashion',
-    subcategoryId: 'saree_showrooms',
-    description_en: 'Grand wedding collection, Kanchi pattu, Gadwal & Dharmavaram sarees, kids & gents ethnic wear showroom.',
-    description_te: 'పెళ్లి పట్టు చీరలు మరియు ఫ్యాషన్ వస్త్రాల షోరూమ్.',
-    address: 'Main Bazaar Road, Near Raj Vihar Centre, Kurnool',
-    landmark: 'Raj Vihar Centre',
-    phone: '08518245555',
-    whatsapp: '9848077777',
-    timing: '10:00 AM - 09:30 PM',
-    images: ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800'],
-    googleMapsUrl: 'https://maps.google.com/?q=Raj+Vihar+Kurnool',
-    amenities: ['AC Showroom', 'Trial Rooms', 'Card & UPI Payment'],
-    priceRange: '₹₹₹',
-    claimStatus: 'verified',
-    tier: 'featured',
-    verificationBadge: 'verified_business',
-    ratingAvg: 4.7,
-    ratingCount: 95,
-    status: 'published',
-  },
-  {
-    id: 'biz_4',
-    name_en: 'Sri Sai Diagnostic & Scan Centre',
-    name_te: 'శ్రీ సాయి డయాగ్నస్టిక్ సెంటర్',
-    categoryId: 'hospitals_clinics',
-    subcategoryId: 'multispeciality',
-    description_en: 'Fully automated pathology, digital X-Ray, 2D Echo, Ultrasound and ECG with same-day reports.',
-    description_te: 'అధునాతన రక్త పరీక్షలు మరియు ఎక్స్-రే సేవలు.',
-    address: 'Near Govt General Hospital (GGH), Kurnool',
-    landmark: 'GGH Hospital Road',
-    phone: '08518256666',
-    whatsapp: '9848088888',
-    timing: '06:30 AM - 09:00 PM',
-    images: ['https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800'],
-    amenities: ['Home Blood Collection', 'Online Reports', 'Wheelchair Access'],
-    priceRange: '₹₹',
-    claimStatus: 'verified',
-    tier: 'featured',
-    verificationBadge: 'verified_business',
-    ratingAvg: 4.7,
-    ratingCount: 64,
-    status: 'published',
-  },
-];
+export const SEED_BUSINESSES: BusinessItem[] = [];
 
-export const SEED_PROFESSIONALS: ProfessionalItem[] = [
-  {
-    id: 'pro_1',
-    fullName: 'Ramesh Electrical & Inverter Works',
-    category: 'Electrician',
-    categoryName_te: 'ఎలక్ట్రీషియన్',
-    experienceYears: 8,
-    serviceAreas: ['Camp Area', 'B-Camp', 'Collectorate', 'Santosh Nagar'],
-    phone: '9848012345',
-    whatsapp: '9848012345',
-    visitingCharges: '₹150',
-    hourlyRate: '₹250/hr',
-    description: 'Expert residential & commercial electrical wiring, short circuits, switchboards, fan installations and inverter setups.',
-    avatarUrl: 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=400',
-    portfolioPhotos: [],
-    instagramUrl: 'https://instagram.com/kurnool_electricals',
-    verifiedProfessional: true,
-    ratingAvg: 4.8,
-    ratingCount: 34,
-    status: 'active',
-  },
-  {
-    id: 'pro_2',
-    fullName: 'Srinivas Plumber Services',
-    category: 'Plumber',
-    categoryName_te: 'ప్లంబర్',
-    experienceYears: 11,
-    serviceAreas: ['Nandyal Checkpost', 'Prakash Nagar', 'Budhawarapet', 'All Kurnool'],
-    phone: '9848023456',
-    whatsapp: '9848023456',
-    visitingCharges: '₹150',
-    description: 'Leakages, bathroom fittings, motor pump repairs, overhead water tank connections and sanitary piping.',
-    avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400',
-    portfolioPhotos: [],
-    verifiedProfessional: true,
-    ratingAvg: 4.9,
-    ratingCount: 52,
-    status: 'active',
-  },
-  {
-    id: 'pro_3',
-    fullName: 'Krishna Cool Care (AC Technician)',
-    category: 'AC & Appliance',
-    categoryName_te: 'ఏసీ సర్వీసింగ్',
-    experienceYears: 6,
-    serviceAreas: ['All Kurnool City Areas'],
-    phone: '9848034567',
-    whatsapp: '9848034567',
-    visitingCharges: '₹200',
-    description: 'Split and window AC gas refilling, jet pump wet servicing, PCB repairs and refrigerator cooling fixes.',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
-    portfolioPhotos: [],
-    verifiedProfessional: true,
-    ratingAvg: 4.7,
-    ratingCount: 29,
-    status: 'active',
-  },
-  {
-    id: 'pro_4',
-    fullName: 'Chandra Photography & 4K Films',
-    category: 'Wedding Photographer',
-    categoryName_te: 'వెడ్డింగ్ ఫోటోగ్రఫీ',
-    experienceYears: 7,
-    serviceAreas: ['All Kurnool & Surrounding Areas'],
-    phone: '9848045678',
-    whatsapp: '9848045678',
-    visitingCharges: '₹500 (Consultation/Booking)',
-    hourlyRate: 'Custom Event Packages',
-    description: 'Pre-wedding candid shoots, traditional Telugu wedding rituals, 4K cinematic highlights and drone aerial cinematography.',
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400',
-    instagramUrl: 'https://instagram.com/chandra_wedding_films',
-    youtubeUrl: 'https://youtube.com/@chandraweddings',
-    portfolioPhotos: [],
-    verifiedProfessional: true,
-    ratingAvg: 5.0,
-    ratingCount: 41,
-    status: 'active',
-  },
-  {
-    id: 'pro_5',
-    fullName: 'Master Venkat Home & Online Tuitions',
-    category: 'Home Tutor',
-    categoryName_te: 'హోమ్ ట్యూషన్స్',
-    experienceYears: 10,
-    serviceAreas: ['Santosh Nagar', 'Camp Area', 'Roza Dargah', 'Gayatri Estate'],
-    phone: '9848056789',
-    whatsapp: '9848056789',
-    visitingCharges: 'Free Demo Class',
-    hourlyRate: '₹3,000 / month',
-    description: 'Dedicated 1-on-1 coaching for Classes 6-10 CBSE & State Syllabus in Mathematics, Physics and Chemistry. Proven 95%+ marks track record.',
-    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400',
-    portfolioPhotos: [],
-    verifiedProfessional: true,
-    ratingAvg: 4.9,
-    ratingCount: 38,
-    status: 'active',
-  },
-  {
-    id: 'pro_6',
-    fullName: 'K. Subba Rao Advocate & Notary',
-    category: 'Legal & Documentation',
-    categoryName_te: 'న్యాయవాది & పత్ర లేఖకుడు',
-    experienceYears: 15,
-    serviceAreas: ['District Court Kurnool', 'Collectorate', 'All City'],
-    phone: '9848067890',
-    whatsapp: '9848067890',
-    visitingCharges: '₹300 (Legal Consultation)',
-    hourlyRate: 'Documentation Fees per deed',
-    description: 'Property registration, title search reports, partition deeds, gift settlements, affidavit notary and civil litigation advisory.',
-    avatarUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400',
-    linkedinUrl: 'https://linkedin.com/in/k-subba-rao-advocate',
-    portfolioPhotos: [],
-    verifiedProfessional: true,
-    ratingAvg: 4.8,
-    ratingCount: 47,
-    status: 'active',
-  },
-  {
-    id: 'pro_7',
-    fullName: 'Anand Carpenter & Interior Woodworks',
-    category: 'Carpenter',
-    categoryName_te: 'వడ్రంగి & ఇంటీరియర్ వుడ్‌వర్క్',
-    experienceYears: 12,
-    serviceAreas: ['Nandyal Road', 'Budhawarapet', 'B-Camp', 'All Kurnool'],
-    phone: '9848078901',
-    whatsapp: '9848078901',
-    visitingCharges: '₹150',
-    hourlyRate: 'Day wage or Job quotation',
-    description: 'Modular kitchen woodwork, sliding wardrobes, door frame repairs, locks replacement, customized TV units and Italian wood polish.',
-    avatarUrl: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=400',
-    portfolioPhotos: [],
-    verifiedProfessional: true,
-    ratingAvg: 4.7,
-    ratingCount: 31,
-    status: 'active',
-  },
-  {
-    id: 'pro_8',
-    fullName: 'Renu Vlogs (Kurnool Foodie & Lifestyle)',
-    category: 'Social Media Influencers',
-    categoryName_te: 'సోషల్ మీడియా ఇన్‌ఫ్లుయెన్సర్',
-    experienceYears: 4,
-    serviceAreas: ['All Kurnool & Rayalaseema'],
-    phone: '9848089012',
-    whatsapp: '9848089012',
-    visitingCharges: '₹1,500 / Store Visit Reel',
-    hourlyRate: 'Brand Collaboration Packages',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
-    instagramUrl: 'https://instagram.com/kurnool_food_vlogs',
-    youtubeUrl: 'https://youtube.com/@kurnoolfoodvlogs',
-    description: 'Popular Kurnool food & lifestyle influencer with 65k+ active followers. Restaurant reviews, store launch promotions, food testing and viral Instagram reels.',
-    portfolioPhotos: [],
-    verifiedProfessional: true,
-    ratingAvg: 4.9,
-    ratingCount: 64,
-    status: 'active',
-  },
-  {
-    id: 'pro_9',
-    fullName: 'Venkatesh Wall Painting & Texture Art',
-    category: 'Painters & Wall Artists',
-    categoryName_te: 'పెయింటర్ & వాల్ ఆర్ట్',
-    experienceYears: 9,
-    serviceAreas: ['Camp Area', 'Budhawarapet', 'Santosh Nagar', 'All Kurnool'],
-    phone: '9848090123',
-    whatsapp: '9848090123',
-    visitingCharges: '₹150 (Wall Inspection & Measurement)',
-    hourlyRate: '₹12 / sq.ft (Asian Paints Royal Finish)',
-    avatarUrl: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=400',
-    description: 'Interior & exterior emulsion painting, waterproofing, designer stencil textures, kid room murals and enamel gloss woodwork.',
-    portfolioPhotos: [],
-    verifiedProfessional: true,
-    ratingAvg: 4.8,
-    ratingCount: 39,
-    status: 'active',
-  },
-];
+export const SEED_PROFESSIONALS: ProfessionalItem[] = [];
 
 export const SEED_PLACES: PlaceItem[] = [
   {
@@ -1107,97 +835,9 @@ export const SEED_PLACES: PlaceItem[] = [
   },
 ];
 
-export const SEED_OFFERS: OfferItem[] = [
-  {
-    id: 'off_1',
-    title_en: 'Flat 20% Off on Family Dinners',
-    title_te: 'ఫ్యామిలీ డిన్నర్‌పై 20% డిస్కౌంట్',
-    description_en: 'Valid on orders above ₹1,000 every Monday to Thursday. Authentic Rayalaseema specials included.',
-    description_te: 'ప్రతి సోమ-గురువారాల్లో రూ. 1,000 పైబడిన బిల్లుపై 20% రాయితీ.',
-    discountText: 'FLAT 20% OFF',
-    businessName: 'Mourya Inn Restaurant',
-    validUntil: 'Valid until 31st Oct',
-    bannerUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800',
-    phone: '08518224999',
-    category: 'Food & Dining',
-  },
-  {
-    id: 'off_2',
-    title_en: 'Free Home Sample Collection + 15% Off',
-    title_te: 'ఉచిత హోమ్ బ్లడ్ కలెక్షన్ + 15% రాయితీ',
-    description_en: 'Full body health checkup packages starting at ₹499 with free sample pickup at your doorstep.',
-    discountText: '15% OFF + FREE PICKUP',
-    businessName: 'MedPlus Diagnostics Kurnool',
-    validUntil: 'Limited Time Offer',
-    bannerUrl: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=800',
-    phone: '08518230000',
-    category: 'Health & Medical',
-  },
-];
+export const SEED_OFFERS: OfferItem[] = [];
 
-export const SEED_EVENTS: EventItem[] = [
-  {
-    id: 'eve_1',
-    title_en: 'Kurnool Mega Handloom & Craft Expo 2026',
-    title_te: 'కర్నూలు చేనేత & హస్తకళల ప్రదర్శన 2026',
-    category: 'expo',
-    dateStr: 'Oct 15 - Oct 22, 2026',
-    timeStr: '10:00 AM - 09:30 PM',
-    venue: 'Municipal Grounds, Near Collectorate, Kurnool',
-    organizerName: 'AP Handloom & Weavers Association',
-    contactPhone: '9848011223',
-    posterUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=800',
-    entryType: 'free',
-    tier: 'featured',
-    status: 'approved',
-  },
-  {
-    id: 'eve_2',
-    title_en: 'Tungabhadra Evening Cultural Aarti & Classical Sangeetham',
-    title_te: 'తుంగభద్ర సాయంత్రపు హారతి & శాస్త్రీయ సంగీత విభావరి',
-    category: 'cultural',
-    dateStr: 'Every Friday & Sunday Evening',
-    timeStr: '06:30 PM - 08:30 PM',
-    venue: 'Pushkara Ghat, Riverfront Promenade, Kurnool',
-    organizerName: 'Kurnool Heritage Society & AP Tourism',
-    contactPhone: '9848099999',
-    posterUrl: 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=800',
-    entryType: 'free',
-    tier: 'mega',
-    status: 'approved',
-  },
-  {
-    id: 'eve_3',
-    title_en: 'Rayalaseema Food & Biryani Festival 2026',
-    title_te: 'రాయలసీమ ఆహార & బిర్యానీ ఉత్సవం',
-    category: 'cultural',
-    dateStr: 'Nov 05 - Nov 08, 2026',
-    timeStr: '12:00 PM - 10:30 PM',
-    venue: 'Outdoor Stadium Grounds, Kurnool',
-    organizerName: 'Kurnool Restaurant Owners Association',
-    contactPhone: '9848055555',
-    posterUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800',
-    entryType: 'ticketed',
-    ticketPrice: '₹50 (Entry)',
-    tier: 'featured',
-    status: 'approved',
-  },
-  {
-    id: 'eve_4',
-    title_en: 'Kurnool District Youth Badminton Championship',
-    title_te: 'కర్నూలు జిల్లా యూత్ బ్యాడ్మింటన్ టోర్నమెంట్',
-    category: 'sports',
-    dateStr: 'Nov 14 - Nov 16, 2026',
-    timeStr: '08:00 AM - 06:00 PM',
-    venue: 'Indoor Stadium, Near Collector Complex, Kurnool',
-    organizerName: 'District Sports Authority Kurnool',
-    contactPhone: '9848012345',
-    posterUrl: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800',
-    entryType: 'free',
-    tier: 'free',
-    status: 'approved',
-  },
-];
+export const SEED_EVENTS: EventItem[] = [];
 
 // ─── FIRESTORE API METHODS ───────────────────────────────────────────────────
 
@@ -1216,20 +856,7 @@ export const fetchBusinesses = async (
     }
     const snap = await getDocs(q);
     if (snap.empty) {
-      let list = SEED_BUSINESSES;
-      if (categoryId && categoryId !== 'all') {
-        list = list.filter(b => b.categoryId === categoryId || b.categoryId === targetCategory);
-      }
-      if (searchQuery) {
-        const queryLower = searchQuery.toLowerCase();
-        list = list.filter(b =>
-          b.name_en.toLowerCase().includes(queryLower) ||
-          b.name_te?.includes(searchQuery) ||
-          b.description_en.toLowerCase().includes(queryLower) ||
-          b.address.toLowerCase().includes(queryLower)
-        );
-      }
-      return list;
+      return [];
     }
 
     let results = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessItem));
@@ -1244,7 +871,7 @@ export const fetchBusinesses = async (
     }
     return results;
   } catch {
-    return SEED_BUSINESSES;
+    return [];
   }
 };
 
@@ -1255,9 +882,9 @@ export const fetchBusinessById = async (id: string): Promise<BusinessItem | null
     if (snap.exists()) {
       return { id: snap.id, ...snap.data() } as BusinessItem;
     }
-    return SEED_BUSINESSES.find(b => b.id === id) || null;
+    return null;
   } catch {
-    return SEED_BUSINESSES.find(b => b.id === id) || null;
+    return null;
   }
 };
 
@@ -1266,10 +893,10 @@ export const fetchProfessionals = async (): Promise<ProfessionalItem[]> => {
     const coll = collection(db, 'professionals');
     const q = query(coll, where('status', '==', 'active'), limit(30));
     const snap = await getDocs(q);
-    if (snap.empty) return SEED_PROFESSIONALS;
+    if (snap.empty) return [];
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as ProfessionalItem));
   } catch {
-    return SEED_PROFESSIONALS;
+    return [];
   }
 };
 
@@ -1288,10 +915,10 @@ export const fetchOffers = async (): Promise<OfferItem[]> => {
   try {
     const coll = collection(db, 'promotions');
     const snap = await getDocs(coll);
-    if (snap.empty) return SEED_OFFERS;
+    if (snap.empty) return [];
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as OfferItem));
   } catch {
-    return SEED_OFFERS;
+    return [];
   }
 };
 
@@ -1318,6 +945,84 @@ export const registerBusiness = async (data: Partial<BusinessItem>): Promise<str
     createdAt: serverTimestamp(),
   });
   return docRef.id;
+};
+
+// ─── PHONE AUTH & ROLE EXCLUSIVITY ──────────────────────────────────────────
+
+export const sanitizePhone = (rawPhone: string): string => {
+  const cleaned = rawPhone.trim().replace(/[^\d+]/g, '');
+  if (cleaned.startsWith('+91')) return cleaned;
+  if (cleaned.startsWith('91') && cleaned.length === 12) return `+${cleaned}`;
+  const digitsOnly = cleaned.replace(/\D/g, '');
+  if (digitsOnly.length === 10) return `+91${digitsOnly}`;
+  return cleaned;
+};
+
+export interface PhoneExclusivityResult {
+  allowed: boolean;
+  existingRole?: 'business' | 'professional';
+  message?: string;
+  phoneDoc?: any;
+}
+
+export const checkPhoneRoleExclusivity = async (
+  phone: string,
+  requestedRole: 'business' | 'professional'
+): Promise<PhoneExclusivityResult> => {
+  const formattedPhone = sanitizePhone(phone);
+  if (!formattedPhone || formattedPhone.replace(/\D/g, '').length < 10) {
+    return { allowed: false, message: 'Please enter a valid 10-digit mobile number.' };
+  }
+
+  try {
+    const phoneRef = doc(db, 'registered_phones', formattedPhone);
+    const snap = await getDoc(phoneRef);
+
+    if (snap.exists()) {
+      const data = snap.data();
+      const existingRole = data.role as 'business' | 'professional';
+      if (existingRole && existingRole !== requestedRole) {
+        const opposingName = existingRole === 'business' ? 'Business Account' : 'Professional Account';
+        const requestedName = requestedRole === 'business' ? 'Business Account' : 'Professional Account';
+        return {
+          allowed: false,
+          existingRole,
+          phoneDoc: data,
+          message: `This mobile number (${formattedPhone}) is already registered as a ${opposingName}. Separate credentials are strictly required for Business and Professional accounts. You cannot use this phone number for a ${requestedName}.`,
+        };
+      }
+      return { allowed: true, phoneDoc: data, existingRole };
+    }
+    return { allowed: true };
+  } catch (error) {
+    console.warn('Phone role check error/offline fallback:', error);
+    return { allowed: true };
+  }
+};
+
+export const registerPhoneRole = async (
+  phone: string,
+  role: 'business' | 'professional',
+  uid: string,
+  extra?: { name?: string; businessName?: string }
+): Promise<void> => {
+  const formattedPhone = sanitizePhone(phone);
+  const phoneRef = doc(db, 'registered_phones', formattedPhone);
+  await setDoc(phoneRef, {
+    phone: formattedPhone,
+    role,
+    uid,
+    name: extra?.name || '',
+    businessName: extra?.businessName || '',
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+
+  const userRef = doc(db, 'users', uid);
+  await setDoc(userRef, {
+    phone: formattedPhone,
+    role,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
 };
 
 export const trackBusinessInteraction = async (
@@ -1364,20 +1069,43 @@ export const createBusinessOffer = async (
 };
 
 export const fetchMyBusinesses = async (ownerUid?: string): Promise<BusinessItem[]> => {
+  if (!ownerUid) return [];
   try {
     const coll = collection(db, 'businesses');
-    let q = query(coll, limit(20));
-    if (ownerUid) {
-      q = query(coll, where('ownerUid', '==', ownerUid), limit(20));
-    }
+    const q = query(coll, where('ownerUid', '==', ownerUid), limit(50));
     const snap = await getDocs(q);
     if (snap.empty) {
-      return SEED_BUSINESSES;
+      return [];
     }
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessItem));
-  } catch {
-    return SEED_BUSINESSES;
+  } catch (err) {
+    console.error('Error fetching my businesses:', err);
+    return [];
   }
+};
+
+export const uploadBusinessLogo = async (file: File): Promise<string> => {
+  const filename = `logo_${Date.now()}_${Math.random().toString(36).substring(7)}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+  const storageRef = ref(storage, `businesses/logos/${filename}`);
+  const task = await uploadBytesResumable(storageRef, file);
+  return await getDownloadURL(task.ref);
+};
+
+export const uploadBusinessCover = async (file: File): Promise<string> => {
+  const filename = `cover_${Date.now()}_${Math.random().toString(36).substring(7)}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+  const storageRef = ref(storage, `businesses/covers/${filename}`);
+  const task = await uploadBytesResumable(storageRef, file);
+  return await getDownloadURL(task.ref);
+};
+
+export const deleteBusiness = async (businessId: string): Promise<void> => {
+  const docRef = doc(db, 'businesses', businessId);
+  await deleteDoc(docRef);
+};
+
+export const deleteProfessional = async (proId: string): Promise<void> => {
+  const docRef = doc(db, 'professionals', proId);
+  await deleteDoc(docRef);
 };
 
 export const uploadProfessionalAvatar = async (file: File): Promise<string> => {
@@ -1596,16 +1324,14 @@ export const fetchEvents = async (category?: string): Promise<EventItem[]> => {
   try {
     const coll = collection(db, 'events');
     const snap = await getDocs(coll);
-    let list = snap.empty
-      ? SEED_EVENTS
-      : snap.docs.map(d => ({ id: d.id, ...d.data() } as EventItem));
-
+    if (snap.empty) return [];
+    let list = snap.docs.map(d => ({ id: d.id, ...d.data() } as EventItem));
     if (category && category !== 'all') {
       list = list.filter(e => e.category === category);
     }
     return list;
   } catch {
-    return SEED_EVENTS;
+    return [];
   }
 };
 

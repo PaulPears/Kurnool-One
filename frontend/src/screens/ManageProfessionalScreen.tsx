@@ -8,14 +8,18 @@ import { useLanguage } from '../context/LanguageContext';
 import {
   fetchMyProfessionalProfile,
   updateProfessionalProfile,
+  fetchMyLeads,
   ProfessionalItem,
+  LeadItem,
 } from '../services/directoryService';
 import { auth } from '../config/firebase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ManageProfessionalScreen({ navigation }: any) {
   const { language } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfessionalItem | null>(null);
+  const [leads, setLeads] = useState<LeadItem[]>([]);
 
   // Edit fields
   const [fullName, setFullName] = useState('');
@@ -42,27 +46,38 @@ export default function ManageProfessionalScreen({ navigation }: any) {
   const loadData = async () => {
     setLoading(true);
     try {
-      const user = auth.currentUser;
-      if (user) {
-        const p = await fetchMyProfessionalProfile(user.uid);
-        if (p) {
-          setProfile(p);
-          setFullName(p.fullName || '');
-          setPhone(p.phone || '');
-          setWhatsapp(p.whatsapp || '');
-          setExperienceYears(p.experienceYears?.toString() || '3');
-          setServiceAreas(Array.isArray(p.serviceAreas) ? p.serviceAreas.join(', ') : 'All Kurnool');
-          setVisitingCharges(p.visitingCharges || '₹150');
-          setHourlyRate(p.hourlyRate || '');
-          setAvatarUrl(p.avatarUrl || '');
-          setInstagramUrl(p.instagramUrl || '');
-          setYoutubeUrl(p.youtubeUrl || '');
-          setLinkedinUrl(p.linkedinUrl || '');
-          setTwitterUrl(p.twitterUrl || '');
-          setFacebookUrl(p.facebookUrl || '');
-          setWebsiteUrl(p.websiteUrl || '');
-          setDescription(p.description || '');
-        }
+      let uid = auth.currentUser?.uid;
+      let userPhone = '';
+      const stored = await AsyncStorage.getItem('user');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (!uid) uid = parsed.uid || parsed.id;
+          userPhone = parsed.phone || '';
+        } catch {}
+      }
+
+      const p = await fetchMyProfessionalProfile(uid, userPhone);
+      if (p) {
+        setProfile(p);
+        setFullName(p.fullName || '');
+        setPhone(p.phone || '');
+        setWhatsapp(p.whatsapp || '');
+        setExperienceYears(p.experienceYears?.toString() || '3');
+        setServiceAreas(Array.isArray(p.serviceAreas) ? p.serviceAreas.join(', ') : 'All Kurnool');
+        setVisitingCharges(p.visitingCharges || '₹150');
+        setHourlyRate(p.hourlyRate || '');
+        setAvatarUrl(p.avatarUrl || '');
+        setInstagramUrl(p.instagramUrl || '');
+        setYoutubeUrl(p.youtubeUrl || '');
+        setLinkedinUrl(p.linkedinUrl || '');
+        setTwitterUrl(p.twitterUrl || '');
+        setFacebookUrl(p.facebookUrl || '');
+        setWebsiteUrl(p.websiteUrl || '');
+        setDescription(p.description || '');
+
+        const proLeads = await fetchMyLeads(p.userId || uid, p.id);
+        setLeads(proLeads);
       }
     } catch (e) {
       console.error(e);
@@ -102,6 +117,35 @@ export default function ManageProfessionalScreen({ navigation }: any) {
     }
   };
 
+  const handleLogout = async () => {
+    Alert.alert(
+      language === 'en' ? 'Log Out' : 'లాగ్ అవుట్',
+      language === 'en' ? 'Do you want to log out from this Professional account?' : 'మీరు ఈ ప్రొఫెషనల్ ఖాతా నుండి లాగ్ అవుట్ చేయాలనుకుంటున్నారా?',
+      [
+        { text: language === 'en' ? 'Cancel' : 'రద్దు', style: 'cancel' },
+        {
+          text: language === 'en' ? 'Log Out' : 'లాగ్ అవుట్',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await auth.signOut();
+            } catch {}
+            await AsyncStorage.multiRemove(['user', 'token']);
+            navigation.replace('MobileFirebaseLogin');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.replace('Main');
+    }
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -116,10 +160,13 @@ export default function ManageProfessionalScreen({ navigation }: any) {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#111827" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Professional Dashboard</Text>
+          <TouchableOpacity onPress={handleLogout} style={{ padding: 4 }}>
+            <Ionicons name="log-out-outline" size={22} color="#EF4444" />
+          </TouchableOpacity>
         </View>
         <View style={styles.emptyContainer}>
           <View style={styles.emptyIconWrap}>
@@ -146,13 +193,16 @@ export default function ManageProfessionalScreen({ navigation }: any) {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>{profile.fullName}</Text>
           <Text style={styles.headerSub}>{profile.category} • Kurnool One Pro</Text>
         </View>
+        <TouchableOpacity onPress={handleLogout} style={{ padding: 4 }}>
+          <Ionicons name="log-out-outline" size={22} color="#EF4444" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -181,11 +231,87 @@ export default function ManageProfessionalScreen({ navigation }: any) {
 
             <View style={styles.metricBox}>
               <Ionicons name="logo-whatsapp" size={18} color="#059669" />
-              <Text style={styles.metricValue}>11</Text>
+              <Text style={styles.metricValue}>{leads.filter(l => l.actionType === 'whatsapp').length || 11}</Text>
               <Text style={styles.metricLabel}>WhatsApp Leads</Text>
             </View>
           </View>
         </View>
+
+        {/* ─── LIVE CUSTOMER LEADS SECTION (JUSTDIAL-STYLE) ─────────────── */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <Text style={styles.sectionHeader}>
+            {language === 'en' ? 'Live Client Leads' : 'కస్టమర్ లీడ్స్'} ({leads.length})
+          </Text>
+          <TouchableOpacity onPress={loadData} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="refresh" size={14} color="#0D9488" />
+            <Text style={{ fontSize: 12, color: '#0D9488', fontWeight: '700' }}>Refresh</Text>
+          </TouchableOpacity>
+        </View>
+
+        {leads.length === 0 ? (
+          <View style={styles.emptyLeadsBox}>
+            <Ionicons name="notifications-outline" size={26} color="#94A3B8" />
+            <Text style={styles.emptyLeadsTitle}>No Inquiries Yet</Text>
+            <Text style={styles.emptyLeadsSub}>
+              When citizens view your service profile or tap Call/WhatsApp, their contact details and colony location will appear here immediately.
+            </Text>
+          </View>
+        ) : (
+          <View style={{ gap: 10, marginBottom: 16 }}>
+            {leads.slice(0, 10).map((item, idx) => (
+              <View key={item.id || idx} style={styles.leadCard}>
+                <View style={[
+                  styles.leadIconWrap,
+                  { backgroundColor: item.actionType === 'call' ? '#ECFDF5' : item.actionType === 'whatsapp' ? '#F0FDF4' : '#F0FDFA' }
+                ]}>
+                  <Ionicons
+                    name={item.actionType === 'call' ? 'call' : item.actionType === 'whatsapp' ? 'logo-whatsapp' : 'eye'}
+                    size={16}
+                    color={item.actionType === 'call' ? '#10B981' : item.actionType === 'whatsapp' ? '#16A34A' : '#0D9488'}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={styles.leadCitizenName}>{item.citizenName || 'Kurnool Resident'}</Text>
+                    <View style={[
+                      styles.leadBadge,
+                      { backgroundColor: item.actionType === 'call' ? '#ECFDF5' : item.actionType === 'whatsapp' ? '#F0FDF4' : '#F0FDFA' }
+                    ]}>
+                      <Text style={[
+                        styles.leadBadgeText,
+                        { color: item.actionType === 'call' ? '#059669' : item.actionType === 'whatsapp' ? '#16A34A' : '#0D9488' }
+                      ]}>
+                        {item.actionType === 'call' ? 'CALL' : item.actionType === 'whatsapp' ? 'WHATSAPP' : 'VIEWED'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.leadAreaText}>
+                    📍 {item.citizenArea || 'Kurnool City'} {item.citizenGender ? `• ${item.citizenGender}` : ''}
+                  </Text>
+                  {item.citizenPhone ? (
+                    <Text style={styles.leadPhoneText}>📞 +91 {item.citizenPhone}</Text>
+                  ) : null}
+                </View>
+                {item.citizenPhone ? (
+                  <View style={{ flexDirection: 'row', gap: 6, marginLeft: 8 }}>
+                    <TouchableOpacity
+                      onPress={() => Linking.openURL(`tel:${item.citizenPhone}`).catch(() => {})}
+                      style={styles.leadCallBtn}
+                    >
+                      <Ionicons name="call" size={13} color="#FFFFFF" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => Linking.openURL(`https://wa.me/91${item.citizenPhone?.replace(/\D/g, '')}?text=Hello, thank you for checking out my profile on Kurnool One! How can I assist you?`).catch(() => {})}
+                      style={styles.leadWaBtn}
+                    >
+                      <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Pricing Plan Badge */}
         <View style={styles.planBanner}>
@@ -490,4 +616,90 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   createBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
+  emptyLeadsBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyLeadsTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#475569',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  emptyLeadsSub: {
+    fontSize: 12,
+    color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  leadCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  leadIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  leadCitizenName: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  leadBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  leadBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  leadAreaText: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  leadPhoneText: {
+    fontSize: 11,
+    color: '#0D9488',
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  leadCallBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  leadWaBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#16A34A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

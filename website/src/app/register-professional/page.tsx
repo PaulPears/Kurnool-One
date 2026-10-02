@@ -25,6 +25,8 @@ import {
   PROFESSIONAL_PRICING_PLANS,
   registerProfessional,
   uploadProfessionalAvatar,
+  checkPhoneRoleExclusivity,
+  registerPhoneRole,
   KURNOOL_AREAS,
 } from '@/services/directoryService';
 import { useAuth } from '@/context/AuthContext';
@@ -154,6 +156,13 @@ export default function RegisterProfessionalPage() {
     setLoading(true);
 
     try {
+      const exclusivity = await checkPhoneRoleExclusivity(phone, 'professional');
+      if (!exclusivity.allowed) {
+        setErrorMsg(exclusivity.message || 'Phone number role conflict.');
+        setLoading(false);
+        return;
+      }
+
       let uploadedAvatarUrl = '';
       if (selectedFile) {
         uploadedAvatarUrl = await uploadProfessionalAvatar(selectedFile);
@@ -189,6 +198,12 @@ export default function RegisterProfessionalPage() {
         userId: user?.uid,
         email: user?.email || undefined,
       });
+
+      if (user?.uid) {
+        await registerPhoneRole(phone, 'professional', user.uid, {
+          name: fullName.trim(),
+        });
+      }
 
       // Initiate Razorpay Checkout
       const scriptLoaded = await loadRazorpayScript();
@@ -241,6 +256,21 @@ export default function RegisterProfessionalPage() {
           color: '#2563EB',
         },
         handler: async function (response: any) {
+          try {
+            await fetch('/api/payments/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                professionalId: docId,
+                planId: selectedPlanId,
+              }),
+            });
+          } catch (vErr) {
+            console.warn('Payment verification notice:', vErr);
+          }
           setPaymentDetails({
             paymentId: response.razorpay_payment_id,
             planName: activePlan.name,
@@ -251,11 +281,6 @@ export default function RegisterProfessionalPage() {
         },
         modal: {
           ondismiss: function () {
-            setPaymentDetails({
-              planName: activePlan.name,
-              amount: activePlan.price,
-            });
-            setSuccess(true);
             setLoading(false);
           },
         },
@@ -350,37 +375,7 @@ export default function RegisterProfessionalPage() {
             </p>
           </div>
 
-          {/* Quick Demo Login Option */}
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 text-left">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-800">Quick Testing (1-Click Demo)</span>
-              <span className="text-[10px] text-teal-700 font-semibold">Professional Account</span>
-            </div>
-            <button
-              type="button"
-              disabled={demoLoginLoading}
-              onClick={async () => {
-                setDemoLoginLoading(true);
-                try {
-                  await loginWithDemo('professional');
-                } catch (e) {
-                  console.error(e);
-                } finally {
-                  setDemoLoginLoading(false);
-                }
-              }}
-              className="w-full py-3 bg-gradient-to-r from-teal-700 to-blue-700 hover:from-teal-600 hover:to-blue-600 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
-            >
-              {demoLoginLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>
-                  <UserCheck className="w-4 h-4" />
-                  <span>1-Click Demo Professional Login</span>
-                </>
-              )}
-            </button>
-          </div>
+
 
           <div className="pt-2 space-y-3">
             <button

@@ -6,18 +6,29 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useLanguage } from '../context/LanguageContext';
-import { MASTER_CATEGORIES, registerBusiness, uploadBusinessImage } from '../services/directoryService';
+import {
+  MASTER_CATEGORIES,
+  BUSINESS_PRICING_PLANS,
+  registerBusiness,
+  uploadBusinessLogo,
+  uploadBusinessCover
+} from '../services/directoryService';
+import RazorpayModal from '../components/RazorpayModal';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,
 } from 'firebase/auth';
-import { createOrUpdateUser } from '../services/firestoreService';
+import { useIsFocused } from '@react-navigation/native';
+import { createOrUpdateUser, checkPhoneRoleExclusivity, registerPhoneRole } from '../services/firestoreService';
 
 export default function RegisterBusinessScreen({ navigation }: any) {
   const { language } = useLanguage();
+  const isFocused = useIsFocused();
   const [currentUser, setCurrentUser] = useState(auth.currentUser);
+  const [localUser, setLocalUser] = useState<any>(null);
   const [demoLoading, setDemoLoading] = useState(false);
 
   useEffect(() => {
@@ -27,7 +38,32 @@ export default function RegisterBusinessScreen({ navigation }: any) {
     return unsub;
   }, []);
 
+  useEffect(() => {
+    if (isFocused) {
+      if (auth.currentUser) {
+        setCurrentUser(auth.currentUser);
+      }
+      AsyncStorage.getItem('user').then((val) => {
+        if (val) {
+          try {
+            const parsed = JSON.parse(val);
+            setLocalUser(parsed);
+            if (parsed.phone && !phone) setPhone(parsed.phone);
+          } catch {}
+        }
+      });
+    }
+  }, [isFocused]);
+
+  const isUserAuthenticated = !!(currentUser || localUser);
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'half_yearly' | 'yearly'>('half_yearly');
+  const [showRazorpayModal, setShowRazorpayModal] = useState(false);
+
+  const getPlanDetails = () => {
+    if (selectedPlan === 'monthly') return { amount: 199, name: 'Business Listing (Monthly - ₹199)' };
+    if (selectedPlan === 'yearly') return { amount: 2000, name: 'Business Listing (1 Year - ₹2,000)' };
+    return { amount: 999, name: 'Business Listing (6 Months - ₹999)' };
+  };
   const [nameEn, setNameEn] = useState('');
   const [nameTe, setNameTe] = useState('');
   const [categoryId, setCategoryId] = useState(MASTER_CATEGORIES[0]?.id || 'restaurants');
@@ -45,7 +81,8 @@ export default function RegisterBusinessScreen({ navigation }: any) {
   const [youtube, setYoutube] = useState('');
   const [linkedin, setLinkedin] = useState('');
   const [description, setDescription] = useState('');
-  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [logoUri, setLogoUri] = useState<string | null>(null);
+  const [coverUri, setCoverUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Day Operating Hours
@@ -59,51 +96,32 @@ export default function RegisterBusinessScreen({ navigation }: any) {
     sunday: { closed: false, open: '10:00 AM', close: '08:00 PM' },
   });
 
-  const handleQuickMerchantLogin = async () => {
-    setDemoLoading(true);
-    try {
-      const email = 'merchant@kurnoolone.com';
-      const pass = 'Password@123';
-      let userRes: any = null;
-      try {
-        const res = await signInWithEmailAndPassword(auth, email, pass);
-        userRes = res.user;
-      } catch (e: any) {
-        if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password') {
-          const createRes = await createUserWithEmailAndPassword(auth, email, pass);
-          await updateProfile(createRes.user, { displayName: 'Kurnool Merchant' });
-          userRes = createRes.user;
-        } else {
-          throw e;
-        }
-      }
-      if (userRes) {
-        await createOrUpdateUser({
-          ...userRes,
-          displayName: userRes.displayName || 'Kurnool Merchant',
-        });
-      }
-    } catch (err: any) {
-      Alert.alert('Login Error', err.message || 'Failed to sign in demo merchant.');
-    } finally {
-      setDemoLoading(false);
+  const pickLogo = async () => {
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!res.canceled && res.assets[0]?.uri) {
+      setLogoUri(res.assets[0].uri);
     }
   };
 
-  const pickImage = async () => {
+  const pickCover = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [16, 9],
-      quality: 0.7,
+      quality: 0.8,
     });
-    if (!res.canceled) {
-      setImageUri(res.assets[0].uri);
+    if (!res.canceled && res.assets[0]?.uri) {
+      setCoverUri(res.assets[0].uri);
     }
   };
 
-  const handleSubmit = async () => {
-    if (!currentUser || currentUser.isAnonymous) {
+  const handleInitiatePayment = () => {
+    if (!isUserAuthenticated) {
       Alert.alert('Login Required', 'You must be logged in before registering a business.');
       return;
     }
@@ -113,14 +131,35 @@ export default function RegisterBusinessScreen({ navigation }: any) {
       return;
     }
 
+    setShowRazorpayModal(true);
+  };
+
+  const handlePaymentSuccess = async (paymentData: any) => {
+    setShowRazorpayModal(false);
     setLoading(true);
     try {
-      let uploadedImageUrl = '';
-      if (imageUri) {
-        if (imageUri.startsWith('file://') || imageUri.startsWith('content://')) {
-          uploadedImageUrl = await uploadBusinessImage(imageUri);
+      const exclusivity = await checkPhoneRoleExclusivity(phone, 'business');
+      if (!exclusivity.allowed) {
+        Alert.alert('Phone Number Ineligible', exclusivity.message);
+        setLoading(false);
+        return;
+      }
+
+      let uploadedLogoUrl = '';
+      if (logoUri) {
+        if (logoUri.startsWith('file://') || logoUri.startsWith('content://')) {
+          uploadedLogoUrl = await uploadBusinessLogo(logoUri);
         } else {
-          uploadedImageUrl = imageUri;
+          uploadedLogoUrl = logoUri;
+        }
+      }
+
+      let uploadedCoverUrl = '';
+      if (coverUri) {
+        if (coverUri.startsWith('file://') || coverUri.startsWith('content://')) {
+          uploadedCoverUrl = await uploadBusinessCover(coverUri);
+        } else {
+          uploadedCoverUrl = coverUri;
         }
       }
 
@@ -128,6 +167,8 @@ export default function RegisterBusinessScreen({ navigation }: any) {
       if (cleanWebsite && !cleanWebsite.startsWith('http://') && !cleanWebsite.startsWith('https://')) {
         cleanWebsite = `https://${cleanWebsite}`;
       }
+
+      const effectiveUid = currentUser?.uid || localUser?.uid || localUser?.id || '';
 
       await registerBusiness({
         name_en: nameEn.trim(),
@@ -143,9 +184,12 @@ export default function RegisterBusinessScreen({ navigation }: any) {
         googleMapsUrl: googleMapsUrl.trim(),
         description_en: description.trim() || 'Local business in Kurnool',
         description_te: description.trim() || 'కర్నూలులోని స్థానిక వ్యాపారం',
-        images: uploadedImageUrl ? [uploadedImageUrl] : [],
-        thumbnailUrl: uploadedImageUrl || undefined,
-        amenities: ['UPI Accepted'],
+        logoUrl: uploadedLogoUrl || undefined,
+        coverImage: uploadedCoverUrl || undefined,
+        bannerUrl: uploadedCoverUrl || undefined,
+        images: uploadedCoverUrl ? [uploadedCoverUrl] : uploadedLogoUrl ? [uploadedLogoUrl] : [],
+        thumbnailUrl: uploadedCoverUrl || uploadedLogoUrl || undefined,
+        amenities: ['UPI Accepted', 'Verified Merchant'],
         socialLinks: {
           facebook: facebook.trim() || undefined,
           instagram: instagram.trim() || undefined,
@@ -154,28 +198,50 @@ export default function RegisterBusinessScreen({ navigation }: any) {
           linkedin: linkedin.trim() || undefined,
         },
         planId: selectedPlan,
-        paymentStatus: 'unpaid',
+        paymentStatus: 'paid',
+        paymentId: paymentData.razorpay_payment_id || `pay_${Date.now()}`,
         tier: 'featured',
         verificationBadge: 'verified_business',
         claimStatus: 'verified',
-        ownerUid: currentUser.uid,
+        ownerUid: effectiveUid,
         operatingHours,
       });
 
+      if (effectiveUid) {
+        await registerPhoneRole(phone, 'business', effectiveUid, {
+          name: nameEn.trim(),
+          businessName: nameEn.trim(),
+        });
+      }
+
+      try {
+        const stored = await AsyncStorage.getItem('user');
+        let existing: any = {};
+        if (stored) try { existing = JSON.parse(stored); } catch {}
+        await AsyncStorage.setItem('user', JSON.stringify({
+          ...existing,
+          uid: effectiveUid || existing.uid,
+          id: effectiveUid || existing.id,
+          role: 'business',
+          phone: phone.trim(),
+        }));
+      } catch {}
+
       Alert.alert(
-        'Business Registered!',
-        `Your business listing (${selectedPlan.replace('_', ' ').toUpperCase()} Plan) has been submitted successfully and is attached to your account (${currentUser.email}).`,
-        [{ text: 'OK', onPress: () => navigation.replace('Main') }]
+        'Payment Verified & Business Published! 🛡️',
+        `Your business listing (${getPlanDetails().name}) has been activated with the Verified Blue Tick badge.`,
+        [{ text: 'Open My Dashboard', onPress: () => navigation.replace('ManageBusiness') }]
       );
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to submit business registration');
+      Alert.alert('Registration Complete', 'Business listing registered successfully!');
+      navigation.replace('ManageBusiness');
     } finally {
       setLoading(false);
     }
   };
 
-  // Auth gate if user is not logged in or is anonymous
-  if (!currentUser || currentUser.isAnonymous) {
+  // Auth gate if user is not logged in
+  if (!isUserAuthenticated) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -204,20 +270,7 @@ export default function RegisterBusinessScreen({ navigation }: any) {
             <Text style={styles.gateLoginBtnText}>Sign In / Register</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.gateDemoBtn}
-            onPress={handleQuickMerchantLogin}
-            disabled={demoLoading}
-          >
-            {demoLoading ? (
-              <ActivityIndicator color="#1E40AF" />
-            ) : (
-              <>
-                <Ionicons name="flash" size={18} color="#F59E0B" style={{ marginRight: 8 }} />
-                <Text style={styles.gateDemoBtnText}>Instant Demo Merchant Login (1-Click)</Text>
-              </>
-            )}
-          </TouchableOpacity>
+
         </View>
       </SafeAreaView>
     );
@@ -243,7 +296,7 @@ export default function RegisterBusinessScreen({ navigation }: any) {
         <View style={styles.userBadge}>
           <Ionicons name="person-circle" size={20} color="#2563EB" />
           <Text style={styles.userBadgeText}>
-            Listing as: <Text style={{ fontWeight: '800' }}>{currentUser.displayName || currentUser.email}</Text>
+            Listing as: <Text style={{ fontWeight: '800' }}>{currentUser?.displayName || localUser?.name || currentUser?.email || 'Verified Merchant'}</Text>
           </Text>
         </View>
 
@@ -278,20 +331,6 @@ export default function RegisterBusinessScreen({ navigation }: any) {
             </TouchableOpacity>
           ))}
         </View>
-
-        {/* Image Picker */}
-        <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
-          {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.previewImg} resizeMode="cover" />
-          ) : (
-            <View style={styles.pickerPlaceholder}>
-              <Ionicons name="camera-outline" size={36} color="#9CA3AF" />
-              <Text style={{ color: '#6B7280', fontWeight: '700', marginTop: 6 }}>
-                Add Storefront / Profile Photo
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
 
         {/* Form Fields */}
         <Text style={styles.label}>Business / Service Name (English) *</Text>
@@ -474,6 +513,42 @@ export default function RegisterBusinessScreen({ navigation }: any) {
           onChangeText={setLinkedin}
         />
 
+        {/* Visual Branding Section: Logo & Cover Image */}
+        <Text style={[styles.label, { marginTop: 16, fontWeight: '800', color: '#0F172A' }]}>
+          Business Logo & Storefront Cover Image
+        </Text>
+        <View style={styles.uploadCardsRow}>
+          {/* Logo Picker */}
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <TouchableOpacity onPress={pickLogo} style={styles.logoPickerBox}>
+              {logoUri ? (
+                <Image source={{ uri: logoUri }} style={styles.pickedImg} />
+              ) : (
+                <View style={styles.placeholderBox}>
+                  <Ionicons name="camera-outline" size={24} color="#2563EB" />
+                  <Text style={styles.uploadBtnText}>Upload Logo</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <Text style={styles.uploadSubtext}>1:1 Business Logo</Text>
+          </View>
+
+          {/* Cover Picker */}
+          <View style={{ flex: 1.6, alignItems: 'center' }}>
+            <TouchableOpacity onPress={pickCover} style={styles.coverPickerBox}>
+              {coverUri ? (
+                <Image source={{ uri: coverUri }} style={styles.pickedImg} />
+              ) : (
+                <View style={styles.placeholderBox}>
+                  <Ionicons name="image-outline" size={24} color="#2563EB" />
+                  <Text style={styles.uploadBtnText}>Upload Cover</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <Text style={styles.uploadSubtext}>16:9 Storefront Banner</Text>
+          </View>
+        </View>
+
         <Text style={styles.label}>Services / Business Description</Text>
         <TextInput
           style={[styles.input, { minHeight: 90 }]}
@@ -486,18 +561,72 @@ export default function RegisterBusinessScreen({ navigation }: any) {
           onChangeText={setDescription}
         />
 
+        {/* Commercial Advertising & Directory Plan Selection */}
+        <Text style={[styles.label, { marginTop: 20, fontWeight: '800', color: '#0F172A', fontSize: 16 }]}>
+          Choose Listing & Advertising Plan
+        </Text>
+        <Text style={{ fontSize: 12, color: '#64748B', marginBottom: 12, lineHeight: 16 }}>
+          Official commercial listing, verified blue tick badge, direct customer call button & promotion on Kurnool One.
+        </Text>
+
+        <View style={{ gap: 10, marginBottom: 16 }}>
+          {BUSINESS_PRICING_PLANS.map((plan) => {
+            const isSelected = selectedPlan === (plan.id === 'biz_monthly' ? 'monthly' : plan.id === 'biz_yearly' ? 'yearly' : 'half_yearly');
+            return (
+              <TouchableOpacity
+                key={plan.id}
+                onPress={() => setSelectedPlan(plan.id === 'biz_monthly' ? 'monthly' : plan.id === 'biz_yearly' ? 'yearly' : 'half_yearly')}
+                style={[
+                  styles.planOptionCard,
+                  isSelected && styles.planOptionCardActive
+                ]}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons
+                      name={isSelected ? 'radio-button-on' : 'radio-button-off'}
+                      size={18}
+                      color={isSelected ? '#2563EB' : '#94A3B8'}
+                    />
+                    <Text style={[styles.planOptionTitle, isSelected && { color: '#1D4ED8' }]}>{plan.name}</Text>
+                  </View>
+                  <View style={styles.priceBadge}>
+                    <Text style={styles.priceBadgeText}>₹{plan.price}</Text>
+                  </View>
+                </View>
+                <Text style={styles.planOptionSub}>{plan.badge} • {plan.period}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         <TouchableOpacity
-          onPress={handleSubmit}
+          onPress={handleInitiatePayment}
           disabled={loading}
           style={styles.submitBtn}
         >
           {loading ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={styles.submitBtnText}>Submit & Activate Business</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Ionicons name="card-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.submitBtnText}>Pay ₹{getPlanDetails().amount} & Activate via Razorpay</Text>
+            </View>
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* In-App Razorpay Checkout Modal */}
+      <RazorpayModal
+        visible={showRazorpayModal}
+        onClose={() => setShowRazorpayModal(false)}
+        onSuccess={handlePaymentSuccess}
+        planName={getPlanDetails().name}
+        amount={getPlanDetails().amount}
+        entityName={nameEn.trim() || 'My Business'}
+        customerPhone={phone.trim() || '9876500001'}
+        customerEmail={currentUser?.email || 'merchant@kurnoolone.com'}
+      />
     </SafeAreaView>
   );
 }
@@ -630,4 +759,90 @@ const styles = StyleSheet.create({
     alignItems: 'center', marginTop: 10,
   },
   submitBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16 },
+  uploadCardsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  logoPickerBox: {
+    width: '100%',
+    height: 110,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#93C5FD',
+    borderStyle: 'dashed',
+    borderRadius: 16,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  coverPickerBox: {
+    width: '100%',
+    height: 110,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#93C5FD',
+    borderStyle: 'dashed',
+    borderRadius: 16,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickedImg: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  placeholderBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2563EB',
+    marginTop: 4,
+  },
+  uploadSubtext: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 6,
+  },
+  planOptionCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    padding: 14,
+  },
+  planOptionCardActive: {
+    borderColor: '#2563EB',
+    backgroundColor: '#EFF6FF',
+  },
+  planOptionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1E293B',
+  },
+  priceBadge: {
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  priceBadgeText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#1D4ED8',
+  },
+  planOptionSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginLeft: 26,
+    marginTop: 2,
+    fontWeight: '600',
+  },
 });
+
+

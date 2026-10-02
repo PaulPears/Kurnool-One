@@ -37,6 +37,8 @@ import {
   BUSINESS_PRICING_PLANS,
   registerBusiness,
   uploadBusinessImage,
+  checkPhoneRoleExclusivity,
+  registerPhoneRole,
   BusinessItem,
   DayOperatingHours,
 } from '@/services/directoryService';
@@ -274,6 +276,12 @@ export default function RegisterBusinessPage() {
     setLoading(true);
 
     try {
+      const exclusivity = await checkPhoneRoleExclusivity(phone, 'business');
+      if (!exclusivity.allowed) {
+        setErrorMsg(exclusivity.message || 'Phone number role conflict.');
+        setLoading(false);
+        return;
+      }
       // 1. Upload media assets if provided
       let thumbUrl = 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800';
       if (thumbFile) {
@@ -347,6 +355,13 @@ export default function RegisterBusinessPage() {
 
       const docId = await registerBusiness(newBizData);
       setCreatedBizId(docId);
+
+      if (user?.uid) {
+        await registerPhoneRole(phone, 'business', user.uid, {
+          name: nameEn.trim(),
+          businessName: nameEn.trim(),
+        });
+      }
 
       // 3. Initiate Razorpay Checkout
       const scriptLoaded = await loadRazorpayScript();
@@ -543,37 +558,7 @@ export default function RegisterBusinessPage() {
             </p>
           </div>
 
-          {/* Quick Demo Login Option */}
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 text-left">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-800">Quick Testing (1-Click Demo)</span>
-              <span className="text-[10px] text-blue-700 font-semibold">Merchant Account</span>
-            </div>
-            <button
-              type="button"
-              disabled={demoLoginLoading}
-              onClick={async () => {
-                setDemoLoginLoading(true);
-                try {
-                  await loginWithDemo('merchant');
-                } catch (e) {
-                  console.error(e);
-                } finally {
-                  setDemoLoginLoading(false);
-                }
-              }}
-              className="w-full py-3 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
-            >
-              {demoLoginLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>
-                  <Building2 className="w-4 h-4" />
-                  <span>1-Click Demo Merchant Login</span>
-                </>
-              )}
-            </button>
-          </div>
+
 
           <div className="pt-2 space-y-3">
             <button

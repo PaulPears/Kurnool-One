@@ -205,37 +205,7 @@ export default function MyBusinessPortalPage() {
             </p>
           </div>
 
-          {/* Quick Demo Login */}
-          <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-3 text-left">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-amber-900">Quick Testing (1-Click Demo)</span>
-              <span className="text-[10px] text-amber-700 font-bold bg-amber-100 px-2 py-0.5 rounded">Merchant Account</span>
-            </div>
-            <button
-              type="button"
-              disabled={demoLoading}
-              onClick={async () => {
-                setDemoLoading(true);
-                try {
-                  await loginWithDemo('merchant');
-                } catch (e) {
-                  console.error(e);
-                } finally {
-                  setDemoLoading(false);
-                }
-              }}
-              className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
-            >
-              {demoLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>
-                  <Building2 className="w-4 h-4" />
-                  <span>1-Click Demo Merchant Login</span>
-                </>
-              )}
-            </button>
-          </div>
+
 
           <div className="pt-2 space-y-3">
             <button

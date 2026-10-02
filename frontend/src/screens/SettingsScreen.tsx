@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert, Linking, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
@@ -54,16 +54,22 @@ export default function SettingsScreen({ navigation }: any) {
   const showTermsAndConditions = () => {
     Alert.alert(
       'Terms and Conditions – Kurnool One',
-      'Last Updated: 2026\n\nWelcome to Kurnool One. By accessing or using the Kurnool One mobile application and services, you agree to comply with our Terms of Service.\n\n1. Directory Information: Kurnool One connects users with third-party local businesses and service providers. Kurnool One does not endorse or guarantee the quality of third-party services.\n2. Verification Badges: Badges indicate that identity or business documents have been reviewed by our admin team; they do not represent official government endorsement.\n3. Content Standards: Any abusive, fraudulent, defamatory, or infringing content will be removed immediately.\n\nFor support: support@kurnoolone.com',
-      [{ text: 'OK' }]
+      'Welcome to Kurnool One. By using the app, you agree to our Terms of Service.\n\n1. Directory Information: Kurnool One connects users with independent local businesses and service professionals.\n2. Role Exclusivity: Business and Professional credentials are strictly separate.\n3. Content Standards: Fraudulent or deceptive listings are suspended immediately.\n\nFor support: support@kurnoolone.com',
+      [
+        { text: 'Read Online (Web)', onPress: () => Linking.openURL('https://kurnoolone.com/terms').catch(() => {}) },
+        { text: 'OK', style: 'cancel' }
+      ]
     );
   };
 
   const showPrivacyPolicy = () => {
     Alert.alert(
       'Privacy Policy – Kurnool One',
-      'Information We Collect:\nWhen using Kurnool One, we may collect:\n• Name and Contact Details (if registering or signing in)\n• Profile photo and uploaded business media\n• Approximate location for "Near Me" search\n• Reviews and feedback submitted\n\nWe strictly respect your privacy under India\'s DPDP Act. We never sell personal information to third parties.\n\nYou have the right to delete your account and all associated personal data at any time directly through this Settings menu.\n\nContact: support@kurnoolone.com',
-      [{ text: 'OK' }]
+      'Information We Collect:\n• Mobile Phone Number for OTP authentication.\n• Zero SMS Permissions Needed (Play Store SMS Retriever API compliant).\n• Business / Professional listing details.\n\nWe strictly adhere to India\'s DPDP Act 2023. You can delete your account anytime via Settings or at kurnoolone.com/delete-account.',
+      [
+        { text: 'Read Full Policy (Web)', onPress: () => Linking.openURL('https://kurnoolone.com/privacy').catch(() => {}) },
+        { text: 'OK', style: 'cancel' }
+      ]
     );
   };
 

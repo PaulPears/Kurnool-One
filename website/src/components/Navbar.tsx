@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   MapPin,
   Menu,
@@ -24,7 +25,7 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, profile, logout } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-xs">
@@ -34,7 +35,7 @@ export default function Navbar() {
           <div className="flex items-center gap-2">
             <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-slate-700 font-medium tracking-wide">
-              Kurnool One (కర్నూలు వన్) • Official City Platform • Local Businesses & Services
+              Kurnool One (కర్నూలు వన్) • Premier Digital City Directory & Local Services
             </span>
           </div>
 
@@ -56,6 +57,19 @@ export default function Navbar() {
               <Briefcase className="w-3.5 h-3.5 text-teal-700" />
               <span>Pro Portal</span>
             </Link>
+
+            {user && (profile?.role === 'admin' || (profile as any)?.role === 'super_admin' || user.email?.includes('admin') || user.email?.includes('paul')) && (
+              <>
+                <span className="text-slate-300">|</span>
+                <Link
+                  href="/admin"
+                  className="hover:text-purple-700 transition text-purple-900 font-bold flex items-center gap-1.5 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-purple-700" />
+                  <span>Admin</span>
+                </Link>
+              </>
+            )}
 
             <span className="text-slate-300">|</span>
 
@@ -89,8 +103,15 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between">
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-3.5 group">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-700 via-blue-600 to-indigo-700 flex items-center justify-center text-white font-black text-xl shadow-md shadow-blue-600/20 group-hover:scale-105 transition">
-            K1
+          <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-md group-hover:scale-105 transition bg-white border border-slate-200/80 flex items-center justify-center p-0.5">
+            <Image
+              src="/logo.png"
+              alt="Kurnool One Logo"
+              width={48}
+              height={48}
+              className="w-full h-full object-contain"
+              priority
+            />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -173,17 +194,22 @@ export default function Navbar() {
         {/* Mobile menu button */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="lg:hidden p-2 rounded-xl text-slate-700 hover:bg-slate-100 transition"
+          className="lg:hidden p-2.5 rounded-xl text-slate-700 hover:bg-slate-100 transition active:scale-95"
           aria-label="Toggle Menu"
         >
           {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
       </div>
 
-      {/* Mobile Drawer */}
+      {/* Mobile Backdrop & Drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-white border-b border-slate-200 px-6 py-5 shadow-xl space-y-3">
-          {/* User Auth Banner in Mobile Drawer */}
+        <>
+          <div
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 lg:hidden animate-fade-in"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div className="fixed top-20 left-0 right-0 z-50 bg-white border-b border-slate-200 px-6 py-6 shadow-2xl space-y-4 max-h-[calc(100vh-5rem)] overflow-y-auto lg:hidden">
+            {/* User Auth Banner in Mobile Drawer */}
           {user ? (
             <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-between mb-2">
               <div>
@@ -284,7 +310,8 @@ export default function Navbar() {
             </Link>
           </div>
         </div>
-      )}
+      </>
+    )}
     </header>
   );
 }

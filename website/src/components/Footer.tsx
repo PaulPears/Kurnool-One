@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { MapPin, Phone, Mail, ShieldCheck, Heart } from 'lucide-react';
 
 export default function Footer() {
@@ -10,8 +11,8 @@ export default function Footer() {
           {/* Brand Col */}
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-xl shadow-md">
-                K1
+              <div className="w-10 h-10 rounded-xl overflow-hidden shadow-md bg-white border border-slate-200 p-0.5 flex items-center justify-center">
+                <Image src="/logo.png" alt="Kurnool One Logo" width={40} height={40} className="w-full h-full object-contain" />
               </div>
               <span className="font-extrabold text-2xl text-slate-900 tracking-tight">Kurnool One</span>
             </div>
@@ -112,12 +113,23 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-14 pt-8 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
+        <div className="mt-14 pt-8 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between text-xs text-slate-500 gap-4">
           <p>© {new Date().getFullYear()} Kurnool One (కర్నూలు వన్). All rights reserved.</p>
+          <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-semibold text-slate-600">
+            <Link href="/privacy" className="hover:text-blue-600 transition">Privacy Policy</Link>
+            <span>•</span>
+            <Link href="/terms" className="hover:text-blue-600 transition">Terms of Service</Link>
+            <span>•</span>
+            <Link href="/refund-policy" className="hover:text-blue-600 transition">Refunds</Link>
+            <span>•</span>
+            <Link href="/delete-account" className="hover:text-rose-600 transition">Delete Account</Link>
+            <span>•</span>
+            <Link href="/contact" className="hover:text-blue-600 transition">Grievance / Contact</Link>
+          </div>
           <div className="flex items-center gap-1">
             <span>Built with</span>
             <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500 inline" />
-            <span>for the people of Kurnool & Rayalaseema</span>
+            <span>for Kurnool</span>
           </div>
         </div>
       </div>

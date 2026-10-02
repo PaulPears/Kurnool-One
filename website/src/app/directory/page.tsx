@@ -152,10 +152,10 @@ export default async function DirectoryPage({
       </div>
 
       {/* Switcher: Businesses vs Personal Profiles */}
-      <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
+      <div className="flex items-center gap-2 sm:gap-3 border-b border-slate-200 pb-4 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
         <Link
           href={`/directory?tab=businesses${q ? `&q=${encodeURIComponent(q)}` : ''}`}
-          className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold transition ${
+          className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-xs sm:text-sm font-bold transition shrink-0 ${
             tab !== 'professionals'
               ? 'bg-blue-600 text-white shadow-md'
               : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -167,7 +167,7 @@ export default async function DirectoryPage({
 
         <Link
           href={`/directory?tab=professionals${q ? `&q=${encodeURIComponent(q)}` : ''}`}
-          className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold transition ${
+          className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-xs sm:text-sm font-bold transition shrink-0 ${
             tab === 'professionals'
               ? 'bg-teal-700 text-white shadow-md'
               : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -179,7 +179,7 @@ export default async function DirectoryPage({
       </div>
 
       {/* Category Filter Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2">
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
         <Link
           href={`/directory?tab=${tab}${q ? `&q=${encodeURIComponent(q)}` : ''}`}
           className={`px-4 py-2 rounded-xl text-xs font-bold shrink-0 transition ${

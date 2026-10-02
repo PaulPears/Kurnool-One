@@ -1,32 +1,37 @@
 import React, { useState } from 'react';
-import { View, Text, SafeAreaView, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert, RefreshControl, Share, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  SafeAreaView,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  Share,
+  StyleSheet,
+  StatusBar,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import NewsCard from '../components/NewsCard';
 import { useLanguage } from '../context/LanguageContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { auth } from '../config/firebase';
-import {
-  getUser, fetchUserPosts, deleteUserAccount, toggleFollowUser, checkIsFollowing, fetchSavedPosts, fetchSavedPostIds
-} from '../services/firestoreService';
-
-type ProfileTab = 'posts' | 'saved';
+import { getUser } from '../services/firestoreService';
 
 export default function ProfileScreen({ route, navigation }: any) {
   const { userId: paramUserId } = route.params || {};
   const [user, setUser] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [posts, setPosts] = useState<any[]>([]);
-  const [savedPosts, setSavedPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [isSelf, setIsSelf] = useState(true);
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [followLoading, setFollowLoading] = useState(false);
   const { language } = useLanguage();
 
   useFocusEffect(
-    React.useCallback(() => { loadProfile(user !== null); }, [paramUserId, activeTab])
+    React.useCallback(() => {
+      loadProfile(user !== null);
+    }, [paramUserId])
   );
 
   const loadProfile = async (silent = false) => {
@@ -36,42 +41,17 @@ export default function ProfileScreen({ route, navigation }: any) {
       const cUser = storedData ? JSON.parse(storedData) : null;
       setCurrentUser(cUser);
 
-      const targetUid = paramUserId || cUser?.uid;
-      setIsSelf(!paramUserId || paramUserId === cUser?.uid);
+      const targetUid = paramUserId || cUser?.uid || auth.currentUser?.uid;
+      setIsSelf(!paramUserId || paramUserId === cUser?.uid || paramUserId === auth.currentUser?.uid);
 
       if (targetUid) {
-        const [userInfo, savedIds] = await Promise.all([
-          getUser(targetUid),
-          cUser?.uid ? fetchSavedPostIds(cUser.uid) : Promise.resolve([])
-        ]);
-
+        const userInfo = await getUser(targetUid);
         setUser(userInfo);
 
         if (isSelf && userInfo && cUser) {
           const updatedLocalUser = { ...cUser, ...userInfo };
           await AsyncStorage.setItem('user', JSON.stringify(updatedLocalUser));
           setCurrentUser(updatedLocalUser);
-        }
-
-        if (cUser && !isSelf) {
-          const following = await checkIsFollowing(cUser.uid, targetUid);
-          setIsFollowing(following);
-        }
-
-        if (activeTab === 'posts') {
-          const userPosts = await fetchUserPosts(targetUid);
-          const mappedPosts = (Array.isArray(userPosts) ? userPosts : []).map(post => ({
-            ...post,
-            isSaved: savedIds.includes(post.id)
-          }));
-          setPosts(mappedPosts);
-        } else if (activeTab === 'saved' && isSelf) {
-          const sPosts = await fetchSavedPosts(targetUid);
-          const mappedSaved = sPosts.map(post => ({
-            ...post,
-            isSaved: true
-          }));
-          setSavedPosts(mappedSaved);
         }
       }
     } catch (error) {
@@ -81,94 +61,36 @@ export default function ProfileScreen({ route, navigation }: any) {
     }
   };
 
-  const handleFollowToggle = async () => {
-    if (!currentUser || !user) return;
-    setFollowLoading(true);
-    try {
-      const currentlyFollowing = await toggleFollowUser(currentUser.uid, user.id);
-      setIsFollowing(currentlyFollowing);
-      setUser({
-        ...user,
-        followerCount: (user.followerCount || 0) + (currentlyFollowing ? 1 : -1)
-      });
-    } catch (e) {
-      Alert.alert('Error', 'Failed to update follow status');
-    } finally {
-      setFollowLoading(false);
-    }
-  };
-
   const handleShareProfile = async () => {
     try {
       await Share.share({
-        message: `Check out ${user?.name}'s profile on Kurnool One App!`,
+        message: `Discover Kurnool One — Everything in One Place! Explore local businesses, skilled pros, deals & tourism in Kurnool city: https://kurnoolone.com`,
       });
     } catch (error) {
       console.error('Share Error:', error);
     }
   };
 
-  const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: async () => {
-        await auth.signOut();
-        await AsyncStorage.clear();
-        navigation.replace('MobileFirebaseLogin');
-      }},
-    ]);
-  };
+  const displayName =
+    user?.name ||
+    user?.displayName ||
+    currentUser?.name ||
+    currentUser?.displayName ||
+    (auth.currentUser?.isAnonymous
+      ? (language === 'en' ? 'Guest Citizen' : 'అతిథి పౌరుడు')
+      : (language === 'en' ? 'Kurnool Resident' : 'కర్నూలు పౌరుడు'));
 
-  const getFilteredPosts = () => {
-    if (activeTab === 'posts') return posts;
-    if (activeTab === 'saved') return savedPosts;
-    return [];
-  };
+  const contactText =
+    user?.phone ||
+    user?.phoneNumber ||
+    currentUser?.phone ||
+    auth.currentUser?.phoneNumber ||
+    user?.email ||
+    currentUser?.email ||
+    auth.currentUser?.email ||
+    '';
 
-  const renderPostList = () => {
-    const data = getFilteredPosts();
-    if (data.length === 0) {
-      return (
-        <View style={styles.emptyStateCard}>
-          <View style={styles.emptyIllustration}>
-            <Ionicons name="cube-outline" size={60} color="#1D4ED8" />
-            <Ionicons name="paper-plane-outline" size={40} color="#2563EB" style={styles.paperPlane} />
-          </View>
-          <Text style={styles.emptyTitle}>{language === 'en' ? 'No posts yet' : 'ఇంకా పోస్ట్లు లేవు'}</Text>
-          <Text style={styles.emptySubtitle}>{language === 'en' ? 'When you post, they\'ll show up here.' : 'మీరు పోస్ట్ చేసినప్పుడు, అవి ఇక్కడ కనిపిస్తాయి.'}</Text>
-          <TouchableOpacity style={styles.createPostButton} onPress={() => navigation.navigate('CreatePost')}>
-            <Ionicons name="add" size={24} color="#fff" />
-            <Text style={styles.createPostButtonText}>{language === 'en' ? 'Create Post' : 'పోస్ట్ సృష్టించు'}</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    return data.map(item => (
-      <NewsCard
-        key={item.id}
-        id={item.id}
-        title={language === 'en' ? item.title_en : item.title_te}
-        content={language === 'en' ? item.content_en : item.content_te}
-        category={language === 'en' ? item.name_en : item.name_te}
-        author={item.author_name}
-        authorPhoto={item.author_photo}
-        date={new Date(item.created_at).toLocaleDateString()}
-        imageUrl={item.media_url}
-        type={item.type}
-        likeCount={item.like_count}
-        commentCount={item.comment_count}
-        likedByMe={item.liked_by_me}
-        language={language}
-        onRefresh={() => loadProfile(true)}
-        authorId={item.author_id}
-        fullPosts={data}
-        isSaved={item.isSaved}
-      />
-    ));
-  };
-
-  if (loading && !user) {
+  if (loading && !user && !currentUser) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#2563EB" />
@@ -178,101 +100,113 @@ export default function ProfileScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={{ paddingBottom: 110 }}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadProfile} colors={['#2563EB']} />}
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>{language === 'en' ? 'Profile' : 'ప్రొఫైల్'}</Text>
+          <Text style={styles.headerTitle}>{language === 'en' ? 'Profile & Portals' : 'ప్రొఫైల్ & పోర్టల్స్'}</Text>
           <View style={styles.headerIcons}>
-            <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
-              <Ionicons name="settings-outline" size={24} color="#2563EB" />
+            <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.iconBtn}>
+              <Ionicons name="settings-outline" size={24} color="#1F2937" />
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Profile Card */}
         <View style={styles.profileCard}>
-          {/* Decorative elements */}
-          <View style={styles.decorativeCircle} />
-          <View style={styles.dottedPattern} />
-          
-          {/* Profile Image */}
           <View style={styles.profileImageContainer}>
             <View style={styles.profileImageWrapper}>
-              {user?.photoURL ? (
-                <Image source={{ uri: user.photoURL }} style={styles.profileImage} />
+              {user?.photoURL || currentUser?.photoURL ? (
+                <Image source={{ uri: user?.photoURL || currentUser?.photoURL }} style={styles.profileImage} />
               ) : (
                 <View style={styles.profileImagePlaceholder}>
-                  <Ionicons name="person" size={40} color="#9CA3AF" />
+                  <Ionicons name="person" size={42} color="#2563EB" />
                 </View>
               )}
               {isSelf && (
                 <TouchableOpacity style={styles.cameraIcon} onPress={() => navigation.navigate('EditProfile')}>
-                  <Ionicons name="camera" size={18} color="#fff" />
+                  <Ionicons name="camera" size={16} color="#fff" />
                 </TouchableOpacity>
               )}
             </View>
-            
-            <Text style={styles.username}>{user?.name || 'Pears'}</Text>
-            {user?.email && (
+
+            <Text style={styles.username}>{displayName}</Text>
+
+            {contactText ? (
               <View style={styles.phoneContainer}>
-                <Ionicons name="call-outline" size={14} color="#9CA3AF" />
-                <Text style={styles.phoneNumber}>{user.email}</Text>
+                <Ionicons name="call-outline" size={13} color="#64748B" />
+                <Text style={styles.phoneNumber}>{contactText}</Text>
               </View>
-            )}
+            ) : null}
           </View>
 
           {/* Edit Profile Button */}
           {isSelf && (
             <TouchableOpacity style={styles.editProfileButton} onPress={() => navigation.navigate('EditProfile')}>
-              <Ionicons name="pencil" size={18} color="#fff" />
-              <Text style={styles.editProfileButtonText}>{language === 'en' ? 'Edit Profile' : 'ప్రొఫైల్ సవరించు'}</Text>
+              <Ionicons name="pencil" size={16} color="#fff" />
+              <Text style={styles.editProfileButtonText}>
+                {language === 'en' ? 'Edit Profile' : 'ప్రొఫైల్ సవరించు'}
+              </Text>
             </TouchableOpacity>
           )}
 
-          {/* Stats Section */}
+          {/* Directory Stats / City Hub Badges */}
           <View style={styles.statsContainer}>
-            <View style={styles.statColumn}>
-              <Ionicons name="grid-outline" size={20} color="#2563EB" />
-              <Text style={styles.statCount}>{posts.length}</Text>
-              <Text style={styles.statLabel}>{language === 'en' ? 'Posts' : 'పోస్ట్లు'}</Text>
-            </View>
+            <TouchableOpacity style={styles.statColumn} onPress={() => navigation.navigate('Directory')}>
+              <Ionicons name="storefront-outline" size={22} color="#2563EB" />
+              <Text style={styles.statCount}>50+</Text>
+              <Text style={styles.statLabel}>{language === 'en' ? 'Shops' : 'దుకాణాలు'}</Text>
+            </TouchableOpacity>
+
             <View style={styles.statDivider} />
-            <View style={styles.statColumn}>
-              <Ionicons name="people-outline" size={20} color="#1D4ED8" />
-              <Text style={styles.statCount}>{user?.followerCount || 0}</Text>
-              <Text style={styles.statLabel}>{language === 'en' ? 'Followers' : 'అనుచరులు'}</Text>
-            </View>
+
+            <TouchableOpacity
+              style={styles.statColumn}
+              onPress={() => navigation.navigate('Directory', { initialTab: 'professionals' })}
+            >
+              <Ionicons name="construct-outline" size={22} color="#0D9488" />
+              <Text style={styles.statCount}>30+</Text>
+              <Text style={styles.statLabel}>{language === 'en' ? 'Skilled Pros' : 'నిపుణులు'}</Text>
+            </TouchableOpacity>
+
             <View style={styles.statDivider} />
-            <View style={styles.statColumn}>
-              <Ionicons name="person-add-outline" size={20} color="#3B82F6" />
-              <Text style={styles.statCount}>{user?.followingCount || 0}</Text>
-              <Text style={styles.statLabel}>{language === 'en' ? 'Following' : 'అనుసరిస్తున్నారు'}</Text>
-            </View>
+
+            <TouchableOpacity style={styles.statColumn} onPress={() => navigation.navigate('Explore')}>
+              <Ionicons name="compass-outline" size={22} color="#EA580C" />
+              <Text style={styles.statCount}>15+</Text>
+              <Text style={styles.statLabel}>{language === 'en' ? 'Heritage Spots' : 'దర్శనీయ స్థలాలు'}</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Menu List Cards */}
+        {/* Portals & Merchant Controls */}
         <View style={styles.menuContainer}>
           {isSelf && (
             <>
-              {/* Business Portal Section */}
-              <View style={{ marginBottom: 12 }}>
-                <Text style={{ fontSize: 11, fontWeight: '800', color: '#1E40AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginLeft: 4 }}>
-                  Commercial Business Portal
+              {/* Commercial Business Portal Section */}
+              <View style={{ marginBottom: 8 }}>
+                <Text style={styles.portalSectionHeader}>
+                  {language === 'en' ? 'Commercial Business Portal' : 'వాణిజ్య వ్యాపార పోర్టల్'}
                 </Text>
 
                 <TouchableOpacity style={styles.menuCard} onPress={() => navigation.navigate('ManageBusiness')}>
-                  <View style={[styles.menuIconContainer, { backgroundColor: '#DBEAFE' }]}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: '#EFF6FF' }]}>
                     <Ionicons name="storefront" size={22} color="#2563EB" />
                   </View>
                   <View style={styles.menuContent}>
-                    <Text style={styles.menuTitle}>{language === 'en' ? 'Business Dashboard' : 'వ్యాపార డాష్‌బోర్డ్'}</Text>
-                    <Text style={styles.menuSubtitle}>{language === 'en' ? 'Shop hours, analytics & post offers' : 'సమయాలు, అనలిటిక్స్ మరియు ఆఫర్లు'}</Text>
+                    <Text style={styles.menuTitle}>
+                      {language === 'en' ? 'Business Dashboard' : 'వ్యాపార డాష్‌బోర్డ్'}
+                    </Text>
+                    <Text style={styles.menuSubtitle}>
+                      {language === 'en' ? 'Shop hours, analytics & post offers' : 'సమయాలు, అనలిటిక్స్ మరియు ఆఫర్లు'}
+                    </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                  <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.menuCard} onPress={() => navigation.navigate('RegisterBusiness')}>
@@ -280,28 +214,36 @@ export default function ProfileScreen({ route, navigation }: any) {
                     <Ionicons name="add-circle" size={22} color="#2563EB" />
                   </View>
                   <View style={styles.menuContent}>
-                    <Text style={styles.menuTitle}>{language === 'en' ? 'Register Business / Shop' : 'వ్యాపారం నమోదు చేయండి'}</Text>
-                    <Text style={styles.menuSubtitle}>{language === 'en' ? 'Get verified & receive customer calls' : 'ధృవీకరణ & కస్టమర్ కాల్స్ పొందండి'}</Text>
+                    <Text style={styles.menuTitle}>
+                      {language === 'en' ? 'Register Business' : 'వ్యాపారం నమోదు చేయండి'}
+                    </Text>
+                    <Text style={styles.menuSubtitle}>
+                      {language === 'en' ? 'Get verified & receive customer calls' : 'ధృవీకరణ & కస్టమర్ కాల్స్ పొందండి'}
+                    </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                  <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
                 </TouchableOpacity>
               </View>
 
-              {/* Professional Portal Section */}
-              <View style={{ marginBottom: 12 }}>
-                <Text style={{ fontSize: 11, fontWeight: '800', color: '#0F766E', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginLeft: 4 }}>
-                  Professional & Creator Portal
+              {/* Professional & Creator Portal Section */}
+              <View style={{ marginBottom: 8 }}>
+                <Text style={[styles.portalSectionHeader, { color: '#0D9488' }]}>
+                  {language === 'en' ? 'Professional & Creator Portal' : 'నైపుణ్య నిపుణుల పోర్టల్'}
                 </Text>
 
                 <TouchableOpacity style={styles.menuCard} onPress={() => navigation.navigate('ManageProfessional')}>
-                  <View style={[styles.menuIconContainer, { backgroundColor: '#CCFBF1' }]}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: '#F0FDFA' }]}>
                     <Ionicons name="briefcase" size={22} color="#0D9488" />
                   </View>
                   <View style={styles.menuContent}>
-                    <Text style={styles.menuTitle}>{language === 'en' ? 'Professional Dashboard' : 'ప్రొఫెషనల్ డాష్‌బోర్డ్'}</Text>
-                    <Text style={styles.menuSubtitle}>{language === 'en' ? 'Manage rates, leads & social links' : 'ధరలు, లీడ్స్ & సోషల్ లింకులు'}</Text>
+                    <Text style={styles.menuTitle}>
+                      {language === 'en' ? 'Professional Dashboard' : 'ప్రొఫెషనల్ డాష్‌బోర్డ్'}
+                    </Text>
+                    <Text style={styles.menuSubtitle}>
+                      {language === 'en' ? 'Manage rates, leads & social links' : 'ధరలు, లీడ్స్ & సోషల్ లింకులు'}
+                    </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                  <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.menuCard} onPress={() => navigation.navigate('RegisterProfessional')}>
@@ -309,10 +251,16 @@ export default function ProfileScreen({ route, navigation }: any) {
                     <Ionicons name="person-add" size={22} color="#0D9488" />
                   </View>
                   <View style={styles.menuContent}>
-                    <Text style={styles.menuTitle}>{language === 'en' ? 'List Pro Profile' : 'వ్యక్తిగత ప్రొఫైల్ నమోదు'}</Text>
-                    <Text style={styles.menuSubtitle}>{language === 'en' ? 'Doctor, Influencer, Tech & Freelancer' : 'డాక్టర్, ఇన్‌ఫ్లుయెన్సర్, టెక్నీషియన్ & ఫ్రీలాన్సర్'}</Text>
+                    <Text style={styles.menuTitle}>
+                      {language === 'en' ? 'List Pro Profile' : 'వ్యక్తిగత ప్రొఫైల్ నమోదు'}
+                    </Text>
+                    <Text style={styles.menuSubtitle}>
+                      {language === 'en'
+                        ? 'Doctor, Influencer, Tech & Freelancer'
+                        : 'డాక్టర్, ఇన్‌ఫ్లుయెన్సర్, టెక్నీషియన్ & ఫ్రీలాన్సర్'}
+                    </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                  <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
                 </TouchableOpacity>
               </View>
             </>
@@ -321,30 +269,51 @@ export default function ProfileScreen({ route, navigation }: any) {
           {user && (user.role === 'admin' || user.role === 'super_admin') && isSelf && (
             <TouchableOpacity style={styles.menuCard} onPress={() => navigation.navigate('AdminDashboard')}>
               <View style={[styles.menuIconContainer, { backgroundColor: '#FEE2E2' }]}>
-                <Ionicons name="shield-checkmark-outline" size={22} color="#EF4444" />
+                <Ionicons name="shield-checkmark" size={22} color="#DC2626" />
               </View>
               <View style={styles.menuContent}>
                 <Text style={styles.menuTitle}>{language === 'en' ? 'Admin Dashboard' : 'అడ్మిన్ డాష్బోర్డ్'}</Text>
-                <Text style={styles.menuSubtitle}>{language === 'en' ? 'Manage users and content' : 'వినియోగదారులు మరియు కంటెంట్‌ను నిర్వహించండి'}</Text>
+                <Text style={styles.menuSubtitle}>
+                  {language === 'en' ? 'Manage verified listings & banners' : 'లిస్టింగులు మరియు బ్యానర్ల నిర్వహణ'}
+                </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
             </TouchableOpacity>
           )}
+
+          {/* Share App */}
           <TouchableOpacity style={styles.menuCard} onPress={handleShareProfile}>
-            <View style={styles.menuIconContainer}>
+            <View style={[styles.menuIconContainer, { backgroundColor: '#F8FAFC' }]}>
               <Ionicons name="share-social-outline" size={22} color="#2563EB" />
             </View>
             <View style={styles.menuContent}>
-              <Text style={styles.menuTitle}>{language === 'en' ? 'Share Profile' : 'ప్రొఫైల్ పంచుకోండి'}</Text>
-              <Text style={styles.menuSubtitle}>{language === 'en' ? 'Share your profile with friends' : 'మీ ప్రొఫైల్ను స్నేహితులతో పంచుకోండి'}</Text>
+              <Text style={styles.menuTitle}>{language === 'en' ? 'Share Kurnool One' : 'కర్నూలు వన్ పంచుకోండి'}</Text>
+              <Text style={styles.menuSubtitle}>
+                {language === 'en' ? 'Share app with family & friends' : 'యాప్‌ను స్నేహితులతో పంచుకోండి'}
+              </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
           </TouchableOpacity>
         </View>
 
-        {/* Posts Section */}
-        <View style={styles.postsSection}>
-          {renderPostList()}
+        {/* Digital City Trust Card */}
+        <View style={styles.trustCard}>
+          <View style={styles.trustHeader}>
+            <Ionicons name="shield-checkmark" size={22} color="#2563EB" />
+            <Text style={styles.trustTitle}>
+              {language === 'en' ? 'Kurnool One Digital City Platform' : 'కర్నూలు వన్ డిజిటల్ సిటీ వేదిక'}
+            </Text>
+          </View>
+          <Text style={styles.trustDesc}>
+            {language === 'en'
+              ? 'Dedicated city directory connecting citizens, businesses, skilled technicians, exclusive offers, and heritage in Kurnool.'
+              : 'కర్నూలు పౌరులకు ధృవీకరించబడిన దుకాణాలు, నిపుణుల సేవలు, ఆఫర్లు మరియు దర్శనీయ స్థలాలను అనుసంధానించే సమగ్ర వేదిక.'}
+          </Text>
+          <Text style={styles.disclaimerText}>
+            {language === 'en'
+              ? 'Kurnool One is an independent private platform and is not affiliated with the Kurnool Municipal Corporation or Government of AP.'
+              : 'కర్నూలు వన్ ఒక స్వతంత్ర ప్రైవేట్ వేదిక, కర్నూలు మునిసిపల్ కార్పొరేషన్ లేదా ప్రభుత్వంతో అనుబంధించబడలేదు.'}
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -354,7 +323,7 @@ export default function ProfileScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8FAFC',
   },
   loadingContainer: {
     flex: 1,
@@ -364,154 +333,121 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    paddingBottom: 80,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
     backgroundColor: '#FFFFFF',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
-    color: '#1F2937',
+    color: '#0F172A',
   },
   headerIcons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
   },
-  notificationIcon: {
-    position: 'relative',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    backgroundColor: '#EF4444',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  notificationBadgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '700',
+  iconBtn: {
+    padding: 6,
+    borderRadius: 8,
   },
   profileCard: {
+    backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 24,
-    borderRadius: 24,
-    padding: 24,
-    backgroundColor: '#EFF6FF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 8,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  decorativeCircle: {
-    position: 'absolute',
-    top: -20,
-    right: -20,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(37, 99, 235, 0.1)',
-  },
-  dottedPattern: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    width: 40,
-    height: 40,
+    marginTop: 12,
+    marginBottom: 16,
     borderRadius: 20,
+    padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(29, 78, 216, 0.1)',
-    borderStyle: 'dashed',
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
   },
   profileImageContainer: {
     alignItems: 'center',
-    marginBottom: 20,
   },
   profileImageWrapper: {
     position: 'relative',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   profileImagePlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#EFF6FF',
     alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#BFDBFE',
   },
   cameraIcon: {
     position: 'absolute',
     bottom: 0,
     right: 0,
     backgroundColor: '#2563EB',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
-    borderWidth: 3,
+    justifyContent: 'center',
+    borderWidth: 2,
     borderColor: '#FFFFFF',
   },
   username: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '800',
-    color: '#1F2937',
-    marginBottom: 8,
+    color: '#0F172A',
+    marginBottom: 4,
   },
   phoneContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginBottom: 12,
   },
   phoneNumber: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '500',
   },
   editProfileButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 30,
-    marginBottom: 24,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    backgroundColor: '#2563EB',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 6,
+    marginBottom: 16,
   },
   editProfileButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '700',
-    marginLeft: 8,
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#EDF2F7',
   },
   statColumn: {
     alignItems: 'center',
@@ -519,167 +455,96 @@ const styles = StyleSheet.create({
   },
   statDivider: {
     width: 1,
-    height: 40,
-    backgroundColor: 'rgba(0, 0, 0, 0.06)',
+    height: 32,
+    backgroundColor: '#E2E8F0',
   },
   statCount: {
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: '800',
-    color: '#1F2937',
-    marginTop: 8,
+    color: '#0F172A',
+    marginTop: 4,
   },
   statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+    marginTop: 2,
   },
   menuContainer: {
     paddingHorizontal: 16,
-    gap: 12,
-    marginBottom: 24,
+    gap: 10,
+    marginBottom: 16,
+  },
+  portalSectionHeader: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#1E40AF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 6,
+    marginLeft: 4,
   },
   menuCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   menuIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#DBEAFE',
+    width: 42,
+    height: 42,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 12,
   },
   menuContent: {
     flex: 1,
   },
   menuTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#0F172A',
     marginBottom: 2,
   },
   menuSubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
+    fontSize: 12,
+    color: '#64748B',
   },
-  notificationBadgeSmall: {
-    backgroundColor: '#EF4444',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  notificationBadgeTextSmall: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  postsSection: {
-    paddingHorizontal: 16,
-  },
-  emptyStateCard: {
+  trustCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 32,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  emptyIllustration: {
-    position: 'relative',
-    marginBottom: 20,
-  },
-  paperPlane: {
-    position: 'absolute',
-    bottom: -10,
-    right: -10,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#1F2937',
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
+    marginHorizontal: 16,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     marginBottom: 24,
   },
-  createPostButton: {
+  trustHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 30,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    gap: 8,
+    marginBottom: 6,
   },
-  createPostButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    marginLeft: 8,
+  trustTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1E40AF',
   },
-  bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-    paddingBottom: 24,
+  trustDesc: {
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 18,
+    marginBottom: 10,
   },
-  navItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  navLabel: {
-    fontSize: 11,
-    color: '#9CA3AF',
-    marginTop: 4,
-    fontWeight: '600',
-  },
-  navLabelActive: {
-    color: '#2563EB',
-  },
-  navCenterButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-    marginTop: -20,
+  disclaimerText: {
+    fontSize: 10,
+    color: '#94A3B8',
+    lineHeight: 14,
+    fontStyle: 'italic',
   },
 });

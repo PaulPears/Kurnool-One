@@ -132,7 +132,22 @@ export default function EventsPage() {
                 theme: {
                   color: '#2563EB',
                 },
-                handler: function () {
+                handler: async function (response: any) {
+                  try {
+                    await fetch('/api/payments/verify', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature,
+                        eventId: eventDocId,
+                        planId: 'event_listing',
+                      }),
+                    });
+                  } catch (vErr) {
+                    console.warn('Event payment verification notice:', vErr);
+                  }
                   setSubmitSuccess(true);
                   setTimeout(() => {
                     setSubmitSuccess(false);
@@ -140,24 +155,31 @@ export default function EventsPage() {
                     loadEvents();
                   }, 2500);
                 },
+                modal: {
+                  ondismiss: function () {
+                    setSubmitting(false);
+                  },
+                },
               };
               const rzp = new (window as any).Razorpay(options);
               rzp.open();
-              setSubmitting(false);
               return;
             }
           } catch (payErr) {
-            console.warn('Payment order fallback:', payErr);
+            console.warn('Payment order failed:', payErr);
+            alert('Unable to initialize payment gateway. Please try again.');
+            setSubmitting(false);
+            return;
           }
         }
+      } else {
+        setSubmitSuccess(true);
+        setTimeout(() => {
+          setSubmitSuccess(false);
+          setShowSubmitModal(false);
+          loadEvents();
+        }, 2000);
       }
-
-      setSubmitSuccess(true);
-      setTimeout(() => {
-        setSubmitSuccess(false);
-        setShowSubmitModal(false);
-        loadEvents();
-      }, 2000);
     } catch (err) {
       console.error(err);
       alert('Error submitting event. Please try again.');

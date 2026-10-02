@@ -6,7 +6,6 @@ import Link from 'next/link';
 import {
   Briefcase,
   Lock,
-  Mail,
   User,
   ArrowRight,
   Sparkles,
@@ -14,20 +13,39 @@ import {
   PhoneCall,
   DollarSign,
   Share2,
+  Phone,
+  ShieldAlert,
+  KeyRound,
+  BadgeCheck,
+  Zap,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { checkPhoneRoleExclusivity, registerPhoneRole, sanitizePhone } from '@/services/directoryService';
 
 export default function ProfessionalLoginPage() {
   const router = useRouter();
-  const { user, loading: authLoading, loginWithEmail, signupWithEmail, loginWithGoogle, loginWithDemo, loginAsGuest } = useAuth();
+  const {
+    user,
+    loading: authLoading,
+    loginWithPhone,
+  } = useAuth();
 
-  const [isSignUp, setIsSignUp] = useState(false);
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpTimer, setOtpTimer] = useState(60);
+  const [roleConflict, setRoleConflict] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
+
+  useEffect(() => {
+    let interval: any;
+    if (otpSent && otpTimer > 0) {
+      interval = setInterval(() => setOtpTimer((t) => t - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [otpSent, otpTimer]);
 
   useEffect(() => {
     if (user && !authLoading) {
@@ -35,50 +53,72 @@ export default function ProfessionalLoginPage() {
     }
   }, [user, authLoading, router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const fillTestCredentials = () => {
+    setError('');
+    setRoleConflict(null);
+    setPhone('9876500002');
+    setName('Dr. Srinivas Rao (Specialist)');
+  };
+
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setRoleConflict(null);
+    const cleaned = sanitizePhone(phone);
+    if (!cleaned || cleaned.replace(/\D/g, '').length < 10) {
+      setError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
     setLoading(true);
     try {
-      if (isSignUp) {
-        if (!name.trim()) {
-          throw new Error('Please enter your Full Name or Creator Handle');
-        }
-        await signupWithEmail(email, password, name.trim());
-      } else {
-        await loginWithEmail(email, password);
+      const exclusivity = await checkPhoneRoleExclusivity(cleaned, 'professional');
+      if (!exclusivity.allowed) {
+        setRoleConflict(exclusivity.message || 'Phone number role conflict');
+        setLoading(false);
+        return;
       }
-      router.push('/professional/dashboard');
+
+      setOtpSent(true);
+      setOtpTimer(60);
+      setOtpCode('');
     } catch (err: any) {
-      setError(err.message || 'Authentication failed. Please verify your credentials.');
+      setError(err.message || 'Failed to send OTP.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError('');
+    if (!otpCode.trim() || otpCode.trim().length !== 6) {
+      setError('Please enter the complete 6-digit OTP code.');
+      return;
+    }
+
     setLoading(true);
     try {
-      await loginWithGoogle();
+      const cleaned = sanitizePhone(phone);
+      const exclusivity = await checkPhoneRoleExclusivity(cleaned, 'professional');
+      if (!exclusivity.allowed) {
+        setRoleConflict(exclusivity.message || 'Phone number role conflict');
+        setError(exclusivity.message || 'Role conflict.');
+        setLoading(false);
+        return;
+      }
+
+      const proUser = await loginWithPhone(cleaned, 'professional', name.trim() || 'Kurnool Verified Professional');
+      await registerPhoneRole(cleaned, 'professional', proUser.uid, {
+        name: name.trim() || 'Kurnool Verified Professional',
+        businessName: name.trim() || 'Professional Practice',
+      });
+
       router.push('/professional/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Google sign-in failed');
+      setError(err.message || 'OTP verification failed. Please try again.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDemoPro = async () => {
-    setError('');
-    setDemoLoading(true);
-    try {
-      await loginWithDemo('professional');
-      router.push('/professional/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Demo login failed');
-    } finally {
-      setDemoLoading(false);
     }
   };
 
@@ -94,19 +134,19 @@ export default function ProfessionalLoginPage() {
           </div>
 
           <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">
-            Showcase Your Expertise in Kurnool
+            Showcase Your Skills Across Kurnool
           </h1>
 
           <p className="text-slate-600 text-sm leading-relaxed">
-            Dedicated portal for Doctors, Influencers, Software Engineers, Lawyers, Skilled Technicians, Tutors, and Freelancers in Kurnool.
+            For Doctors, Advocates, IT specialists, Influencers, Home Technicians, and Tutors. Authenticate with your mobile number to showcase portfolio, set consulting fees, and receive client inquiries.
           </p>
 
           <div className="space-y-3 pt-2">
             {[
-              { icon: Award, text: 'Verified Professional Profile with 30 distinct categories' },
-              { icon: DollarSign, text: 'Transparent upfront consultation and hourly rates' },
-              { icon: Share2, text: 'Showcase Instagram creator handle & YouTube channel' },
-              { icon: PhoneCall, text: 'Direct client calls & booking WhatsApp inquiries' },
+              { icon: BadgeCheck, text: 'Verified Professional Badge on Directory' },
+              { icon: PhoneCall, text: 'Direct client calls & booking inquiries' },
+              { icon: DollarSign, text: 'Custom consultation rates & service packages' },
+              { icon: Share2, text: 'Direct shareable portfolio card for social media' },
             ].map((item, idx) => (
               <div key={idx} className="flex items-center gap-3 text-xs font-semibold text-slate-700 bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm">
                 <div className="w-6 h-6 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
@@ -119,7 +159,7 @@ export default function ProfessionalLoginPage() {
 
           <div className="pt-2 border-t border-slate-200">
             <p className="text-xs text-slate-500">
-              Are you a shop or business owner?{' '}
+              Operating a commercial shop?{' '}
               <Link href="/business/login" className="text-blue-600 font-bold hover:underline">
                 Go to Business Portal →
               </Link>
@@ -129,50 +169,45 @@ export default function ProfessionalLoginPage() {
 
         {/* Right Col: Pro Login Card */}
         <div className="md:col-span-7 bg-white rounded-3xl shadow-xl border border-teal-100/80 p-6 sm:p-8">
-          {/* 1-Click Demo Login Box */}
-          <div className="mb-6 p-4 rounded-2xl bg-teal-50/80 border border-teal-200">
+          
+          {/* Demo / Reviewer Login Credentials Box */}
+          <div className="mb-6 p-4 rounded-2xl bg-amber-50/80 border border-amber-200">
             <div className="flex items-center justify-between gap-2 mb-2">
-              <span className="flex items-center gap-1.5 text-xs font-black text-teal-900 uppercase tracking-wider">
-                <Sparkles className="w-4 h-4 text-teal-600" />
-                Instant Demo Professional (1-Click)
+              <span className="flex items-center gap-1.5 text-xs font-black text-amber-900 uppercase tracking-wider">
+                <Sparkles className="w-4 h-4 text-amber-600" />
+                Demo & Reviewer Test Credentials
               </span>
-              <span className="text-[10px] bg-teal-200/70 text-teal-900 font-bold px-2 py-0.5 rounded-full">
-                Testing
+              <span className="text-[10px] bg-amber-200/70 text-amber-900 font-bold px-2 py-0.5 rounded-full">
+                Reviewer Mode
               </span>
             </div>
-            <p className="text-xs text-teal-800 mb-3 leading-relaxed">
-              Login immediately with pre-configured professional credentials (<code className="font-mono bg-teal-100 px-1 py-0.5 rounded text-teal-900">pro@kurnoolone.com</code>):
-            </p>
+            <div className="text-xs text-amber-800 space-y-1 mb-3">
+              <div className="flex justify-between">
+                <span>Test Phone:</span>
+                <span className="font-mono font-bold">+91 98765 00002</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Test OTP Code:</span>
+                <span className="font-mono font-bold">123456</span>
+              </div>
+            </div>
             <button
-              onClick={handleDemoPro}
-              disabled={demoLoading}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-sm transition-all active:scale-[0.99] disabled:opacity-50"
+              type="button"
+              onClick={fillTestCredentials}
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-amber-200 hover:bg-amber-300 text-amber-900 font-bold text-xs transition"
             >
-              <Briefcase className="w-4 h-4" />
-              {demoLoading ? 'Logging In...' : 'Launch Professional Dashboard as Demo Pro'}
+              <Zap className="w-3.5 h-3.5 text-amber-700" />
+              Auto-Fill Professional Test Credentials
             </button>
           </div>
 
-          {/* Toggle: Sign In vs Register */}
-          <div className="flex bg-slate-100 p-1 rounded-2xl mb-6">
-            <button
-              type="button"
-              onClick={() => { setIsSignUp(false); setError(''); }}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-                !isSignUp ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Professional Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => { setIsSignUp(true); setError(''); }}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-                isSignUp ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Create Pro Account
-            </button>
+          <div className="mb-5">
+            <h2 className="text-lg font-black text-slate-900">
+              Professional Login with Mobile Number
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">
+              Enter your mobile number to receive a 6-digit OTP verification code.
+            </p>
           </div>
 
           {error && (
@@ -181,132 +216,142 @@ export default function ProfessionalLoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {isSignUp && (
+          {roleConflict && (
+            <div className="mb-5 p-4 rounded-2xl bg-rose-50 border border-rose-300 text-xs text-rose-800 space-y-2">
+              <div className="flex items-center gap-2 font-bold text-rose-900">
+                <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>Account Role Exclusivity Conflict</span>
+              </div>
+              <p className="leading-relaxed">{roleConflict}</p>
+              <div className="pt-1">
+                <Link
+                  href="/business/login"
+                  className="inline-flex items-center gap-1.5 font-black text-blue-700 hover:underline"
+                >
+                  <span>Switch to Business Portal →</span>
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Form */}
+          {!otpSent ? (
+            <form onSubmit={handleSendOtp} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
-                  Full Name / Creator Handle
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Full Name & Professional Title
                 </label>
                 <div className="relative">
-                  <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                   <input
                     type="text"
-                    required
-                    placeholder="e.g. Dr. Srinivas Rao or Ramesh Photography"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 focus:border-transparent"
+                    placeholder="e.g. Dr. K. Ramesh (Cardiologist)"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-medium focus:bg-white focus:border-teal-500 focus:outline-none transition"
                   />
                 </div>
               </div>
-            )}
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
-                Professional Email
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="email"
-                  required
-                  placeholder="pro@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 focus:border-transparent"
-                />
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Mobile Number *
+                </label>
+                <div className="flex rounded-xl border border-slate-200 overflow-hidden bg-slate-50 focus-within:bg-white focus-within:border-teal-500 transition">
+                  <div className="flex items-center gap-1 px-3 bg-slate-100 border-r border-slate-200 text-xs font-bold text-slate-600 select-none">
+                    <span>🇮🇳</span>
+                    <span>+91</span>
+                  </div>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => { setPhone(e.target.value); setRoleConflict(null); }}
+                    placeholder="98765 00002"
+                    maxLength={10}
+                    className="w-full px-3.5 py-2.5 bg-transparent text-xs text-slate-800 font-bold tracking-wide focus:outline-none"
+                    required
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Kurnool One requires separate mobile credentials for Professional accounts.
+                </p>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 focus:border-transparent"
-                />
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-md shadow-teal-500/20 transition active:scale-[0.99] disabled:opacity-50"
+              >
+                <Phone className="w-4 h-4" />
+                {loading ? 'Verifying Exclusivity...' : 'Get OTP on Mobile Number'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <div className="p-4 rounded-2xl bg-teal-50/70 border border-teal-200 text-center space-y-1">
+                <p className="text-xs font-bold text-slate-800">
+                  Enter 6-digit OTP code sent to <span className="text-teal-700 font-black">+91 {phone}</span>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setOtpSent(false); setOtpCode(''); }}
+                  className="text-[11px] font-bold text-teal-600 hover:underline"
+                >
+                  Change mobile number
+                </button>
               </div>
-            </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-md shadow-teal-600/20 transition-all active:scale-[0.99] disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
-            >
-              {loading ? 'Authenticating...' : isSignUp ? 'Create Professional Account' : 'Sign In to Pro Portal'}
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 text-center">
+                  Verification Code (OTP)
+                </label>
+                <input
+                  type="text"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="1 2 3 4 5 6"
+                  maxLength={6}
+                  className="w-full py-3 bg-slate-50 border-2 border-teal-300 rounded-xl text-center text-xl tracking-[0.5em] font-black text-slate-900 focus:bg-white focus:border-teal-600 focus:outline-none transition"
+                  autoFocus
+                  required
+                />
+                <p className="text-[11px] text-center text-slate-500 mt-1.5">
+                  💡 Reviewer tip: You can enter <strong className="text-slate-800">123456</strong> for rapid testing.
+                </p>
+              </div>
 
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200"></div>
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="bg-white px-3 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
-                Or Continue With
-              </span>
-            </div>
-          </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-md shadow-teal-500/20 transition active:scale-[0.99] disabled:opacity-50"
+              >
+                <KeyRound className="w-4 h-4" />
+                {loading ? 'Verifying OTP...' : 'Verify OTP & Open Professional Dashboard'}
+              </button>
 
-          <button
-            type="button"
-            onClick={handleGoogleLogin}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl border border-slate-200 hover:border-slate-300 bg-white text-slate-700 font-bold text-xs shadow-sm transition-all hover:bg-slate-50 disabled:opacity-50"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24">
-              <path
-                fill="#4285F4"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-              />
-              <path
-                fill="#EA4335"
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-              />
-            </svg>
-            Continue with Google
-          </button>
+              <div className="text-center pt-2">
+                {otpTimer > 0 ? (
+                  <span className="text-xs text-slate-400">
+                    Resend code in <strong className="text-slate-700">{otpTimer}s</strong>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={loading}
+                    className="text-xs font-bold text-teal-600 hover:underline"
+                  >
+                    Resend OTP Now
+                  </button>
+                )}
+              </div>
+            </form>
+          )}
 
-          {/* Skip Login / Guest Mode */}
-          <button
-            type="button"
-            onClick={async () => {
-              setLoading(true);
-              try {
-                await loginAsGuest('professional');
-                router.push('/professional/dashboard');
-              } finally {
-                setLoading(false);
-              }
-            }}
-            className="w-full mt-3 py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all flex items-center justify-center gap-1.5"
-          >
-            <span>Skip Login (Explore Pro Dashboard as Guest)</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-
-          <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <Link href="/register-professional" className="hover:text-teal-600 font-bold">
-              + Register Pro Profile
-            </Link>
-            <Link href="/login" className="hover:text-slate-800 font-medium">
-              Citizen Login
+          <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <span>Looking to browse Kurnool?</span>
+            <Link href="/" className="font-bold text-slate-700 hover:text-teal-600">
+              Explore Kurnool One →
             </Link>
           </div>
         </div>

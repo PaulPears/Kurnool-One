@@ -152,13 +152,7 @@ export default function ProfessionalDashboardPage() {
             >
               Sign In to Professional Portal
             </Link>
-            <button
-              onClick={() => loginWithDemo('professional')}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-200 font-bold text-xs transition-all"
-            >
-              <Sparkles className="w-4 h-4 text-teal-600" />
-              1-Click Demo Professional Login
-            </button>
+
           </div>
         </div>
       </div>

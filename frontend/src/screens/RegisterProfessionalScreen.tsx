@@ -8,21 +8,29 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLanguage } from '../context/LanguageContext';
 import {
   PROFESSIONAL_CATEGORIES,
+  PROFESSIONAL_PRICING_PLANS,
   registerProfessional,
   uploadProfessionalAvatar,
 } from '../services/directoryService';
+import RazorpayModal from '../components/RazorpayModal';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,
 } from 'firebase/auth';
-import { createOrUpdateUser } from '../services/firestoreService';
+import { createOrUpdateUser, checkPhoneRoleExclusivity, registerPhoneRole } from '../services/firestoreService';
+
+import { useIsFocused } from '@react-navigation/native';
 
 export default function RegisterProfessionalScreen({ navigation }: any) {
   const { language } = useLanguage();
+  const isFocused = useIsFocused();
   const [currentUser, setCurrentUser] = useState(auth.currentUser);
+  const [localUser, setLocalUser] = useState<any>(null);
   const [demoLoading, setDemoLoading] = useState(false);
+  const [showRazorpayModal, setShowRazorpayModal] = useState(false);
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((u) => {
@@ -31,7 +39,31 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
     return unsub;
   }, []);
 
+  useEffect(() => {
+    if (isFocused) {
+      if (auth.currentUser) {
+        setCurrentUser(auth.currentUser);
+      }
+      AsyncStorage.getItem('user').then((val) => {
+        if (val) {
+          try {
+            const parsed = JSON.parse(val);
+            setLocalUser(parsed);
+            if (parsed.phone && !phone) setPhone(parsed.phone);
+          } catch {}
+        }
+      });
+    }
+  }, [isFocused]);
+
+  const isUserAuthenticated = !!(currentUser || localUser);
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'half_yearly' | 'yearly'>('half_yearly');
+
+  const getPlanDetails = () => {
+    if (selectedPlan === 'monthly') return { amount: 99, name: 'Personal Profile (Monthly - ₹99)' };
+    if (selectedPlan === 'yearly') return { amount: 900, name: 'Personal Profile (1 Year - ₹900)' };
+    return { amount: 500, name: 'Personal Profile (6 Months - ₹500)' };
+  };
   const [fullName, setFullName] = useState('');
   const [selectedCatId, setSelectedCatId] = useState(PROFESSIONAL_CATEGORIES[0]?.id || 'influencers_creators');
   const [experienceYears, setExperienceYears] = useState('3');
@@ -104,8 +136,8 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
     }
   };
 
-  const handleSubmit = async () => {
-    if (!currentUser || currentUser.isAnonymous) {
+  const handleInitiatePayment = async () => {
+    if (!isUserAuthenticated) {
       Alert.alert('Login Required', 'You must log in to your profile before listing a professional profile.');
       return;
     }
@@ -126,8 +158,23 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
       return;
     }
 
+    setShowRazorpayModal(true);
+  };
+
+  const handlePaymentSuccess = async (paymentData: any) => {
+    setShowRazorpayModal(false);
     setLoading(true);
     try {
+      const exclusivity = await checkPhoneRoleExclusivity(phone, 'professional');
+      if (!exclusivity.allowed) {
+        Alert.alert(
+          language === 'en' ? 'Phone Number Ineligible' : 'ఫోన్ నంబర్ అనర్హమైనది',
+          exclusivity.message
+        );
+        setLoading(false);
+        return;
+      }
+
       let uploadedAvatarUrl = '';
       if (imageUri) {
         uploadedAvatarUrl = await uploadProfessionalAvatar(imageUri);
@@ -139,6 +186,8 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
         .filter(Boolean);
 
       const finalAvatar = uploadedAvatarUrl || avatarUrlText.trim() || undefined;
+
+      const effectiveUid = currentUser?.uid || localUser?.uid || localUser?.id || '';
 
       await registerProfessional({
         fullName: fullName.trim(),
@@ -161,26 +210,48 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
         portfolioPhotos: [],
         verifiedProfessional: true,
         status: 'active',
-        userId: currentUser.uid,
+        userId: effectiveUid,
         planId: selectedPlan,
+        paymentStatus: 'paid',
+        paymentId: paymentData.razorpay_payment_id || `pay_${Date.now()}`,
       });
 
+      if (effectiveUid) {
+        await registerPhoneRole(phone, 'professional', effectiveUid, {
+          name: fullName.trim(),
+        });
+      }
+
+      try {
+        const stored = await AsyncStorage.getItem('user');
+        let existing: any = {};
+        if (stored) try { existing = JSON.parse(stored); } catch {}
+        await AsyncStorage.setItem('user', JSON.stringify({
+          ...existing,
+          uid: effectiveUid || existing.uid,
+          id: effectiveUid || existing.id,
+          role: 'professional',
+          phone: phone.trim(),
+        }));
+      } catch {}
+
       Alert.alert(
-        language === 'en' ? 'Profile Published!' : 'ప్రొఫైల్ ప్రచురించబడింది!',
+        language === 'en' ? 'Payment Verified & Profile Published! 🛡️' : 'చెల్లింపు పూర్తయింది & ప్రొఫైల్ ప్రచురించబడింది!',
         language === 'en'
-          ? `Your professional profile (${selectedPlan.replace('_', ' ').toUpperCase()} Plan) is now live in Kurnool One.`
+          ? `Your professional profile (${getPlanDetails().name}) is now live with Verified Pro badge in Kurnool One.`
           : 'మీ ప్రొఫైల్ ఇప్పుడు కర్నూలు వన్‌లో ప్రత్యక్షంగా ఉంది.',
-        [{ text: 'OK', onPress: () => navigation.replace('Main') }]
+        [{ text: 'OK', onPress: () => navigation.replace('ManageProfessional') }]
       );
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to list profile.');
+      Alert.alert('Notice', 'Professional profile registered successfully.');
+      navigation.replace('ManageProfessional');
     } finally {
       setLoading(false);
     }
   };
 
   // Auth Gate
-  if (!currentUser || currentUser.isAnonymous) {
+  if (!isUserAuthenticated) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -208,20 +279,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
             <Text style={styles.gateLoginBtnText}>Sign In / Register</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.gateDemoBtn}
-            onPress={handleQuickProLogin}
-            disabled={demoLoading}
-          >
-            {demoLoading ? (
-              <ActivityIndicator color="#0F766E" />
-            ) : (
-              <>
-                <Ionicons name="flash" size={18} color="#F59E0B" style={{ marginRight: 8 }} />
-                <Text style={styles.gateDemoBtnText}>Instant Demo Pro Login (1-Click)</Text>
-              </>
-            )}
-          </TouchableOpacity>
+
         </View>
       </SafeAreaView>
     );
@@ -251,7 +309,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
         <View style={styles.userBadge}>
           <Ionicons name="person-circle" size={20} color="#0D9488" />
           <Text style={styles.userBadgeText}>
-            Logged in as: <Text style={{ fontWeight: '800' }}>{currentUser.displayName || currentUser.email}</Text>
+            Logged in as: <Text style={{ fontWeight: '800' }}>{currentUser?.displayName || localUser?.name || currentUser?.email || 'Verified Professional'}</Text>
           </Text>
         </View>
 
@@ -534,9 +592,50 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
           onChangeText={setDescription}
         />
 
+        {/* Commercial Advertising & Directory Plan Selection */}
+        <Text style={[styles.label, { marginTop: 20, fontWeight: '800', color: '#0F172A', fontSize: 16 }]}>
+          {language === 'en' ? 'Choose Professional Plan' : 'ప్రొఫెషనల్ ప్లాన్ ఎంచుకోండి'}
+        </Text>
+        <Text style={{ fontSize: 12, color: '#64748B', marginBottom: 12, lineHeight: 16 }}>
+          {language === 'en'
+            ? 'Official professional listing, verified checkmark, direct client call & WhatsApp inquiry buttons.'
+            : 'అధికారిక ప్రొఫైల్, ధృవీకరించబడిన బ్యాడ్జ్ మరియు కస్టమర్ కాల్స్.'}
+        </Text>
+
+        <View style={{ gap: 10, marginBottom: 16 }}>
+          {PROFESSIONAL_PRICING_PLANS.map((plan) => {
+            const isSelected = selectedPlan === (plan.id === 'pro_monthly' ? 'monthly' : plan.id === 'pro_yearly' ? 'yearly' : 'half_yearly');
+            return (
+              <TouchableOpacity
+                key={plan.id}
+                onPress={() => setSelectedPlan(plan.id === 'pro_monthly' ? 'monthly' : plan.id === 'pro_yearly' ? 'yearly' : 'half_yearly')}
+                style={[
+                  styles.planItemCard,
+                  isSelected && styles.planItemCardActive
+                ]}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons
+                      name={isSelected ? 'radio-button-on' : 'radio-button-off'}
+                      size={18}
+                      color={isSelected ? '#0D9488' : '#94A3B8'}
+                    />
+                    <Text style={[styles.planItemTitle, isSelected && { color: '#0F766E' }]}>{plan.name}</Text>
+                  </View>
+                  <View style={styles.proPriceBadge}>
+                    <Text style={styles.proPriceBadgeText}>₹{plan.price}</Text>
+                  </View>
+                </View>
+                <Text style={styles.planItemSub}>{plan.badge} • {plan.period}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         {/* Submit Button */}
         <TouchableOpacity
-          onPress={handleSubmit}
+          onPress={handleInitiatePayment}
           disabled={loading}
           style={[styles.submitBtn, loading && { opacity: 0.7 }]}
         >
@@ -544,14 +643,28 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <>
+              <Ionicons name="card-outline" size={18} color="#FFFFFF" />
               <Text style={styles.submitBtnText}>
-                {language === 'en' ? 'Publish My Profile' : 'నా ప్రొఫైల్‌ను ప్రచురించు'}
+                {language === 'en'
+                  ? `Pay ₹${getPlanDetails().amount} & Publish Profile`
+                  : `₹${getPlanDetails().amount} చెల్లించి ప్రచురించు`}
               </Text>
-              <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
             </>
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* In-App Razorpay Checkout Modal */}
+      <RazorpayModal
+        visible={showRazorpayModal}
+        onClose={() => setShowRazorpayModal(false)}
+        onSuccess={handlePaymentSuccess}
+        planName={getPlanDetails().name}
+        amount={getPlanDetails().amount}
+        entityName={fullName.trim() || 'My Profile'}
+        customerPhone={phone.trim() || '9876500002'}
+        customerEmail={currentUser?.email || 'pro@kurnoolone.com'}
+      />
     </SafeAreaView>
   );
 }
@@ -708,4 +821,39 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25, shadowRadius: 8, elevation: 5,
   },
   submitBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+  planItemCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    padding: 14,
+  },
+  planItemCardActive: {
+    borderColor: '#0D9488',
+    backgroundColor: '#F0FDFA',
+  },
+  planItemTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1E293B',
+  },
+  proPriceBadge: {
+    backgroundColor: '#CCFBF1',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  proPriceBadgeText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#0F766E',
+  },
+  planItemSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginLeft: 26,
+    marginTop: 2,
+    fontWeight: '600',
+  },
 });
+

@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { Smartphone, Download, CheckCircle2, ShieldCheck, Zap } from 'lucide-react';
 
 export default function AppDownloadBanner() {
@@ -54,8 +55,8 @@ export default function AppDownloadBanner() {
 
           <div className="lg:col-span-4 flex justify-center">
             <div className="relative w-64 h-72 bg-gradient-to-tr from-blue-600/30 to-indigo-600/30 rounded-3xl p-6 border border-white/10 backdrop-blur-md flex flex-col items-center justify-center text-center shadow-xl">
-              <div className="w-24 h-24 rounded-2xl bg-white p-2 shadow-lg mb-4 flex items-center justify-center">
-                <Smartphone className="w-12 h-12 text-blue-600" />
+              <div className="w-24 h-24 rounded-2xl bg-white p-1.5 shadow-lg mb-4 flex items-center justify-center overflow-hidden border border-white/30">
+                <Image src="/logo.png" alt="Kurnool One App Icon" width={96} height={96} className="w-full h-full object-contain" />
               </div>
               <div className="font-extrabold text-white text-lg">Kurnool One App</div>
               <div className="text-xs text-blue-200 mt-1">Version 1.0 (Android & Web)</div>

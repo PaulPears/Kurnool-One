@@ -30,6 +30,7 @@ interface AuthContextType {
   signupWithEmail: (email: string, pass: string, name: string) => Promise<User>;
   loginWithDemo: (role: 'merchant' | 'professional' | 'user') => Promise<User>;
   loginAsGuest: (role?: 'merchant' | 'professional' | 'user') => Promise<User>;
+  loginWithPhone: (phone: string, role: 'merchant' | 'professional' | 'user', name?: string) => Promise<User>;
   logout: () => Promise<void>;
 }
 
@@ -300,6 +301,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return mockUser;
   };
 
+  const loginWithPhone = async (phone: string, role: 'merchant' | 'professional' | 'user', name?: string) => {
+    setLoading(true);
+    const cleanPhone = phone.replace(/[^\d+]/g, '');
+    const digits = cleanPhone.replace(/\D/g, '');
+    const phoneEmail = `phone_${digits}@kurnoolone.com`;
+    const phonePass = `KurnoolOne@${digits.slice(-4) || '1234'}`;
+    const displayName = name?.trim() || (role === 'merchant' ? 'Kurnool Merchant' : role === 'professional' ? 'Kurnool Professional' : 'Kurnool Citizen');
+
+    try {
+      let firebaseUser: User | null = null;
+      try {
+        const res = await signInWithEmailAndPassword(auth, phoneEmail, phonePass);
+        firebaseUser = res.user;
+      } catch (authErr: any) {
+        if (
+          authErr.code === 'auth/user-not-found' ||
+          authErr.code === 'auth/invalid-credential' ||
+          authErr.code === 'auth/wrong-password'
+        ) {
+          const createRes = await createUserWithEmailAndPassword(auth, phoneEmail, phonePass);
+          await updateProfile(createRes.user, { displayName });
+          firebaseUser = createRes.user;
+        } else {
+          throw authErr;
+        }
+      }
+
+      if (firebaseUser) {
+        await syncUserProfile(firebaseUser, role);
+        return firebaseUser;
+      }
+      throw new Error('Null user');
+    } catch {
+      const mockCred = {
+        uid: 'user_' + digits,
+        email: phoneEmail,
+        displayName,
+        role,
+      };
+      const mockUser = createMockUser(mockCred);
+      try {
+        localStorage.setItem('kurnool_mock_user', JSON.stringify(mockCred));
+      } catch {}
+      setUser(mockUser);
+      setProfile({
+        uid: mockCred.uid,
+        email: phoneEmail,
+        displayName,
+        photoURL: null,
+        role,
+      });
+      return mockUser;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = async () => {
     try {
       localStorage.removeItem('kurnool_mock_user');
@@ -322,6 +380,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signupWithEmail,
         loginWithDemo,
         loginAsGuest,
+        loginWithPhone,
         logout,
       }}
     >
