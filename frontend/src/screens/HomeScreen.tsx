@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, SafeAreaView, ScrollView, TouchableOpacity,
-  Image, TextInput, ActivityIndicator, StatusBar, Linking, StyleSheet,
+  Image, TextInput, ActivityIndicator, StatusBar, Linking, StyleSheet, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
@@ -23,6 +23,7 @@ export default function HomeScreen({ navigation }: any) {
   const [topPros, setTopPros] = useState<ProfessionalItem[]>(SEED_PROFESSIONALS);
   const [offers, setOffers] = useState<OfferItem[]>(SEED_OFFERS);
   const [loading, setLoading] = useState(false);
+  const [showRegisterChooser, setShowRegisterChooser] = useState(false);
 
   useEffect(() => {
     loadHomeData();
@@ -83,13 +84,6 @@ export default function HomeScreen({ navigation }: any) {
           >
             <Text style={styles.langText}>{language === 'en' ? 'తెలుగు' : 'ENG'}</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Notifications')}
-            style={styles.iconBtn}
-          >
-            <Ionicons name="notifications-outline" size={22} color="#374151" />
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -110,6 +104,39 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={styles.searchBtnInnerText}>Search</Text>
           </View>
         </TouchableOpacity>
+
+        {/* Quick Highlights Row (News, Deals, Explore, Emergency) */}
+        <View style={styles.quickHighlightsRow}>
+          <TouchableOpacity
+            style={[styles.highlightPill, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
+            onPress={() => navigation.navigate('News')}
+          >
+            <Ionicons name="newspaper" size={15} color="#2563EB" />
+            <Text style={[styles.highlightPillText, { color: '#1D4ED8' }]}>
+              {language === 'en' ? 'City News' : 'నగర వార్తలు'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.highlightPill, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}
+            onPress={() => navigation.navigate('Offers')}
+          >
+            <Ionicons name="flame" size={15} color="#DC2626" />
+            <Text style={[styles.highlightPillText, { color: '#B91C1C' }]}>
+              {language === 'en' ? 'Hot Deals' : 'ఆఫర్లు'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.highlightPill, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}
+            onPress={() => navigation.navigate('Explore')}
+          >
+            <Ionicons name="compass" size={15} color="#16A34A" />
+            <Text style={[styles.highlightPillText, { color: '#15803D' }]}>
+              {language === 'en' ? 'Tourism' : 'పర్యాటకం'}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Hero Banners Carousel (if active) */}
         {heroBanners.length > 0 ? (
@@ -156,8 +183,16 @@ export default function HomeScreen({ navigation }: any) {
               onPress={() => navigation.navigate('Directory', { initialCategory: cat.id })}
               style={styles.categoryCard}
             >
-              <View style={styles.categoryIconCircle}>
-                <Ionicons name={cat.icon as any} size={22} color="#2563EB" />
+              <View
+                style={[
+                  styles.categoryIconCircle,
+                  {
+                    backgroundColor: `${cat.color || '#2563EB'}15`,
+                    borderColor: `${cat.color || '#2563EB'}33`,
+                  },
+                ]}
+              >
+                <Ionicons name={cat.icon as any} size={22} color={cat.color || '#2563EB'} />
               </View>
               <Text style={styles.categoryLabel} numberOfLines={2}>
                 {language === 'en' ? cat.name_en : cat.name_te}
@@ -230,8 +265,8 @@ export default function HomeScreen({ navigation }: any) {
               onPress={() => navigation.navigate('BusinessDetail', { businessId: biz.id })}
               style={styles.featuredCard}
             >
-              {biz.images && biz.images.length > 0 ? (
-                <Image source={{ uri: biz.images[0] }} style={styles.featuredImg} resizeMode="cover" />
+              {biz.coverImage || biz.bannerUrl || (biz.images && biz.images.length > 0) ? (
+                <Image source={{ uri: biz.coverImage || biz.bannerUrl || biz.images[0] }} style={styles.featuredImg} resizeMode="cover" />
               ) : (
                 <View style={[styles.featuredImg, { backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' }]}>
                   <Ionicons name="storefront-outline" size={32} color="#2563EB" />
@@ -241,6 +276,18 @@ export default function HomeScreen({ navigation }: any) {
                 <Text style={styles.featuredName} numberOfLines={1}>
                   {language === 'en' ? biz.name_en : (biz.name_te || biz.name_en)}
                 </Text>
+                {(() => {
+                  const bizCat = MASTER_CATEGORIES.find(c => c.id === biz.categoryId);
+                  const catColor = bizCat?.color || '#2563EB';
+                  const catBg = bizCat?.bgLight || '#EFF6FF';
+                  return (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: catBg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-start', marginTop: 3, marginBottom: 2, borderWidth: 1, borderColor: `${catColor}30` }}>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: catColor }} numberOfLines={1}>
+                        {language === 'en' ? (bizCat?.name_en || 'Business') : (bizCat?.name_te || 'వ్యాపారం')}
+                      </Text>
+                    </View>
+                  );
+                })()}
                 <Text style={styles.featuredAddr} numberOfLines={1}>{biz.address}</Text>
 
                 <View style={styles.featuredBtm}>
@@ -326,26 +373,53 @@ export default function HomeScreen({ navigation }: any) {
           ))}
         </ScrollView>
 
+        {/* Kurnool City News Banner */}
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate('News')}
+          style={styles.newsBannerCard}
+        >
+          <View style={styles.newsBadgeRow}>
+            <View style={styles.newsLiveBadge}>
+              <View style={styles.newsLiveDot} />
+              <Text style={styles.newsLiveText}>{language === 'en' ? 'LOCAL UPDATES' : 'నగర విశేషాలు'}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={styles.newsReadMore}>
+                {language === 'en' ? 'Read City News' : 'వార్తలు చదవండి'}
+              </Text>
+              <Ionicons name="arrow-forward" size={13} color="#2563EB" />
+            </View>
+          </View>
+          <Text style={styles.newsBannerTitle}>
+            {language === 'en'
+              ? 'Stay updated with local Kurnool developments, city announcements & cultural events.'
+              : 'కర్నూలు తాజా పరిణామాలు, ప్రభుత్వ నోటీసులు మరియు సాంస్కృతిక కార్యక్రమాలను తెలుసుకోండి.'}
+          </Text>
+        </TouchableOpacity>
+
         {/* Sponsor Ad Slot */}
         <View style={styles.adBannerSlot}>
-          <Text style={styles.adLabel}>SPONSORED</Text>
+          <View style={styles.adBadgeContainer}>
+            <Text style={styles.adLabel}>AD</Text>
+          </View>
           <SafeBannerAd unitId={BANNER_AD_UNIT} />
         </View>
 
-        {/* Business Registration Banner */}
+        {/* Business & Pro Registration Banner */}
         <View style={styles.regBanner}>
           <View style={{ flex: 1 }}>
             <Text style={styles.regTitle}>
-              {language === 'en' ? 'Own a Shop or Service in Kurnool?' : 'మీకు కర్నూలులో వ్యాపారం ఉందా?'}
+              {language === 'en' ? 'Own a Shop or Service in Kurnool?' : 'మీకు కర్నూలులో వ్యాపారం లేదా వృత్తి ఉందా?'}
             </Text>
             <Text style={styles.regSub}>
               {language === 'en'
-                ? 'Register your business on Kurnool One for free and reach thousands of local customers.'
-                : 'ఉచితంగా నమోదు చేసుకుని ఎక్కువ మంది వినియోగదారులను చేరుకోండి.'}
+                ? 'Register your business or professional service on Kurnool One to reach local customers across the city.'
+                : 'కర్నూలు వన్‌లో మీ షాప్ లేదా సర్వీస్‌ను నమోదు చేసుకుని కస్టమర్లను చేరుకోండి.'}
             </Text>
           </View>
           <TouchableOpacity
-            onPress={() => navigation.navigate('RegisterBusiness')}
+            onPress={() => setShowRegisterChooser(true)}
             style={styles.regBtn}
           >
             <Text style={styles.regBtnText}>
@@ -354,6 +428,87 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Registration Chooser Modal */}
+      <Modal
+        visible={showRegisterChooser}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRegisterChooser(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>
+                  {language === 'en' ? 'Choose Registration Type' : 'నమోదు రకాన్ని ఎంచుకోండి'}
+                </Text>
+                <Text style={styles.modalSub}>
+                  {language === 'en' ? 'Select how you want to list on Kurnool One' : 'మీరు ఏ వర్గంలో నమోదు చేసుకోవాలనుకుంటున్నారు?'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowRegisterChooser(false)} style={styles.modalCloseBtn}>
+                <Ionicons name="close" size={22} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={[styles.chooserCard, { borderColor: '#BFDBFE', backgroundColor: '#EFF6FF' }]}
+              onPress={() => {
+                setShowRegisterChooser(false);
+                navigation.navigate('RegisterBusiness');
+              }}
+            >
+              <View style={[styles.chooserIconCircle, { backgroundColor: '#DBEAFE' }]}>
+                <Ionicons name="storefront" size={24} color="#2563EB" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.chooserTitle}>
+                  {language === 'en' ? 'Shop, Store & Business' : 'దుకాణం / వ్యాపారం / స్టోర్'}
+                </Text>
+                <Text style={styles.chooserDesc}>
+                  {language === 'en'
+                    ? 'Retail shops, supermarkets, restaurants, clinics, showrooms & commercial stores.'
+                    : 'కిరాణా, రెస్టారెంట్లు, షోరూమ్‌లు మరియు వాణిజ్య వ్యాపారాలు.'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#2563EB" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={[styles.chooserCard, { borderColor: '#BBF7D0', backgroundColor: '#F0FDF4' }]}
+              onPress={() => {
+                setShowRegisterChooser(false);
+                navigation.navigate('RegisterProfessional');
+              }}
+            >
+              <View style={[styles.chooserIconCircle, { backgroundColor: '#DCFCE7' }]}>
+                <Ionicons name="construct" size={24} color="#16A34A" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.chooserTitle}>
+                  {language === 'en' ? 'Service Professional & Freelancer' : 'వృత్తి నిపుణులు & సేవాదాతలు'}
+                </Text>
+                <Text style={styles.chooserDesc}>
+                  {language === 'en'
+                    ? 'Electricians, plumbers, painters, teachers, tutors, maids, photographers, influencers.'
+                    : 'ఎలక్ట్రీషియన్లు, ప్లంబర్లు, టీచర్లు, పని మనుషులు మరియు నిపుణులు.'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#16A34A" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setShowRegisterChooser(false)}
+              style={styles.modalCancelBtn}
+            >
+              <Text style={styles.modalCancelText}>{language === 'en' ? 'Cancel' : 'రద్దు చేయండి'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -471,11 +626,18 @@ const styles = StyleSheet.create({
   worshipName: { fontSize: 13, fontWeight: '800', color: '#111827' },
   worshipType: { fontSize: 9, fontWeight: '800', color: '#D97706', marginTop: 2, letterSpacing: 0.5 },
   adBannerSlot: {
-    alignItems: 'center', marginVertical: 16, backgroundColor: '#F9FAFB',
-    paddingVertical: 6, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#F3F4F6',
+    alignItems: 'center', marginVertical: 12, backgroundColor: '#F8FAFC',
+    paddingVertical: 6, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#F1F5F9',
+  },
+  adBadgeContainer: {
+    backgroundColor: '#E2E8F0',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+    marginBottom: 4,
   },
   adLabel: {
-    fontSize: 9, color: '#9CA3AF', fontWeight: '800', letterSpacing: 1.5, marginBottom: 2,
+    fontSize: 9, color: '#64748B', fontWeight: '800', letterSpacing: 1,
   },
   regBanner: {
     marginHorizontal: 16, marginTop: 6, backgroundColor: '#1E3A8A', borderRadius: 20,
@@ -487,4 +649,144 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12,
   },
   regBtnText: { color: '#1E3A8A', fontWeight: '800', fontSize: 12 },
+  quickHighlightsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 8,
+    marginTop: 6,
+    marginBottom: 12,
+  },
+  highlightPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  highlightPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  newsBannerCard: {
+    marginHorizontal: 16,
+    marginTop: 20,
+    marginBottom: 4,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  newsBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  newsLiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  newsLiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#2563EB',
+  },
+  newsLiveText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#1D4ED8',
+    letterSpacing: 0.5,
+  },
+  newsReadMore: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#2563EB',
+  },
+  newsBannerTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#334155',
+    lineHeight: 18,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 36,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 18,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  modalSub: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  modalCloseBtn: {
+    padding: 4,
+  },
+  chooserCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    marginBottom: 12,
+  },
+  chooserIconCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chooserTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  chooserDesc: {
+    fontSize: 11,
+    color: '#64748B',
+    lineHeight: 15,
+  },
+  modalCancelBtn: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  modalCancelText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#64748B',
+  },
 });

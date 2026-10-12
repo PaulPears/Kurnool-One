@@ -28,7 +28,6 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<User>;
   loginWithEmail: (email: string, pass: string) => Promise<User>;
   signupWithEmail: (email: string, pass: string, name: string) => Promise<User>;
-  loginWithDemo: (role: 'merchant' | 'professional' | 'user') => Promise<User>;
   loginAsGuest: (role?: 'merchant' | 'professional' | 'user') => Promise<User>;
   loginWithPhone: (phone: string, role: 'merchant' | 'professional' | 'user', name?: string) => Promise<User>;
   logout: () => Promise<void>;
@@ -36,29 +35,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-export const DEMO_CREDENTIALS = {
-  merchant: {
-    uid: 'demo_merchant_kurnool_001',
-    email: 'merchant@kurnoolone.com',
-    password: 'Password@123',
-    displayName: 'Kurnool Merchant (Shop Owner)',
-    role: 'merchant' as const,
-  },
-  professional: {
-    uid: 'demo_pro_kurnool_002',
-    email: 'pro@kurnoolone.com',
-    password: 'Password@123',
-    displayName: 'Dr. Srinivas Rao (Verified Pro)',
-    role: 'professional' as const,
-  },
-  user: {
-    uid: 'demo_citizen_kurnool_003',
-    email: 'demo@kurnoolone.com',
-    password: 'Password@123',
-    displayName: 'Kurnool Citizen',
-    role: 'user' as const,
-  },
-};
+
 
 // Helper to create a compliant mock User object
 function createMockUser(cred: { uid: string; email: string; displayName: string; role?: string; password?: string }): User {
@@ -205,55 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Guaranteed Demo Login (Tries Firebase, and if Firebase Auth fails, seamlessly falls back to mock session)
-  const loginWithDemo = async (role: 'merchant' | 'professional' | 'user') => {
-    setLoading(true);
-    const cred = DEMO_CREDENTIALS[role];
 
-    try {
-      // 1. Try Firebase Auth
-      let firebaseUser: User | null = null;
-      try {
-        const res = await signInWithEmailAndPassword(auth, cred.email, cred.password);
-        firebaseUser = res.user;
-      } catch (authErr: any) {
-        if (
-          authErr.code === 'auth/user-not-found' ||
-          authErr.code === 'auth/invalid-credential' ||
-          authErr.code === 'auth/wrong-password'
-        ) {
-          const createRes = await createUserWithEmailAndPassword(auth, cred.email, cred.password);
-          await updateProfile(createRes.user, { displayName: cred.displayName });
-          firebaseUser = createRes.user;
-        } else {
-          throw authErr;
-        }
-      }
-
-      if (firebaseUser) {
-        await syncUserProfile(firebaseUser, cred.role);
-        return firebaseUser;
-      }
-      throw new Error('Firebase returned null user');
-    } catch {
-      // 2. Guaranteed Instant Fallback Mock Session (NEVER FAILS!)
-      const mockUser = createMockUser(cred);
-      try {
-        localStorage.setItem('kurnool_mock_user', JSON.stringify(cred));
-      } catch {}
-      setUser(mockUser);
-      setProfile({
-        uid: cred.uid,
-        email: cred.email,
-        displayName: cred.displayName,
-        photoURL: null,
-        role: cred.role,
-      });
-      return mockUser;
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Skip Login / Guest Mode for ALL
   const loginAsGuest = async (role: 'merchant' | 'professional' | 'user' = 'user') => {
@@ -378,7 +307,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loginWithGoogle,
         loginWithEmail,
         signupWithEmail,
-        loginWithDemo,
         loginAsGuest,
         loginWithPhone,
         logout,

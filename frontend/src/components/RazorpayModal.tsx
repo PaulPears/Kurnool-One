@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Modal, View, Text, TouchableOpacity, StyleSheet,
-  ActivityIndicator, TextInput, Alert, ScrollView, Platform
+  ActivityIndicator, TextInput, Alert, ScrollView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -30,14 +30,136 @@ export default function RazorpayModal({
   customerPhone = '9876500001',
   customerEmail = 'merchant@kurnoolone.com',
 }: RazorpayModalProps) {
-  const [selectedMethod, setSelectedMethod] = useState<'upi' | 'card' | 'netbanking'>('upi');
+  const [selectedMethod, setSelectedMethod] = useState<'card' | 'upi' | 'netbanking'>('card');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [cardHolder, setCardHolder] = useState('');
   const [upiId, setUpiId] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [selectedBank, setSelectedBank] = useState('SBI');
 
-  const handleSimulatePayment = async () => {
-    setLoading(true);
+  // OTP Bank Simulation State
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpValue, setOtpValue] = useState('123456');
+  const [processing, setProcessing] = useState(false);
+
+  // Autofill helpers for testing
+  const autofillSuccessCard = () => {
+    setSelectedMethod('card');
+    setCardNumber('4111 2222 3333 4444');
+    setCardExpiry('12/28');
+    setCardCvv('123');
+    setCardHolder('Kurnool Tester');
+  };
+
+  const autofillDeclineCard = () => {
+    setSelectedMethod('card');
+    setCardNumber('4000 0000 0000 0002');
+    setCardExpiry('12/28');
+    setCardCvv('123');
+    setCardHolder('Declined Tester');
+  };
+
+  const autofillSuccessUpi = () => {
+    setSelectedMethod('upi');
+    setUpiId('success@razorpay');
+  };
+
+  const autofillFailureUpi = () => {
+    setSelectedMethod('upi');
+    setUpiId('failure@razorpay');
+  };
+
+  // Format Card Number with spaces
+  const handleCardNumberChange = (text: string) => {
+    const cleaned = text.replace(/\D/g, '').slice(0, 16);
+    const formatted = cleaned.match(/.{1,4}/g)?.join(' ') || cleaned;
+    setCardNumber(formatted);
+  };
+
+  // Format Expiry as MM/YY
+  const handleExpiryChange = (text: string) => {
+    const cleaned = text.replace(/\D/g, '').slice(0, 4);
+    if (cleaned.length >= 3) {
+      setCardExpiry(`${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}`);
+    } else {
+      setCardExpiry(cleaned);
+    }
+  };
+
+  // Initiate Payment Submission
+  const handleInitiatePay = () => {
+    if (selectedMethod === 'card') {
+      const rawCard = cardNumber.replace(/\s/g, '');
+      if (rawCard.length < 16) {
+        Alert.alert('Invalid Card', 'Please enter a valid 16-digit debit/credit card number.');
+        return;
+      }
+      if (!cardExpiry.includes('/') || cardExpiry.length < 5) {
+        Alert.alert('Invalid Expiry', 'Please enter a valid expiry date (MM/YY).');
+        return;
+      }
+      if (cardCvv.length < 3) {
+        Alert.alert('Invalid CVV', 'Please enter a 3 or 4 digit CVV code.');
+        return;
+      }
+
+      // Check simulated decline test card
+      if (rawCard === '4000000000000002') {
+        setProcessing(true);
+        setTimeout(() => {
+          setProcessing(false);
+          Alert.alert(
+            'Payment Failed ❌',
+            'Card Declined: Issuing bank declined authorization (Simulated decline test card: 4000 0000 0000 0002).\n\nNo money was deducted.',
+            [{ text: 'OK' }]
+          );
+        }, 1000);
+        return;
+      }
+
+      // Valid card -> Proceed to 3D Secure / OTP Simulation
+      setShowOtpModal(true);
+      return;
+    }
+
+    if (selectedMethod === 'upi') {
+      const cleanUpi = upiId.trim().toLowerCase();
+      if (!cleanUpi || !cleanUpi.includes('@')) {
+        Alert.alert('Invalid UPI ID', 'Please enter a valid UPI ID (e.g. success@razorpay, yourname@okaxis)');
+        return;
+      }
+
+      // Failure test UPI ID
+      if (cleanUpi === 'failure@razorpay') {
+        setProcessing(true);
+        setTimeout(() => {
+          setProcessing(false);
+          Alert.alert(
+            'UPI Payment Failed ❌',
+            'Transaction declined by customer UPI application (Simulated failure: failure@razorpay).',
+            [{ text: 'OK' }]
+          );
+        }, 1000);
+        return;
+      }
+
+      // Successful UPI flow
+      executeSuccessPayment('UPI');
+      return;
+    }
+
+    if (selectedMethod === 'netbanking') {
+      setShowOtpModal(true);
+    }
+  };
+
+  // Final Success Execution
+  const executeSuccessPayment = (methodName: string) => {
+    setProcessing(true);
     setTimeout(() => {
-      setLoading(false);
+      setProcessing(false);
+      setShowOtpModal(false);
       const testPaymentId = `pay_rzp_${Date.now()}_${Math.random().toString(36).substring(5)}`;
       const testOrderId = `order_rzp_${Date.now()}`;
       const testSignature = `sig_${Date.now()}`;
@@ -49,38 +171,56 @@ export default function RazorpayModal({
     }, 1200);
   };
 
-  const handlePay = () => {
-    if (selectedMethod === 'upi' && upiId.trim() && !upiId.includes('@')) {
-      Alert.alert('Invalid UPI ID', 'Please enter a valid UPI ID (e.g. name@okaxis, name@ybl)');
+  const handleOtpSubmit = () => {
+    if (!otpValue || otpValue.trim().length < 4) {
+      Alert.alert('Invalid OTP', 'Please enter the 6-digit test OTP (e.g. 123456).');
       return;
     }
-    handleSimulatePayment();
+    executeSuccessPayment(selectedMethod.toUpperCase());
+  };
+
+  const handleCancel = () => {
+    Alert.alert(
+      'Cancel Payment?',
+      'Are you sure you want to cancel? Your listing will remain pending payment.',
+      [
+        { text: 'Keep Paying', style: 'cancel' },
+        {
+          text: 'Cancel Payment',
+          style: 'destructive',
+          onPress: () => {
+            setShowOtpModal(false);
+            onClose();
+          },
+        },
+      ]
+    );
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleCancel}>
       <View style={styles.overlay}>
         <View style={styles.sheetContainer}>
           {/* Header */}
           <View style={styles.header}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <View style={styles.rzpBadge}>
-                <Ionicons name="shield-checkmark" size={16} color="#0284C7" />
-                <Text style={styles.rzpBadgeText}>Razorpay Trusted</Text>
+                <Ionicons name="shield-checkmark" size={15} color="#0284C7" />
+                <Text style={styles.rzpBadgeText}>Razorpay Sandbox</Text>
               </View>
-              <Text style={styles.secureText}>256-Bit SSL Encrypted</Text>
+              <Text style={styles.secureText}>Official Test Mode</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <TouchableOpacity onPress={handleCancel} style={styles.closeBtn}>
               <Ionicons name="close" size={20} color="#64748B" />
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
             {/* Amount Banner */}
             <View style={styles.amountBanner}>
-              <View>
-                <Text style={styles.entityNameText} numberOfLines={1}>{entityName || 'Kurnool Listing'}</Text>
-                <Text style={styles.planNameText}>{planName}</Text>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={styles.entityNameText} numberOfLines={1}>{entityName || 'Kurnool One Listing'}</Text>
+                <Text style={styles.planNameText} numberOfLines={1}>{planName}</Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={styles.amountText}>₹{amount}</Text>
@@ -88,45 +228,51 @@ export default function RazorpayModal({
               </View>
             </View>
 
-            {/* Quick Reviewer Mode Bar */}
-            <View style={styles.reviewerBar}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.reviewerTitle}>⚡ Fast Test Mode</Text>
-                <Text style={styles.reviewerSub}>Instant test activation without live bank debit</Text>
+            {/* Razorpay Test Mode Helper & Autofill */}
+            <View style={styles.testInfoBox}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <Ionicons name="flask" size={15} color="#0369A1" />
+                <Text style={styles.testInfoTitle}>Official Razorpay Sandbox Testing</Text>
               </View>
-              <TouchableOpacity
-                onPress={handleSimulatePayment}
-                disabled={loading}
-                style={styles.fastPayBtn}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.fastPayBtnText}>Quick Test Pay</Text>
-                )}
-              </TouchableOpacity>
+              <Text style={styles.testInfoText}>
+                Test payments freely with official test details. No live money is debited.
+              </Text>
+              <View style={styles.autofillBtnRow}>
+                <TouchableOpacity onPress={autofillSuccessCard} style={styles.autofillPill}>
+                  <Ionicons name="card" size={13} color="#2563EB" />
+                  <Text style={styles.autofillPillText}>Test Card (Success)</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={autofillDeclineCard} style={[styles.autofillPill, { borderColor: '#FECACA', backgroundColor: '#FEF2F2' }]}>
+                  <Ionicons name="close-circle" size={13} color="#DC2626" />
+                  <Text style={[styles.autofillPillText, { color: '#DC2626' }]}>Test Card (Decline)</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={autofillSuccessUpi} style={styles.autofillPill}>
+                  <Ionicons name="flash" size={13} color="#16A34A" />
+                  <Text style={[styles.autofillPillText, { color: '#16A34A' }]}>Test UPI</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Payment Method Selector */}
             <Text style={styles.sectionLabel}>Select Payment Method</Text>
             <View style={styles.methodsRow}>
               <TouchableOpacity
-                onPress={() => setSelectedMethod('upi')}
-                style={[styles.methodTab, selectedMethod === 'upi' && styles.methodTabActive]}
-              >
-                <Ionicons name="phone-portrait-outline" size={18} color={selectedMethod === 'upi' ? '#2563EB' : '#64748B'} />
-                <Text style={[styles.methodTabText, selectedMethod === 'upi' && styles.methodTabTextActive]}>
-                  UPI Apps
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
                 onPress={() => setSelectedMethod('card')}
                 style={[styles.methodTab, selectedMethod === 'card' && styles.methodTabActive]}
               >
                 <Ionicons name="card-outline" size={18} color={selectedMethod === 'card' ? '#2563EB' : '#64748B'} />
                 <Text style={[styles.methodTabText, selectedMethod === 'card' && styles.methodTabTextActive]}>
-                  Cards
+                  Debit / ATM Card
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setSelectedMethod('upi')}
+                style={[styles.methodTab, selectedMethod === 'upi' && styles.methodTabActive]}
+              >
+                <Ionicons name="phone-portrait-outline" size={18} color={selectedMethod === 'upi' ? '#2563EB' : '#64748B'} />
+                <Text style={[styles.methodTabText, selectedMethod === 'upi' && styles.methodTabTextActive]}>
+                  UPI (GPay / PhonePe)
                 </Text>
               </TouchableOpacity>
 
@@ -141,67 +287,94 @@ export default function RazorpayModal({
               </TouchableOpacity>
             </View>
 
-            {/* Payment Form according to selected method */}
-            {selectedMethod === 'upi' && (
+            {/* Card Payment Form */}
+            {selectedMethod === 'card' && (
               <View style={styles.methodBox}>
-                <Text style={styles.methodHint}>Pay directly using your favorite UPI app:</Text>
-                <View style={styles.upiAppsRow}>
-                  {['Google Pay', 'PhonePe', 'Paytm', 'BHIM UPI'].map((app) => (
-                    <TouchableOpacity
-                      key={app}
-                      onPress={handleSimulatePayment}
-                      style={styles.upiAppPill}
-                    >
-                      <Ionicons name="checkmark-circle" size={14} color="#16A34A" />
-                      <Text style={styles.upiAppText}>{app}</Text>
-                    </TouchableOpacity>
-                  ))}
+                <Text style={styles.inputTitle}>Card Number (ATM / Debit / Credit)</Text>
+                <View style={styles.inputWithIcon}>
+                  <Ionicons name="card" size={18} color="#64748B" />
+                  <TextInput
+                    style={styles.flexInput}
+                    placeholder="4111 2222 3333 4444"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="number-pad"
+                    value={cardNumber}
+                    onChangeText={handleCardNumberChange}
+                    maxLength={19}
+                  />
                 </View>
 
-                <Text style={[styles.methodHint, { marginTop: 12 }]}>Or enter UPI Virtual Payment Address (VPA):</Text>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.inputTitle}>Valid Thru</Text>
+                    <TextInput
+                      style={styles.vpaInput}
+                      placeholder="MM / YY (e.g. 12/28)"
+                      placeholderTextColor="#94A3B8"
+                      keyboardType="number-pad"
+                      value={cardExpiry}
+                      onChangeText={handleExpiryChange}
+                      maxLength={5}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.inputTitle}>CVV / CVC</Text>
+                    <TextInput
+                      style={styles.vpaInput}
+                      placeholder="123"
+                      placeholderTextColor="#94A3B8"
+                      keyboardType="number-pad"
+                      secureTextEntry
+                      value={cardCvv}
+                      onChangeText={(t) => setCardCvv(t.slice(0, 4))}
+                      maxLength={4}
+                    />
+                  </View>
+                </View>
+
+                <View style={{ marginTop: 10 }}>
+                  <Text style={styles.inputTitle}>Cardholder Name</Text>
+                  <TextInput
+                    style={styles.vpaInput}
+                    placeholder="Name as on card"
+                    placeholderTextColor="#94A3B8"
+                    value={cardHolder}
+                    onChangeText={setCardHolder}
+                  />
+                </View>
+              </View>
+            )}
+
+            {/* UPI Payment Form */}
+            {selectedMethod === 'upi' && (
+              <View style={styles.methodBox}>
+                <Text style={styles.inputTitle}>Enter UPI ID / VPA</Text>
                 <TextInput
                   style={styles.vpaInput}
-                  placeholder="e.g. mobile@upi or username@okicici"
+                  placeholder="e.g. success@razorpay or mobile@upi"
                   placeholderTextColor="#94A3B8"
                   autoCapitalize="none"
                   value={upiId}
                   onChangeText={setUpiId}
                 />
+                <Text style={{ fontSize: 11, color: '#64748B', marginTop: 8 }}>
+                  💡 Use <Text style={{ fontWeight: 'bold', color: '#16A34A' }}>success@razorpay</Text> to test success, or <Text style={{ fontWeight: 'bold', color: '#DC2626' }}>failure@razorpay</Text> to test failure.
+                </Text>
               </View>
             )}
 
-            {selectedMethod === 'card' && (
-              <View style={styles.methodBox}>
-                <Text style={styles.methodHint}>Credit / Debit Cards (Visa, MasterCard, RuPay)</Text>
-                <TextInput
-                  style={[styles.vpaInput, { marginBottom: 8 }]}
-                  placeholder="Card Number: 4111 2222 3333 4444"
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="number-pad"
-                />
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <TextInput
-                    style={[styles.vpaInput, { flex: 1 }]}
-                    placeholder="MM / YY"
-                    placeholderTextColor="#94A3B8"
-                  />
-                  <TextInput
-                    style={[styles.vpaInput, { flex: 1 }]}
-                    placeholder="CVV"
-                    placeholderTextColor="#94A3B8"
-                    secureTextEntry
-                  />
-                </View>
-              </View>
-            )}
-
+            {/* NetBanking Form */}
             {selectedMethod === 'netbanking' && (
               <View style={styles.methodBox}>
-                <Text style={styles.methodHint}>Popular Banks:</Text>
+                <Text style={styles.inputTitle}>Select Your Bank</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
-                  {['SBI', 'HDFC Bank', 'ICICI Bank', 'Axis Bank', 'Andhra Pragathi Grameena'].map((b) => (
-                    <TouchableOpacity key={b} onPress={handleSimulatePayment} style={styles.upiAppPill}>
-                      <Text style={styles.upiAppText}>{b}</Text>
+                  {['State Bank of India', 'HDFC Bank', 'ICICI Bank', 'Axis Bank', 'Andhra Pragathi Grameena Bank'].map((b) => (
+                    <TouchableOpacity
+                      key={b}
+                      onPress={() => setSelectedBank(b)}
+                      style={[styles.bankPill, selectedBank === b && styles.bankPillActive]}
+                    >
+                      <Text style={[styles.bankPillText, selectedBank === b && styles.bankPillTextActive]}>{b}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -210,26 +383,94 @@ export default function RazorpayModal({
 
             {/* Pay Button */}
             <TouchableOpacity
-              onPress={handlePay}
-              disabled={loading}
-              style={styles.payBtn}
+              onPress={handleInitiatePay}
+              disabled={processing}
+              style={[styles.payBtn, processing && styles.btnDisabled]}
+              activeOpacity={0.85}
             >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
+              {processing ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Ionicons name="lock-closed" size={16} color="#FFFFFF" />
+                  <Ionicons name="lock-closed" size={17} color="#FFFFFF" />
                   <Text style={styles.payBtnText}>Pay ₹{amount} via Razorpay</Text>
                 </View>
               )}
             </TouchableOpacity>
 
             <Text style={styles.guaranteeText}>
-              🛡️ 100% Secure Payment powered by Razorpay India. Instant Listing Activation.
+              🛡️ Official Razorpay Sandbox environment. 256-Bit SSL Encrypted.
             </Text>
           </ScrollView>
         </View>
       </View>
+
+      {/* 3D Secure / Simulated Bank OTP Screen Modal */}
+      <Modal visible={showOtpModal} transparent animationType="fade" onRequestClose={() => setShowOtpModal(false)}>
+        <View style={styles.otpOverlay}>
+          <View style={styles.otpCard}>
+            <View style={styles.bankHeader}>
+              <View>
+                <Text style={styles.bankTitle}>Verified by VISA / RuPay</Text>
+                <Text style={styles.bankSub}>{selectedBank || 'Issuing Bank'} 3D-Secure Portal</Text>
+              </View>
+              <Ionicons name="shield-checkmark" size={24} color="#16A34A" />
+            </View>
+
+            <View style={styles.otpDetailsBox}>
+              <View style={styles.otpRow}>
+                <Text style={styles.otpLabel}>Merchant:</Text>
+                <Text style={styles.otpVal}>Kurnool One Services</Text>
+              </View>
+              <View style={styles.otpRow}>
+                <Text style={styles.otpLabel}>Amount:</Text>
+                <Text style={[styles.otpVal, { fontWeight: '900', color: '#0F172A' }]}>₹{amount}.00</Text>
+              </View>
+              <View style={styles.otpRow}>
+                <Text style={styles.otpLabel}>Card ending:</Text>
+                <Text style={styles.otpVal}>{cardNumber.slice(-4) || '4444'}</Text>
+              </View>
+            </View>
+
+            <Text style={styles.otpPrompt}>
+              A test One Time Password (OTP) has been generated for authentication.
+            </Text>
+
+            <TextInput
+              style={styles.otpInput}
+              placeholder="123456"
+              placeholderTextColor="#94A3B8"
+              keyboardType="number-pad"
+              value={otpValue}
+              onChangeText={setOtpValue}
+              maxLength={6}
+            />
+
+            <TouchableOpacity
+              onPress={handleOtpSubmit}
+              disabled={processing}
+              style={[styles.otpSubmitBtn, processing && styles.btnDisabled]}
+              activeOpacity={0.85}
+            >
+              {processing ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.otpSubmitText}>Approve & Submit OTP</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setShowOtpModal(false);
+                Alert.alert('Payment Aborted', 'Payment verification was cancelled by user.');
+              }}
+              style={{ marginTop: 12, alignItems: 'center' }}
+            >
+              <Text style={{ fontSize: 13, color: '#DC2626', fontWeight: '700' }}>Cancel Transaction</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 }
@@ -246,7 +487,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
     paddingTop: 16,
-    maxHeight: '90%',
+    maxHeight: '92%',
   },
   header: {
     flexDirection: 'row',
@@ -295,7 +536,6 @@ const styles = StyleSheet.create({
     color: '#F8FAFC',
     fontSize: 15,
     fontWeight: '800',
-    maxWidth: 200,
   },
   planNameText: {
     color: '#94A3B8',
@@ -312,37 +552,44 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
   },
-  reviewerBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FEF3C7',
+  testInfoBox: {
+    backgroundColor: '#F0F9FF',
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: '#BAE6FD',
     borderRadius: 12,
     padding: 12,
     marginTop: 12,
   },
-  reviewerTitle: {
+  testInfoTitle: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#92400E',
+    color: '#0369A1',
   },
-  reviewerSub: {
-    fontSize: 10,
-    color: '#B45309',
-    marginTop: 1,
+  testInfoText: {
+    fontSize: 11,
+    color: '#0284C7',
+    marginBottom: 8,
   },
-  fastPayBtn: {
-    backgroundColor: '#D97706',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  autofillBtnRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  autofillPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
     borderRadius: 8,
   },
-  fastPayBtnText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
+  autofillPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#1D4ED8',
   },
   sectionLabel: {
     fontSize: 13,
@@ -353,14 +600,13 @@ const styles = StyleSheet.create({
   },
   methodsRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   methodTab: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 4,
     paddingVertical: 10,
     borderRadius: 10,
     backgroundColor: '#F8FAFC',
@@ -372,9 +618,10 @@ const styles = StyleSheet.create({
     borderColor: '#2563EB',
   },
   methodTabText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: '#64748B',
+    textAlign: 'center',
   },
   methodTabTextActive: {
     color: '#2563EB',
@@ -388,32 +635,28 @@ const styles = StyleSheet.create({
     padding: 14,
     marginTop: 10,
   },
-  methodHint: {
+  inputTitle: {
     fontSize: 11,
-    color: '#64748B',
-    fontWeight: '600',
-    marginBottom: 8,
+    fontWeight: '700',
+    color: '#475569',
+    marginBottom: 4,
   },
-  upiAppsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  upiAppPill: {
+  inputWithIcon: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
     borderRadius: 8,
+    paddingHorizontal: 10,
+    gap: 8,
   },
-  upiAppText: {
-    fontSize: 11,
+  flexInput: {
+    flex: 1,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: '#0F172A',
     fontWeight: '700',
-    color: '#1E293B',
   },
   vpaInput: {
     backgroundColor: '#FFFFFF',
@@ -424,6 +667,27 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     fontSize: 13,
     color: '#0F172A',
+  },
+  bankPill: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  bankPillActive: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#2563EB',
+  },
+  bankPillText: {
+    fontSize: 11,
+    color: '#475569',
+    fontWeight: '600',
+  },
+  bankPillTextActive: {
+    color: '#2563EB',
+    fontWeight: '800',
   },
   payBtn: {
     backgroundColor: '#2563EB',
@@ -438,6 +702,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  btnDisabled: {
+    opacity: 0.7,
+  },
   payBtnText: {
     color: '#FFFFFF',
     fontSize: 15,
@@ -449,5 +716,88 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
     lineHeight: 14,
+  },
+  otpOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  otpCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 22,
+    elevation: 10,
+  },
+  bankHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    paddingBottom: 12,
+  },
+  bankTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  bankSub: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  otpDetailsBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 12,
+    gap: 4,
+  },
+  otpRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  otpLabel: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  otpVal: {
+    fontSize: 11,
+    color: '#1E293B',
+    fontWeight: '600',
+  },
+  otpPrompt: {
+    fontSize: 12,
+    color: '#475569',
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  otpInput: {
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#94A3B8',
+    borderRadius: 12,
+    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: 4,
+    paddingVertical: 10,
+    marginTop: 10,
+  },
+  otpSubmitBtn: {
+    backgroundColor: '#16A34A',
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginTop: 14,
+  },
+  otpSubmitText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

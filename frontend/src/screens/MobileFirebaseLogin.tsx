@@ -1,65 +1,78 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, Image,
-  ActivityIndicator, Alert, StatusBar, ScrollView, Platform, StyleSheet, Modal,
+  View,
+  Text,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+  Alert,
+  StatusBar,
+  ScrollView,
+  Platform,
+  StyleSheet,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { auth } from '../config/firebase';
+import { auth, db } from '../config/firebase';
 import {
   GoogleAuthProvider,
   signInWithCredential,
   signInWithPopup,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  updateProfile,
 } from 'firebase/auth';
-import { Ionicons } from '@expo/vector-icons';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
-import {
-  createOrUpdateUser,
-  signInAnon,
-  checkPhoneRoleExclusivity,
-  registerPhoneRole,
-  sanitizePhone,
-  updateUserProfile,
-} from '../services/firestoreService';
-import { KURNOOL_AREAS } from '../services/directoryService';
-
+import { createOrUpdateUser } from '../services/firestoreService';
+import { Ionicons } from '@expo/vector-icons';
+import Svg, { Path } from 'react-native-svg';
 import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
 WebBrowser.maybeCompleteAuthSession();
 
-export type PortalType = 'business' | 'professional' | 'citizen';
+// Configure GoogleSignin once at startup
+try {
+  GoogleSignin.configure({
+    webClientId: '77831467457-hspogpc77l8r6uollgce645qfi12utg6.apps.googleusercontent.com',
+    offlineAccess: false,
+  });
+} catch (configErr) {
+  console.warn('GoogleSignin configure warning:', configErr);
+}
+
+// Official 4-color Google Icon
+function OfficialGoogleIcon({ size = 22 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 48 48">
+      <Path
+        fill="#EA4335"
+        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+      />
+      <Path
+        fill="#4285F4"
+        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+      />
+      <Path
+        fill="#FBBC05"
+        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.55 10.78l7.98-6.19z"
+      />
+      <Path
+        fill="#34A853"
+        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+      />
+    </Svg>
+  );
+}
 
 export default function MobileFirebaseLogin({ navigation, route }: any) {
   const returnScreen = route?.params?.returnScreen;
-  const initialPortal: PortalType = route?.params?.portal || 'citizen';
 
-  const [portal, setPortal] = useState<PortalType>(initialPortal);
   const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [isTermsAccepted, setIsTermsAccepted] = useState(true);
   const [authError, setAuthError] = useState('');
 
-  // Business / Pro State
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpTimer, setOtpTimer] = useState(60);
-  const [roleConflictWarning, setRoleConflictWarning] = useState<string | null>(null);
-  const [showReviewerCreds, setShowReviewerCreds] = useState(false);
-
-  // Citizen Profile Completion State
-  const [showCitizenModal, setShowCitizenModal] = useState(false);
-  const [citizenPhone, setCitizenPhone] = useState('');
-  const [citizenGender, setCitizenGender] = useState<'Male' | 'Female' | 'Other'>('Male');
-  const [citizenArea, setCitizenArea] = useState(KURNOOL_AREAS[0]);
-  const [citizenUser, setCitizenUser] = useState<any>(null);
-
-  // Auto-redirect if already logged in
+  // Auto-redirect if already authenticated
   useEffect(() => {
     const checkPersistedSession = async () => {
       try {
@@ -67,20 +80,7 @@ export default function MobileFirebaseLogin({ navigation, route }: any) {
         if (stored) {
           const parsed = JSON.parse(stored);
           if (parsed && (parsed.uid || parsed.id)) {
-            if (returnScreen) {
-              navigation.replace(returnScreen);
-              return;
-            }
-            if (parsed.role === 'business') {
-              navigation.replace('ManageBusiness');
-              return;
-            } else if (parsed.role === 'professional') {
-              navigation.replace('ManageProfessional');
-              return;
-            } else {
-              navigation.replace('Main');
-              return;
-            }
+            resolveAndNavigate(parsed.role, parsed.uid || parsed.id);
           }
         }
       } catch (e) {
@@ -90,587 +90,245 @@ export default function MobileFirebaseLogin({ navigation, route }: any) {
     checkPersistedSession();
   }, []);
 
-  // Countdown timer for OTP
-  useEffect(() => {
-    let interval: any;
-    if (otpSent && otpTimer > 0) {
-      interval = setInterval(() => {
-        setOtpTimer((prev) => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [otpSent, otpTimer]);
-
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    webClientId: '77831467457-hspogpc77l8r6uollgce645qfi12utg6.apps.googleusercontent.com',
-    androidClientId: '77831467457-du92qgvukkle89vvoic1kndmsn54drge.apps.googleusercontent.com',
-    iosClientId: '77831467457-hspogpc77l8r6uollgce645qfi12utg6.apps.googleusercontent.com',
-  });
-
-  const handlePostGoogleAuth = async (firebaseUser: User) => {
-    try {
-      const userData: any = await createOrUpdateUser(firebaseUser);
-      setCitizenUser(firebaseUser);
-      if (userData?.phone && userData?.gender) {
-        navigateAfterAuth('citizen');
-      } else {
-        setShowCitizenModal(true);
-      }
-    } catch (err) {
-      navigateAfterAuth('citizen');
-    }
-  };
-
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const { id_token } = response.params;
-      if (id_token) {
-        const credential = GoogleAuthProvider.credential(id_token);
-        signInWithCredential(auth, credential)
-          .then((res) => handlePostGoogleAuth(res.user))
-          .catch((error) => {
-            Alert.alert('Google Login Error', error.message);
-          });
-      }
-    }
-  }, [response]);
-
-  // Listen for auth state changes without clearing AsyncStorage on null
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        try {
-          const existingStr = await AsyncStorage.getItem('user');
-          let existingData: any = {};
-          if (existingStr) {
-            try { existingData = JSON.parse(existingStr); } catch {}
-          }
-
-          const userData: any = await createOrUpdateUser(firebaseUser);
-          
-          const effectiveRole = 
-            (existingData.role === 'business' || existingData.role === 'professional')
-              ? existingData.role
-              : (userData?.role || existingData?.role || 'user');
-
-          const effectivePhone = existingData.phone || userData?.phone || firebaseUser.phoneNumber || '';
-
-          await AsyncStorage.setItem('user', JSON.stringify({
-            uid:      firebaseUser.uid,
-            id:       firebaseUser.uid,
-            name:     existingData.name || userData?.name || firebaseUser.displayName || 'Kurnool User',
-            email:    firebaseUser.email || existingData.email || '',
-            phone:    effectivePhone,
-            photoURL: userData?.photoURL || firebaseUser.photoURL || existingData.photoURL || '',
-            role:     effectiveRole,
-            location: userData?.location || existingData.location || '',
-            bio:      userData?.bio || existingData.bio || '',
-            gender:   userData?.gender || existingData.gender || '',
-          }));
-        } catch (error) {
-          console.error('Firestore sync error:', error);
-        }
-      } else {
-        setUser(null);
-        // NOTE: We deliberately do NOT remove storage here to prevent race conditions during startup.
-      }
-    });
-    return unsubscribe;
-  }, []);
-
-  const navigateAfterAuth = (userPortal: PortalType) => {
+  const resolveAndNavigate = (role: string, uid?: string) => {
     if (returnScreen) {
       navigation.replace(returnScreen);
       return;
     }
-    if (userPortal === 'business') {
+    if (role === 'business') {
       navigation.replace('ManageBusiness');
-    } else if (userPortal === 'professional') {
+    } else if (role === 'professional') {
       navigation.replace('ManageProfessional');
+    } else if (role === 'admin' || role === 'super_admin') {
+      navigation.replace('AdminDashboard');
     } else {
       navigation.replace('Main');
     }
   };
 
-  // Pre-fill reviewer test credentials
-  const fillReviewerCredentials = (targetRole: 'business' | 'professional') => {
-    setAuthError('');
-    setRoleConflictWarning(null);
-    if (targetRole === 'business') {
-      setPhone('9876500001');
-      setName('Kurnool Verified Merchant');
-    } else {
-      setPhone('9876500002');
-      setName('Dr. Srinivas Rao (Specialist)');
-    }
-  };
-
-  const handleSendOtp = async () => {
-    setAuthError('');
-    setRoleConflictWarning(null);
-    const cleaned = sanitizePhone(phone);
-    if (!cleaned || cleaned.replace(/\D/g, '').length < 10) {
-      setAuthError('Please enter a valid 10-digit mobile number.');
-      return;
-    }
-    if (!isTermsAccepted) {
-      Alert.alert('Terms and Conditions', 'Please accept the terms and conditions to continue.');
-      return;
-    }
-
-    setLoading(true);
+  const handlePostGoogleAuth = async (firebaseUser: User) => {
     try {
-      if (portal === 'business' || portal === 'professional') {
-        const exclusivity = await checkPhoneRoleExclusivity(cleaned, portal);
-        if (!exclusivity.allowed) {
-          setRoleConflictWarning(exclusivity.message || null);
-          Alert.alert(
-            'Role Exclusivity Conflict',
-            exclusivity.message,
-            [
-              {
-                text: `Switch to ${exclusivity.existingRole === 'business' ? 'Business' : 'Professional'} Portal`,
-                onPress: () => {
-                  setPortal(exclusivity.existingRole!);
-                  setRoleConflictWarning(null);
-                  setAuthError('');
-                },
-              },
-              { text: 'Use Different Number', style: 'cancel' },
-            ]
-          );
-          setLoading(false);
-          return;
-        }
-      }
+      // 1. Create or update user in Firestore
+      const userData: any = await createOrUpdateUser(firebaseUser);
+      let detectedRole = userData?.role || 'user';
 
-      setOtpSent(true);
-      setOtpTimer(60);
-      setOtpCode('');
-      Alert.alert(
-        'OTP Sent!',
-        `A 6-digit OTP code has been dispatched to ${cleaned}.\n\n🔑 Quick Test / Reviewer OTP: 123456`
-      );
-    } catch (err: any) {
-      setAuthError(err.message || 'Failed to send OTP.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    setAuthError('');
-    const trimmedOtp = otpCode.trim();
-    if (!trimmedOtp || trimmedOtp.length !== 6) {
-      setAuthError('Please enter the complete 6-digit OTP code.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const cleaned = sanitizePhone(phone);
-      if (portal === 'business' || portal === 'professional') {
-        const exclusivity = await checkPhoneRoleExclusivity(cleaned, portal);
-        if (!exclusivity.allowed) {
-          setRoleConflictWarning(exclusivity.message || null);
-          setAuthError(exclusivity.message || 'Phone number role conflict.');
-          setLoading(false);
-          return;
-        }
-      }
-
-      const digits = cleaned.replace(/\D/g, '');
-      const displayName = name.trim() || (portal === 'business' ? 'Kurnool Verified Merchant' : 'Kurnool Professional');
-
-      // Attempt Firebase auth in a safe, non-blocking manner
-      let targetUser: any = null;
-      try {
-        const phoneEmail = `phone_${digits}@kurnoolone.com`;
-        const phonePass = `Kurnool@${digits.slice(-4)}Secure!`;
+      // 2. If user role is still 'user', cross-check if they own a business or professional listing
+      if (detectedRole === 'user') {
         try {
-          const res = await signInWithEmailAndPassword(auth, phoneEmail, phonePass);
-          targetUser = res.user;
-        } catch (signInErr: any) {
-          try {
-            const res = await createUserWithEmailAndPassword(auth, phoneEmail, phonePass);
-            targetUser = res.user;
-          } catch (createErr: any) {
-            if (auth.currentUser) {
-              targetUser = auth.currentUser;
-            } else {
-              try {
-                const anon = await signInAnon();
-                targetUser = anon || auth.currentUser;
-              } catch (anonErr) {
-                // Anonymous sign-in not enabled or offline
-              }
-            }
+          const [bizSnap, proSnap] = await Promise.all([
+            getDocs(query(collection(db, 'businesses'), where('ownerUid', '==', firebaseUser.uid))),
+            getDocs(query(collection(db, 'professionals'), where('userId', '==', firebaseUser.uid))),
+          ]);
+          if (!bizSnap.empty) {
+            detectedRole = 'business';
+          } else if (!proSnap.empty) {
+            detectedRole = 'professional';
           }
+        } catch (roleQueryErr) {
+          console.warn('Role check warning:', roleQueryErr);
         }
-      } catch (authErr) {
-        console.warn('Firebase synthetic auth warning:', authErr);
       }
 
-      const stableUid = targetUser?.uid || auth.currentUser?.uid || `phone_${digits}`;
-
-      // 1. GUARANTEED LOCAL PERSISTENCE FIRST
-      // This ensures the user NEVER gets logged out or asked to sign in again after restart!
+      // 3. Save session
       const sessionUser = {
-        uid: stableUid,
-        id: stableUid,
-        name: displayName,
-        phone: cleaned,
-        role: portal,
+        uid: firebaseUser.uid,
+        id: firebaseUser.uid,
+        name: firebaseUser.displayName || 'Kurnool Resident',
+        email: firebaseUser.email,
+        photoURL: firebaseUser.photoURL,
+        role: detectedRole,
         loginTimestamp: Date.now(),
       };
       await AsyncStorage.setItem('user', JSON.stringify(sessionUser));
-
-      // 2. Best-effort Profile and Firestore sync
-      try {
-        if (targetUser) {
-          try {
-            await updateProfile(targetUser, { displayName });
-          } catch {}
-        }
-
-        try {
-          await createOrUpdateUser({
-            uid: stableUid,
-            id: stableUid,
-            displayName,
-            role: portal,
-            phone: cleaned,
-          });
-        } catch {}
-
-        if (portal === 'business' || portal === 'professional') {
-          await registerPhoneRole(cleaned, portal, stableUid, {
-            name: displayName,
-            businessName: displayName,
-          });
-        }
-      } catch (syncErr) {
-        console.warn('Post-login sync non-fatal:', syncErr);
-      }
-
-      navigateAfterAuth(portal);
+      resolveAndNavigate(detectedRole, firebaseUser.uid);
     } catch (err: any) {
-      console.error('handleVerifyOtp error:', err);
-      // Fallback navigation so user is never permanently stuck
-      navigateAfterAuth(portal);
+      console.error('Post Google Auth error:', err);
+      resolveAndNavigate('user', firebaseUser.uid);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const [showReviewerModal, setShowReviewerModal] = useState(false);
+  const [reviewerEmail, setReviewerEmail] = useState('');
+  const [reviewerPassword, setReviewerPassword] = useState('');
+  const [reviewerLoading, setReviewerLoading] = useState(false);
+  const [tapCounter, setTapCounter] = useState(0);
+  const [lastTap, setLastTap] = useState(0);
+
+  const handleLogoTap = () => {
+    const now = Date.now();
+    if (now - lastTap < 600) {
+      const nextCount = tapCounter + 1;
+      setTapCounter(nextCount);
+      if (nextCount >= 3) {
+        setTapCounter(0);
+        setShowReviewerModal(true);
+      }
+    } else {
+      setTapCounter(1);
+    }
+    setLastTap(now);
+  };
+
+  const handleReviewerSignIn = async () => {
+    if (!reviewerEmail.trim() || !reviewerPassword.trim()) {
+      Alert.alert('Required Fields', 'Please enter your reviewer email and password.');
+      return;
+    }
+    setReviewerLoading(true);
+    try {
+      const userCred = await signInWithEmailAndPassword(
+        auth,
+        reviewerEmail.trim().toLowerCase(),
+        reviewerPassword.trim()
+      );
+      setShowReviewerModal(false);
+      await handlePostGoogleAuth(userCred.user);
+    } catch (err: any) {
+      console.error('Reviewer Sign-In error:', err);
+      let msg = 'Failed to sign in. Please verify your email and password.';
+      if (err?.code === 'auth/invalid-credential' || err?.code === 'auth/wrong-password') {
+        msg = 'Incorrect reviewer email or password.';
+      } else if (err?.code === 'auth/user-not-found') {
+        msg = 'No reviewer account found with this email.';
+      }
+      Alert.alert('Reviewer Login Failed', msg);
+    } finally {
+      setReviewerLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
-    if (!isTermsAccepted) {
-      Alert.alert('Terms and Conditions', 'Please accept the terms and conditions to continue.');
-      return;
-    }
+    setAuthError('');
     setLoading(true);
+
     try {
+      // Web platform fallback
       if (Platform.OS === 'web') {
         const provider = new GoogleAuthProvider();
         const res = await signInWithPopup(auth, provider);
         await handlePostGoogleAuth(res.user);
+        return;
+      }
+
+      // Standalone Android Native Google Sign-In
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const signInResult = await GoogleSignin.signIn();
+      const idToken = (signInResult as any)?.data?.idToken || (signInResult as any)?.idToken;
+
+      if (idToken) {
+        const credential = GoogleAuthProvider.credential(idToken);
+        const userCred = await signInWithCredential(auth, credential);
+        await handlePostGoogleAuth(userCred.user);
+        return;
       } else {
-        await promptAsync();
+        throw new Error('Google Sign-In completed but no idToken was received.');
       }
     } catch (error: any) {
-      Alert.alert('Google Login Error', error.message);
-    } finally {
+      console.error('handleGoogleLogin error:', error);
       setLoading(false);
-    }
-  };
 
-  const handleSaveCitizenProfile = async () => {
-    const cleaned = sanitizePhone(citizenPhone);
-    if (!cleaned || cleaned.replace(/\D/g, '').length < 10) {
-      Alert.alert('Phone Required', 'Please enter a valid 10-digit mobile number.');
-      return;
-    }
-    setLoading(true);
-    try {
-      const uid = citizenUser?.uid || auth.currentUser?.uid;
-      if (uid) {
-        await updateUserProfile(uid, {
-          phone: cleaned,
-          gender: citizenGender,
-          location: citizenArea,
-          profileCompleted: true,
-        });
-
-        const existingStr = await AsyncStorage.getItem('user');
-        let existing: any = {};
-        if (existingStr) {
-          try { existing = JSON.parse(existingStr); } catch {}
-        }
-
-        await AsyncStorage.setItem('user', JSON.stringify({
-          ...existing,
-          uid,
-          id: uid,
-          name: citizenUser?.displayName || existing.name || 'Citizen',
-          phone: cleaned,
-          gender: citizenGender,
-          location: citizenArea,
-          role: existing.role || 'user',
-        }));
+      if (error?.code === statusCodes?.SIGN_IN_CANCELLED) {
+        return;
       }
-      setShowCitizenModal(false);
-      navigateAfterAuth('citizen');
-    } catch (err: any) {
-      Alert.alert('Notice', 'Profile saved locally.');
-      setShowCitizenModal(false);
-      navigateAfterAuth('citizen');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSkipLogin = async () => {
-    setLoading(true);
-    try {
-      try {
-        await signInAnon();
-      } catch (anonErr) {
-        // Fallback for guest mode without remote anonymous account
+      if (error?.code === statusCodes?.IN_PROGRESS) {
+        return;
       }
-      navigateAfterAuth(portal);
-    } catch (error: any) {
-      navigateAfterAuth(portal);
-    } finally {
-      setLoading(false);
+      if (error?.code === statusCodes?.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert('Google Play Services', 'Google Play Services is not available or outdated.');
+        setAuthError('Google Play Services unavailable on this device.');
+        return;
+      }
+
+      const isCode10 =
+        String(error?.code) === '10' ||
+        String(error?.message).includes('10') ||
+        String(error?.message).includes('DEVELOPER_ERROR');
+
+      if (isCode10) {
+        Alert.alert(
+          'Google Sign-In Configuration Required (Code 10)',
+          'DEVELOPER_ERROR (Code 10):\n\nThe APK SHA-1 certificate fingerprint is not registered in Firebase Console.\n\nRelease Keystore SHA-1:\n4F:E0:5C:7D:0C:32:91:26:D4:F1:18:C4:1A:5B:61:F3:BC:DC:ED:95\n\nAdd this SHA-1 to Firebase Console -> Project Settings -> Your Android Apps (com.kurnoolone) to complete Google Sign-In.',
+          [
+            { text: 'Use Reviewer/Test Login', onPress: () => setShowReviewerModal(true) },
+            { text: 'OK' },
+          ]
+        );
+        setAuthError('Code 10 (DEVELOPER_ERROR): SHA-1 fingerprint needs to be registered in Firebase Console.');
+      } else {
+        Alert.alert('Google Sign-In Failed', `${error?.message || 'Authentication failed'} (${error?.code || 'ERR'})`);
+        setAuthError(error?.message || 'Google Sign-In was cancelled or failed.');
+      }
     }
   };
 
-  const handleLogout = async () => {
+  const openTerms = async () => {
     try {
-      await auth.signOut();
-      await AsyncStorage.multiRemove(['user', 'token']);
-    } catch (error: any) {
-      Alert.alert('Logout Error', error.message);
+      await WebBrowser.openBrowserAsync('https://kurnool-kaburlu.web.app/terms');
+    } catch {
+      Alert.alert('Terms of Service', 'Please visit https://kurnoolone.com/terms in your browser.');
     }
   };
 
-  // Already signed in view
-  if (user && !user.isAnonymous) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <View style={{
-            width: 80, height: 80, borderRadius: 40, backgroundColor: '#EFF6FF',
-            alignItems: 'center', justifyContent: 'center', marginBottom: 16,
-            borderWidth: 2, borderColor: '#BFDBFE'
-          }}>
-            {user.photoURL ? (
-              <Image source={{ uri: user.photoURL }} style={{ width: 80, height: 80, borderRadius: 40 }} />
-            ) : (
-              <Ionicons name="person" size={40} color="#2563EB" />
-            )}
-          </View>
-          <Text style={{ fontSize: 22, fontWeight: '800', color: '#1E293B', marginBottom: 4 }}>
-            Welcome back!
-          </Text>
-          <Text style={{ fontSize: 18, fontWeight: '600', color: '#2563EB', marginBottom: 4 }}>
-            {user.displayName || 'Kurnool Resident'}
-          </Text>
-          <Text style={{ fontSize: 14, color: '#64748B', marginBottom: 24 }}>
-            {user.email || user.phoneNumber || 'Authenticated User'}
-          </Text>
-
-          {/* Quick Portal Switcher Cards */}
-          <View style={{ width: '100%', gap: 10, marginBottom: 16 }}>
-            <TouchableOpacity
-              onPress={() => navigation.replace('ManageBusiness')}
-              style={styles.portalActionCard}
-            >
-              <Ionicons name="storefront" size={20} color="#2563EB" />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.portalActionTitle}>Open Business Dashboard</Text>
-                <Text style={styles.portalActionSub}>Shop timings, leads & offers</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => navigation.replace('ManageProfessional')}
-              style={[styles.portalActionCard, { borderColor: '#99F6E4' }]}
-            >
-              <Ionicons name="briefcase" size={20} color="#0D9488" />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.portalActionTitle, { color: '#0F766E' }]}>Open Professional Dashboard</Text>
-                <Text style={styles.portalActionSub}>Rates, bookings & portfolio</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => navigation.replace('Main')}
-              style={[styles.portalActionCard, { borderColor: '#E2E8F0' }]}
-            >
-              <Ionicons name="home-outline" size={20} color="#475569" />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.portalActionTitle}>Browse Kurnool One</Text>
-                <Text style={styles.portalActionSub}>Home feed, Directory & Events</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity
-            onPress={handleLogout}
-            style={{ width: '100%', backgroundColor: '#F1F5F9', padding: 14, borderRadius: 14, alignItems: 'center' }}
-          >
-            <Text style={{ color: '#475569', fontWeight: 'bold', fontSize: 14 }}>Sign Out</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // Configuration per portal type
-  const portalConfig = {
-    business: {
-      themeColor: '#2563EB',
-      lightBg: '#EFF6FF',
-      borderColor: '#DBEAFE',
-      icon: 'storefront' as const,
-      badgeText: 'COMMERCIAL BUSINESS PORTAL',
-      title: 'Business Login & Dashboard',
-      subtitle: 'Manage your shop, set hours, post discount deals, and receive direct customer calls.',
-      testNumber: '+91 98765 00001',
-      testOtp: '123456',
-    },
-    professional: {
-      themeColor: '#0D9488',
-      lightBg: '#F0FDFA',
-      borderColor: '#CCFBF1',
-      icon: 'briefcase' as const,
-      badgeText: 'PROFESSIONAL & CREATOR PORTAL',
-      title: 'Professional Login & Leads',
-      subtitle: 'For Doctors, Advocates, IT specialists, Influencers, Technicians, and Freelancers.',
-      testNumber: '+91 98765 00002',
-      testOtp: '123456',
-    },
-    citizen: {
-      themeColor: '#4F46E5',
-      lightBg: '#EEF2FF',
-      borderColor: '#E0E7FF',
-      icon: 'person' as const,
-      badgeText: 'CITIZEN & RESIDENT PORTAL',
-      title: 'Citizen Sign In',
-      subtitle: 'Explore Kurnool businesses, connect with verified professionals, and discover local city deals.',
-      testNumber: '',
-      testOtp: '',
-    },
+  const openPrivacy = async () => {
+    try {
+      await WebBrowser.openBrowserAsync('https://kurnool-kaburlu.web.app/privacy');
+    } catch {
+      Alert.alert('Privacy Policy', 'Please visit https://kurnoolone.com/privacy in your browser.');
+    }
   };
-
-  const currentConfig = portalConfig[portal];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 22, paddingVertical: 20 }}
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Top 3-Way Portal Selector */}
-        <View style={styles.portalSelector}>
+        {/* Brand Header */}
+        <View style={styles.brandContainer}>
           <TouchableOpacity
-            onPress={() => { setPortal('business'); setAuthError(''); setOtpSent(false); setRoleConflictWarning(null); }}
-            style={[styles.portalTab, portal === 'business' && styles.portalTabActiveBlue]}
+            style={styles.logoWrapper}
+            onPress={handleLogoTap}
+            onLongPress={() => setShowReviewerModal(true)}
+            delayLongPress={500}
+            activeOpacity={0.85}
           >
-            <Ionicons name="storefront" size={14} color={portal === 'business' ? '#2563EB' : '#64748B'} />
-            <Text style={[styles.portalTabText, portal === 'business' && { color: '#2563EB', fontWeight: '800' }]}>
-              Business
-            </Text>
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
           </TouchableOpacity>
+          <Text style={styles.appName}>Kurnool One</Text>
+          <Text style={styles.appNameTe}>కర్నూలు వన్</Text>
 
-          <TouchableOpacity
-            onPress={() => { setPortal('professional'); setAuthError(''); setOtpSent(false); setRoleConflictWarning(null); }}
-            style={[styles.portalTab, portal === 'professional' && styles.portalTabActiveTeal]}
-          >
-            <Ionicons name="briefcase" size={14} color={portal === 'professional' ? '#0D9488' : '#64748B'} />
-            <Text style={[styles.portalTabText, portal === 'professional' && { color: '#0D9488', fontWeight: '800' }]}>
-              Professional
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.taglineBadge}>
+            <Ionicons name="sparkles" size={14} color="#1D4ED8" />
+            <Text style={styles.taglineText}>Everything in One App</Text>
+          </View>
 
-          <TouchableOpacity
-            onPress={() => { setPortal('citizen'); setAuthError(''); setOtpSent(false); setRoleConflictWarning(null); }}
-            style={[styles.portalTab, portal === 'citizen' && styles.portalTabActiveIndigo]}
-          >
-            <Ionicons name="person" size={14} color={portal === 'citizen' ? '#4F46E5' : '#64748B'} />
-            <Text style={[styles.portalTabText, portal === 'citizen' && { color: '#4F46E5', fontWeight: '800' }]}>
-              Citizen
-            </Text>
-          </TouchableOpacity>
+          <Text style={styles.appDescription}>
+            The official community platform for Kurnool Citizens, Local Businesses & Skilled Professionals.
+          </Text>
+
+          {/* Value Pills */}
+          <View style={styles.pillRow}>
+            <View style={styles.featurePill}>
+              <Text style={styles.pillText}>🛍️ Local Shops</Text>
+            </View>
+            <View style={styles.featurePill}>
+              <Text style={styles.pillText}>🔧 Skilled Pros</Text>
+            </View>
+            <View style={styles.featurePill}>
+              <Text style={styles.pillText}>🏛️ City Services</Text>
+            </View>
+          </View>
         </View>
 
-        {/* Portal Header Badge */}
-        <View style={{ alignItems: 'center', marginBottom: 18 }}>
-          <View style={[styles.badgeWrap, { backgroundColor: currentConfig.lightBg, borderColor: currentConfig.borderColor }]}>
-            <Ionicons name={currentConfig.icon} size={14} color={currentConfig.themeColor} />
-            <Text style={[styles.badgeText, { color: currentConfig.themeColor }]}>
-              {currentConfig.badgeText}
-            </Text>
-          </View>
-          <Text style={styles.portalTitle}>{currentConfig.title}</Text>
-          <Text style={styles.portalSubtitle}>{currentConfig.subtitle}</Text>
-        </View>
-
-        {/* Demo / Google Play Reviewer Card for Business & Pro */}
-        {(portal === 'business' || portal === 'professional') && (
-          <View style={[styles.reviewerCard, { paddingVertical: 10 }]}>
-            <TouchableOpacity
-              onPress={() => setShowReviewerCreds(prev => !prev)}
-              activeOpacity={0.8}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Ionicons name="shield-checkmark" size={15} color="#D97706" />
-                <Text style={[styles.reviewerTitle, { fontSize: 11 }]}>Google Play & Reviewer Access</Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: '#D97706' }}>
-                  {showReviewerCreds ? 'Hide' : 'Quick Demo'}
-                </Text>
-                <Ionicons name={showReviewerCreds ? 'chevron-up' : 'chevron-down'} size={14} color="#D97706" />
-              </View>
-            </TouchableOpacity>
-
-            {showReviewerCreds && (
-              <View style={{ marginTop: 10 }}>
-                <Text style={styles.reviewerSub}>
-                  Reviewers and testers can test login instantly using these approved credentials:
-                </Text>
-                <View style={styles.credRow}>
-                  <Text style={styles.credLabel}>Mobile Number:</Text>
-                  <Text style={styles.credValue}>{currentConfig.testNumber}</Text>
-                </View>
-                <View style={styles.credRow}>
-                  <Text style={styles.credLabel}>Test OTP Code:</Text>
-                  <Text style={styles.credValue}>{currentConfig.testOtp}</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => fillReviewerCredentials(portal)}
-                  style={styles.quickFillBtn}
-                >
-                  <Ionicons name="flash" size={14} color="#B45309" />
-                  <Text style={styles.quickFillBtnText}>
-                    Auto-Fill {portal === 'business' ? 'Business' : 'Professional'} Test Credentials
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        )}
-
+        {/* Error Alert Box */}
         {authError ? (
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle" size={18} color="#DC2626" />
@@ -678,357 +336,126 @@ export default function MobileFirebaseLogin({ navigation, route }: any) {
           </View>
         ) : null}
 
-        {roleConflictWarning ? (
-          <View style={[styles.errorBox, { backgroundColor: '#FEF2F2', borderColor: '#F87171' }]}>
-            <Ionicons name="shield-outline" size={20} color="#DC2626" />
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: '#991B1B', marginBottom: 2 }}>
-                Role Exclusivity Conflict
-              </Text>
-              <Text style={{ fontSize: 12, color: '#B91C1C', lineHeight: 17 }}>
-                {roleConflictWarning}
-              </Text>
-            </View>
-          </View>
-        ) : null}
+        {/* Single Login Card */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Sign in to Kurnool One</Text>
+          <Text style={styles.cardSubtitle}>
+            One account connects Citizens, Businesses, and Professionals seamlessly.
+          </Text>
 
-        {/* ------------------------------------------------------------- */}
-        {/* CASE 1: BUSINESS & PROFESSIONAL (MOBILE NUMBER + OTP ONLY)    */}
-        {/* ------------------------------------------------------------- */}
-        {(portal === 'business' || portal === 'professional') && (
-          <View style={{ width: '100%' }}>
-            {!otpSent ? (
-              <>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>
-                    {portal === 'business' ? 'Business / Shop Owner Name' : 'Full Name / Professional Title'}
-                  </Text>
-                  <View style={styles.inputWrap}>
-                    <Ionicons name="person-outline" size={18} color="#94A3B8" style={{ marginRight: 10 }} />
-                    <TextInput
-                      style={styles.textInput}
-                      placeholder={portal === 'business' ? 'e.g. Sri Balaji Supermarket' : 'e.g. Dr. K. Ramesh'}
-                      placeholderTextColor="#94A3B8"
-                      value={name}
-                      onChangeText={setName}
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Mobile Number *</Text>
-                  <View style={styles.phoneInputWrap}>
-                    <View style={styles.countryCodeBox}>
-                      <Text style={styles.flagText}>🇮🇳</Text>
-                      <Text style={styles.countryCodeText}>+91</Text>
-                    </View>
-                    <TextInput
-                      style={styles.phoneTextInput}
-                      placeholder="98765 00001"
-                      placeholderTextColor="#94A3B8"
-                      value={phone}
-                      onChangeText={(t) => { setPhone(t); setRoleConflictWarning(null); }}
-                      keyboardType="phone-pad"
-                      maxLength={12}
-                    />
-                  </View>
-                  <Text style={styles.fieldHelpText}>
-                    Enter your mobile number to receive a 6-digit OTP verification code.
-                  </Text>
-                </View>
-
-                {/* Terms */}
-                <TouchableOpacity
-                  style={styles.termsRow}
-                  onPress={() => setIsTermsAccepted(!isTermsAccepted)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons
-                    name={isTermsAccepted ? 'checkbox' : 'square-outline'}
-                    size={20}
-                    color={isTermsAccepted ? currentConfig.themeColor : '#94A3B8'}
-                  />
-                  <Text style={styles.termsText}>
-                    I agree to the <Text style={{ color: currentConfig.themeColor, fontWeight: 'bold' }}>Terms and Conditions</Text>
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Send OTP Button */}
-                <TouchableOpacity
-                  onPress={handleSendOtp}
-                  disabled={loading}
-                  style={[styles.submitBtn, { backgroundColor: currentConfig.themeColor }]}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Ionicons name="paper-plane" size={16} color="#FFFFFF" />
-                      <Text style={styles.submitBtnText}>Get OTP on Mobile</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-
-                {/* Skip to Dashboard as Guest */}
-                <TouchableOpacity
-                  onPress={() => navigateAfterAuth(portal)}
-                  disabled={loading}
-                  style={styles.guestBtn}
-                >
-                  <Text style={[styles.guestBtnText, { color: currentConfig.themeColor }]}>
-                    {portal === 'business'
-                      ? 'Preview Business Dashboard as Guest →'
-                      : 'Preview Professional Dashboard as Guest →'}
-                  </Text>
-                </TouchableOpacity>
-              </>
+          {/* Google Sign-In Button */}
+          <TouchableOpacity
+            style={[styles.googleButton, loading && styles.buttonDisabled]}
+            onPress={handleGoogleLogin}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
+            {loading ? (
+              <ActivityIndicator color="#1E293B" size="small" />
             ) : (
-              /* OTP VERIFICATION VIEW */
-              <View style={styles.otpVerifyContainer}>
-                <View style={styles.otpSentHeader}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={32} color={currentConfig.themeColor} />
-                  <Text style={styles.otpSentTitle}>Verify Mobile Number</Text>
-                  <Text style={styles.otpSentSub}>
-                    Enter the 6-digit OTP sent to <Text style={{ fontWeight: '800', color: '#1E293B' }}>+91 {phone}</Text>
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => { setOtpSent(false); setOtpCode(''); setRoleConflictWarning(null); }}
-                    style={{ marginTop: 6 }}
-                  >
-                    <Text style={{ fontSize: 12, color: currentConfig.themeColor, fontWeight: '700' }}>
-                      Wrong number? Edit Mobile Number
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.otpInputBox}>
-                  <TextInput
-                    style={styles.otpCodeInput}
-                    placeholder="• • • • • •"
-                    placeholderTextColor="#CBD5E1"
-                    value={otpCode}
-                    onChangeText={setOtpCode}
-                    keyboardType="number-pad"
-                    maxLength={6}
-                    autoFocus
-                  />
-                </View>
-
-                <Text style={styles.otpHintText}>
-                  💡 Reviewer tip: You can enter <Text style={{ fontWeight: '800' }}>123456</Text> for rapid testing.
-                </Text>
-
-                <TouchableOpacity
-                  onPress={handleVerifyOtp}
-                  disabled={loading}
-                  style={[styles.submitBtn, { backgroundColor: currentConfig.themeColor, marginTop: 16 }]}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Ionicons name="shield-checkmark" size={16} color="#FFFFFF" />
-                      <Text style={styles.submitBtnText}>Verify OTP & Access Portal</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-
-                <View style={styles.resendRow}>
-                  {otpTimer > 0 ? (
-                    <Text style={styles.resendTimerText}>
-                      Resend code in <Text style={{ fontWeight: '800', color: '#1E293B' }}>{otpTimer}s</Text>
-                    </Text>
-                  ) : (
-                    <TouchableOpacity onPress={handleSendOtp} disabled={loading}>
-                      <Text style={[styles.resendBtnText, { color: currentConfig.themeColor }]}>
-                        Resend OTP Now
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
+              <>
+                <OfficialGoogleIcon size={22} />
+                <Text style={styles.googleButtonText}>Continue with Google</Text>
+              </>
             )}
-          </View>
-        )}
+          </TouchableOpacity>
 
-        {/* ------------------------------------------------------------- */}
-        {/* CASE 2: CITIZENS (GOOGLE LOGIN & GUEST EXPLORE ONLY)          */}
-        {/* ------------------------------------------------------------- */}
-        {portal === 'citizen' && (
-          <View style={{ width: '100%', marginTop: 8 }}>
-            <View style={styles.citizenBox}>
-              <Ionicons name="sparkles" size={28} color="#4F46E5" style={{ marginBottom: 8 }} />
-              <Text style={styles.citizenBoxTitle}>Instant Citizen Access</Text>
-              <Text style={styles.citizenBoxSub}>
-                Residents and tourists can explore Kurnool city directory, find local emergency numbers, shop deals, and contact experts with 1 tap.
-              </Text>
+          {/* Legal Links (Terms & Privacy) */}
+          <View style={styles.legalSection}>
+            <Text style={styles.legalNote}>By continuing, you acknowledge and agree to:</Text>
+            <View style={styles.legalLinksRow}>
+              <TouchableOpacity onPress={openTerms} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={styles.legalLinkText}>Terms of Service</Text>
+              </TouchableOpacity>
+              <Text style={styles.legalDivider}>•</Text>
+              <TouchableOpacity onPress={openPrivacy} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={styles.legalLinkText}>Privacy Policy</Text>
+              </TouchableOpacity>
             </View>
-
-            {/* Terms */}
-            <TouchableOpacity
-              style={styles.termsRow}
-              onPress={() => setIsTermsAccepted(!isTermsAccepted)}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name={isTermsAccepted ? 'checkbox' : 'square-outline'}
-                size={20}
-                color={isTermsAccepted ? '#4F46E5' : '#94A3B8'}
-              />
-              <Text style={styles.termsText}>
-                I agree to the <Text style={{ color: '#4F46E5', fontWeight: 'bold' }}>Terms and Conditions</Text>
-              </Text>
-            </TouchableOpacity>
-
-            {/* Google Login for Citizens */}
-            <TouchableOpacity
-              onPress={handleGoogleLogin}
-              disabled={loading}
-              style={styles.googleBtn}
-            >
-              {loading ? (
-                <ActivityIndicator color="#1E293B" />
-              ) : (
-                <>
-                  <View style={styles.googleIconBox}>
-                    <Text style={styles.googleIconText}>G</Text>
-                  </View>
-                  <Text style={styles.googleBtnText}>Continue with Google</Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR EXPLORE DIRECTLY</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            {/* Skip Login for Citizens */}
-            <TouchableOpacity
-              onPress={() => navigation.replace('Main')}
-              disabled={loading}
-              style={[styles.guestBtn, { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', paddingVertical: 14 }]}
-            >
-              <Ionicons name="compass-outline" size={18} color="#4F46E5" style={{ marginRight: 6 }} />
-              <Text style={[styles.guestBtnText, { color: '#4F46E5', fontWeight: '800' }]}>
-                Explore Kurnool One as Guest →
-              </Text>
-            </TouchableOpacity>
           </View>
-        )}
+        </View>
+
+        {/* Government Non-Affiliation Disclaimer */}
+        <View style={styles.disclaimerContainer}>
+          <Ionicons name="information-circle-outline" size={14} color="#64748B" style={{ marginTop: 2 }} />
+          <Text style={styles.disclaimerText}>
+            Kurnool One is an independent private digital city directory platform. It is not affiliated with or endorsed by the Government of Andhra Pradesh or the Kurnool Municipal Corporation.
+          </Text>
+        </View>
       </ScrollView>
 
-      {/* Citizen Profile Details Modal */}
+      {/* Google Play Reviewer Login Modal (Hidden: 3-tap or long-press on logo) */}
       <Modal
-        visible={showCitizenModal}
+        visible={showReviewerModal}
         transparent
-        animationType="slide"
-        onRequestClose={() => {}}
+        animationType="fade"
+        onRequestClose={() => setShowReviewerModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <View style={styles.modalIconWrap}>
-                <Ionicons name="person-add" size={24} color="#4F46E5" />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="shield-checkmark" size={20} color="#2563EB" />
+                <Text style={styles.modalTitle}>Play Reviewer Login</Text>
               </View>
-              <Text style={styles.modalTitle}>Complete Citizen Profile</Text>
-              <Text style={styles.modalSub}>
-                Welcome to Kurnool One! Please share your contact details and locality for a tailored city experience.
-              </Text>
+              <TouchableOpacity
+                onPress={() => setShowReviewerModal(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
             </View>
 
-            {/* Mobile Number */}
-            <View style={styles.modalInputGroup}>
-              <Text style={styles.modalInputLabel}>Mobile Number *</Text>
-              <View style={styles.modalPhoneRow}>
-                <View style={styles.modalFlagBox}>
-                  <Text style={{ fontSize: 16 }}>🇮🇳</Text>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#1E293B', marginLeft: 4 }}>+91</Text>
-                </View>
+            <Text style={styles.modalSubtitle}>
+              Sign in with your authorized Google Play testing credentials to evaluate all modules.
+            </Text>
+
+            <View style={{ gap: 12, marginTop: 14 }}>
+              <View>
+                <Text style={styles.inputLabel}>Reviewer Email</Text>
                 <TextInput
-                  style={styles.modalTextInput}
-                  placeholder="Enter 10-digit mobile"
+                  style={styles.modalInput}
+                  placeholder="e.g. reviewer@kurnoolone.com"
                   placeholderTextColor="#94A3B8"
-                  keyboardType="phone-pad"
-                  maxLength={10}
-                  value={citizenPhone}
-                  onChangeText={setCitizenPhone}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  value={reviewerEmail}
+                  onChangeText={setReviewerEmail}
                 />
               </View>
-            </View>
 
-            {/* Gender Selection */}
-            <View style={styles.modalInputGroup}>
-              <Text style={styles.modalInputLabel}>Gender *</Text>
-              <View style={styles.genderRow}>
-                {(['Male', 'Female', 'Other'] as const).map((g) => (
-                  <TouchableOpacity
-                    key={g}
-                    onPress={() => setCitizenGender(g)}
-                    style={[
-                      styles.genderPill,
-                      citizenGender === g && styles.genderPillActive,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.genderPillText,
-                        citizenGender === g && styles.genderPillTextActive,
-                      ]}
-                    >
-                      {g === 'Male' ? '👨 Male' : g === 'Female' ? '👩 Female' : '⚧ Other'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              <View>
+                <Text style={styles.inputLabel}>Password</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Enter password"
+                  placeholderTextColor="#94A3B8"
+                  secureTextEntry
+                  value={reviewerPassword}
+                  onChangeText={setReviewerPassword}
+                />
               </View>
-            </View>
 
-            {/* Colony / Area Selection */}
-            <View style={styles.modalInputGroup}>
-              <Text style={styles.modalInputLabel}>Select Your Kurnool Area / Colony *</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
+              <TouchableOpacity
+                style={[styles.modalSubmitBtn, reviewerLoading && styles.buttonDisabled]}
+                onPress={handleReviewerSignIn}
+                disabled={reviewerLoading}
+                activeOpacity={0.85}
               >
-                {KURNOOL_AREAS.slice(0, 10).map((area) => (
-                  <TouchableOpacity
-                    key={area}
-                    onPress={() => setCitizenArea(area)}
-                    style={[
-                      styles.areaPill,
-                      citizenArea === area && styles.areaPillActive,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.areaPillText,
-                        citizenArea === area && styles.areaPillTextActive,
-                      ]}
-                    >
-                      📍 {area}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
+                {reviewerLoading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.modalSubmitBtnText}>Sign In as Reviewer</Text>
+                )}
+              </TouchableOpacity>
 
-            {/* Submit Button */}
-            <TouchableOpacity
-              onPress={handleSaveCitizenProfile}
-              disabled={loading}
-              style={styles.modalSaveBtn}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={styles.modalSaveBtnText}>Save & Proceed to App</Text>
-                  <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
-                </View>
-              )}
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowReviewerModal(false)}
+                style={{ paddingVertical: 8, alignItems: 'center' }}
+              >
+                <Text style={{ fontSize: 13, color: '#64748B', fontWeight: '600' }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1037,421 +464,186 @@ export default function MobileFirebaseLogin({ navigation, route }: any) {
 }
 
 const styles = StyleSheet.create({
-  portalSelector: {
-    flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 14,
-    padding: 3,
-    marginBottom: 18,
-  },
-  portalTab: {
+  container: {
     flex: 1,
-    flexDirection: 'row',
+    backgroundColor: '#F8FAFC',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    justifyContent: 'center',
+  },
+  brandContainer: {
+    alignItems: 'center',
+    marginBottom: 26,
+  },
+  logoWrapper: {
+    width: 82,
+    height: 82,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 10,
-    borderRadius: 11,
-  },
-  portalTabActiveBlue: {
-    backgroundColor: '#FFFFFF',
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: '#E2E8F0',
     shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 4,
   },
-  portalTabActiveTeal: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#99F6E4',
-    shadowColor: '#0D9488',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+  logo: {
+    width: 60,
+    height: 60,
   },
-  portalTabActiveIndigo: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#C7D2FE',
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+  appName: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#0F172A',
+    letterSpacing: -0.5,
   },
-  portalTabText: {
-    fontSize: 12,
+  appNameTe: {
+    fontSize: 16,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#2563EB',
+    marginTop: 2,
+    marginBottom: 10,
   },
-  badgeWrap: {
+  taglineBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    backgroundColor: '#EFF6FF',
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 20,
     borderWidth: 1,
-    marginBottom: 8,
+    borderColor: '#BFDBFE',
+    marginBottom: 12,
   },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.6,
+  taglineText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#1D4ED8',
+    letterSpacing: 0.3,
   },
-  portalTitle: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#0F172A',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  portalSubtitle: {
+  appDescription: {
     fontSize: 13,
     color: '#64748B',
     textAlign: 'center',
-    lineHeight: 18,
-    paddingHorizontal: 8,
+    paddingHorizontal: 16,
+    lineHeight: 19,
+    marginBottom: 14,
   },
-  reviewerCard: {
-    backgroundColor: '#FFFBEB',
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    marginBottom: 16,
-  },
-  reviewerHeader: {
+  pillRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  featurePill: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  pillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
+    elevation: 3,
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#0F172A',
+    textAlign: 'center',
     marginBottom: 6,
   },
-  reviewerTitle: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#92400E',
-    letterSpacing: 0.5,
+  cardSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: 24,
   },
-  reviewerBadge: {
-    backgroundColor: '#FDE68A',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  reviewerBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#78350F',
-  },
-  reviewerSub: {
-    fontSize: 11,
-    color: '#78350F',
-    lineHeight: 15,
-    marginBottom: 8,
-  },
-  credRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 2,
-  },
-  credLabel: {
-    fontSize: 11,
-    color: '#92400E',
-    fontWeight: '600',
-  },
-  credValue: {
-    fontSize: 11,
-    color: '#78350F',
-    fontWeight: '800',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-  },
-  quickFillBtn: {
+  googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#FEF3C7',
-    borderWidth: 1,
-    borderColor: '#FCD34D',
-    borderRadius: 10,
-    paddingVertical: 8,
-    marginTop: 8,
-  },
-  quickFillBtnText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#92400E',
-  },
-  inputGroup: {
-    marginBottom: 14,
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#334155',
-    marginBottom: 6,
-  },
-  inputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 48,
-    backgroundColor: '#F8FAFC',
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#1E293B',
-  },
-  phoneInputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 12,
-    overflow: 'hidden',
-    height: 48,
     backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#DADCE0',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  countryCodeBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 10,
-    height: '100%',
-    borderRightWidth: 1,
-    borderRightColor: '#E2E8F0',
-  },
-  flagText: {
-    fontSize: 16,
-  },
-  countryCodeText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#334155',
-  },
-  phoneTextInput: {
-    flex: 1,
-    paddingHorizontal: 12,
+  googleButtonText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
-    letterSpacing: 0.5,
+    color: '#3C4043',
+    letterSpacing: 0.2,
   },
-  fieldHelpText: {
+  buttonDisabled: {
+    opacity: 0.65,
+  },
+  legalSection: {
+    marginTop: 22,
+    paddingTop: 18,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    alignItems: 'center',
+  },
+  legalNote: {
     fontSize: 11,
     color: '#94A3B8',
-    marginTop: 4,
+    marginBottom: 6,
   },
-  termsRow: {
+  legalLinksRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginVertical: 12,
   },
-  termsText: {
+  legalLinkText: {
     fontSize: 12,
-    color: '#64748B',
-    flex: 1,
-  },
-  submitBtn: {
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  submitBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 14,
-    letterSpacing: 0.2,
-  },
-  otpVerifyContainer: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  otpSentHeader: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  otpSentTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginTop: 6,
-    marginBottom: 4,
-  },
-  otpSentSub: {
-    fontSize: 12,
-    color: '#64748B',
-    textAlign: 'center',
-  },
-  otpInputBox: {
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-  otpCodeInput: {
-    width: '80%',
-    height: 52,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: '#2563EB',
-    borderRadius: 12,
-    textAlign: 'center',
-    fontSize: 22,
-    fontWeight: '900',
-    letterSpacing: 8,
-    color: '#0F172A',
-  },
-  otpHintText: {
-    fontSize: 11,
-    color: '#64748B',
-    textAlign: 'center',
-    marginTop: 6,
-  },
-  resendRow: {
-    alignItems: 'center',
-    marginTop: 14,
-  },
-  resendTimerText: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  resendBtnText: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  citizenBox: {
-    backgroundColor: '#F5F3FF',
-    borderRadius: 16,
-    padding: 18,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#DDD6FE',
-    marginBottom: 16,
-  },
-  citizenBoxTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#4338CA',
-    marginBottom: 4,
-  },
-  citizenBoxSub: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 17,
-  },
-  googleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    height: 48,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  googleIconBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#EA4335',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  googleIconText: {
-    color: '#FFFFFF',
-    fontWeight: '900',
-    fontSize: 12,
-  },
-  googleBtnText: {
-    fontSize: 14,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#2563EB',
+    textDecorationLine: 'underline',
   },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 18,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E2E8F0',
-  },
-  dividerText: {
-    fontSize: 10,
-    fontWeight: '800',
+  legalDivider: {
+    fontSize: 12,
     color: '#94A3B8',
-    paddingHorizontal: 10,
-    letterSpacing: 0.5,
-  },
-  guestBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  guestBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  portalActionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-  },
-  portalActionTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#1E293B',
-    marginBottom: 2,
-  },
-  portalActionSub: {
-    fontSize: 11,
-    color: '#64748B',
   },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     backgroundColor: '#FEF2F2',
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: '#FCA5A5',
+    padding: 12,
     borderRadius: 12,
-    padding: 10,
-    marginBottom: 14,
+    marginBottom: 16,
+    gap: 8,
   },
   errorText: {
     flex: 1,
@@ -1459,143 +651,80 @@ const styles = StyleSheet.create({
     color: '#DC2626',
     fontWeight: '600',
   },
+  disclaimerContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 24,
+    paddingHorizontal: 12,
+  },
+  disclaimerText: {
+    flex: 1,
+    fontSize: 10,
+    color: '#64748B',
+    lineHeight: 15,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
   },
-  modalContent: {
+  modalCard: {
     width: '100%',
+    maxWidth: 380,
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 22,
-    shadowColor: '#000',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 25,
-    elevation: 10,
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
   },
   modalHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 18,
-  },
-  modalIconWrap: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: '#EEF2FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '800',
     color: '#0F172A',
-    marginBottom: 4,
   },
-  modalSub: {
+  modalSubtitle: {
     fontSize: 12,
     color: '#64748B',
-    textAlign: 'center',
     lineHeight: 17,
   },
-  modalInputGroup: {
-    marginBottom: 16,
-  },
-  modalInputLabel: {
+  inputLabel: {
     fontSize: 12,
     fontWeight: '700',
     color: '#334155',
     marginBottom: 6,
   },
-  modalPhoneRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  modalInput: {
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#CBD5E1',
     borderRadius: 12,
-    backgroundColor: '#F8FAFC',
-    overflow: 'hidden',
-  },
-  modalFlagBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    backgroundColor: '#F1F5F9',
-    borderRightWidth: 1,
-    borderRightColor: '#E2E8F0',
-  },
-  modalTextInput: {
-    flex: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     fontSize: 14,
     color: '#0F172A',
-    fontWeight: '600',
   },
-  genderRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  genderPill: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+  modalSubmitBtn: {
+    backgroundColor: '#2563EB',
+    paddingVertical: 13,
+    borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  genderPillActive: {
-    backgroundColor: '#EEF2FF',
-    borderColor: '#4F46E5',
-  },
-  genderPillText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  genderPillTextActive: {
-    color: '#4F46E5',
-    fontWeight: '800',
-  },
-  areaPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
-  },
-  areaPillActive: {
-    backgroundColor: '#EEF2FF',
-    borderColor: '#4F46E5',
-  },
-  areaPillText: {
-    fontSize: 12,
-    color: '#475569',
-    fontWeight: '600',
-  },
-  areaPillTextActive: {
-    color: '#4F46E5',
-    fontWeight: '800',
-  },
-  modalSaveBtn: {
-    backgroundColor: '#4F46E5',
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 6,
   },
-  modalSaveBtnText: {
+  modalSubmitBtnText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
   },
 });

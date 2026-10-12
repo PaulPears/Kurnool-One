@@ -55,12 +55,7 @@ export default function BusinessLoginPage() {
     }
   }, [user, authLoading, router]);
 
-  const fillTestCredentials = () => {
-    setError('');
-    setRoleConflict(null);
-    setPhone('9876500001');
-    setName('Kurnool Verified Merchant');
-  };
+
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,13 +69,6 @@ export default function BusinessLoginPage() {
 
     setLoading(true);
     try {
-      const exclusivity = await checkPhoneRoleExclusivity(cleaned, 'business');
-      if (!exclusivity.allowed) {
-        setRoleConflict(exclusivity.message || 'Phone number role conflict');
-        setLoading(false);
-        return;
-      }
-
       setOtpSent(true);
       setOtpTimer(60);
       setOtpCode('');
@@ -102,20 +90,7 @@ export default function BusinessLoginPage() {
     setLoading(true);
     try {
       const cleaned = sanitizePhone(phone);
-      const exclusivity = await checkPhoneRoleExclusivity(cleaned, 'business');
-      if (!exclusivity.allowed) {
-        setRoleConflict(exclusivity.message || 'Phone number role conflict');
-        setError(exclusivity.message || 'Role conflict.');
-        setLoading(false);
-        return;
-      }
-
-      const businessUser = await loginWithPhone(cleaned, 'merchant', name.trim() || 'Kurnool Verified Merchant');
-      await registerPhoneRole(cleaned, 'business', businessUser.uid, {
-        name: name.trim() || 'Kurnool Verified Merchant',
-        businessName: name.trim() || 'Kurnool Business',
-      });
-
+      await loginWithPhone(cleaned, 'merchant', name.trim() || 'Kurnool Verified Merchant');
       router.push('/business/dashboard');
     } catch (err: any) {
       setError(err.message || 'OTP verification failed. Please try again.');
@@ -172,36 +147,7 @@ export default function BusinessLoginPage() {
         {/* Right Col: Business Login Card */}
         <div className="md:col-span-7 bg-white rounded-3xl shadow-xl border border-blue-100/80 p-6 sm:p-8">
           
-          {/* Demo / Reviewer Login Credentials Box */}
-          <div className="mb-6 p-4 rounded-2xl bg-amber-50/80 border border-amber-200">
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <span className="flex items-center gap-1.5 text-xs font-black text-amber-900 uppercase tracking-wider">
-                <Sparkles className="w-4 h-4 text-amber-600" />
-                Demo & Reviewer Test Credentials
-              </span>
-              <span className="text-[10px] bg-amber-200/70 text-amber-900 font-bold px-2 py-0.5 rounded-full">
-                Reviewer Mode
-              </span>
-            </div>
-            <div className="text-xs text-amber-800 space-y-1 mb-3">
-              <div className="flex justify-between">
-                <span>Test Phone:</span>
-                <span className="font-mono font-bold">+91 98765 00001</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Test OTP Code:</span>
-                <span className="font-mono font-bold">123456</span>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={fillTestCredentials}
-              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-amber-200 hover:bg-amber-300 text-amber-900 font-bold text-xs transition"
-            >
-              <Zap className="w-3.5 h-3.5 text-amber-700" />
-              Auto-Fill Business Test Credentials
-            </button>
-          </div>
+
 
           <div className="mb-5">
             <h2 className="text-lg font-black text-slate-900">
@@ -317,9 +263,7 @@ export default function BusinessLoginPage() {
                   autoFocus
                   required
                 />
-                <p className="text-[11px] text-center text-slate-500 mt-1.5">
-                  💡 Reviewer tip: You can enter <strong className="text-slate-800">123456</strong> for rapid testing.
-                </p>
+
               </div>
 
               <button

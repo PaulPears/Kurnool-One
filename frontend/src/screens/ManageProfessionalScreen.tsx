@@ -1,21 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, SafeAreaView, ScrollView, TextInput, TouchableOpacity,
-  Alert, ActivityIndicator, StyleSheet, StatusBar, Linking, Image,
+  Alert, ActivityIndicator, StyleSheet, StatusBar, Linking, Image, Modal,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
 import {
   fetchMyProfessionalProfile,
   updateProfessionalProfile,
+  createBusinessOffer,
+  uploadOfferImage,
   fetchMyLeads,
   ProfessionalItem,
   LeadItem,
 } from '../services/directoryService';
-import { auth } from '../config/firebase';
+import { auth, db } from '../config/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export default function ManageProfessionalScreen({ navigation }: any) {
+export default function ManageProfessionalScreen({ navigation, route }: any) {
   const { language } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfessionalItem | null>(null);
@@ -38,6 +42,13 @@ export default function ManageProfessionalScreen({ navigation }: any) {
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
+  // Offer / Special Deal State
+  const [offerModalVisible, setOfferModalVisible] = useState(false);
+  const [offerTitle, setOfferTitle] = useState('');
+  const [discountTag, setDiscountTag] = useState('FREE INSPECTION');
+  const [validUntil, setValidUntil] = useState('Valid for next 15 days');
+  const [offerImages, setOfferImages] = useState<string[]>([]);
+  const [publishingOffer, setPublishingOffer] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -57,7 +68,23 @@ export default function ManageProfessionalScreen({ navigation }: any) {
         } catch {}
       }
 
-      const p = await fetchMyProfessionalProfile(uid, userPhone);
+      let p: ProfessionalItem | null = null;
+      const targetProId = route?.params?.proId;
+      if (targetProId) {
+        try {
+          const docSnap = await getDoc(doc(db, 'professionals', targetProId));
+          if (docSnap.exists()) {
+            p = { id: docSnap.id, ...docSnap.data() } as ProfessionalItem;
+          }
+        } catch (fetchErr) {
+          console.warn('Direct pro fetch error:', fetchErr);
+        }
+      }
+
+      if (!p) {
+        p = await fetchMyProfessionalProfile(uid, userPhone);
+      }
+
       if (p) {
         setProfile(p);
         setFullName(p.fullName || '');
@@ -138,6 +165,93 @@ export default function ManageProfessionalScreen({ navigation }: any) {
     );
   };
 
+  const handlePickOfferImage = async () => {
+    if (offerImages.length >= 2) {
+      Alert.alert('Limit Reached', 'You can attach up to 2 photos per deal.');
+      return;
+    }
+
+    if (offerImages.length === 1) {
+      Alert.alert(
+        'Add 2nd Photo',
+        '1st photo is 100% Free! You can attach a 2nd photo to highlight service tools, work samples, or discount flyers.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Choose Photo #2',
+            onPress: () => launchOfferPicker(),
+          },
+        ]
+      );
+      return;
+    }
+
+    launchOfferPicker();
+  };
+
+  const launchOfferPicker = async () => {
+    try {
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.75,
+      });
+
+      if (!res.canceled && res.assets?.[0]?.uri) {
+        setOfferImages(prev => [...prev, res.assets[0].uri]);
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Could not pick image');
+    }
+  };
+
+  const handleRemoveOfferImage = (index: number) => {
+    setOfferImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handlePublishOffer = async () => {
+    if (!profile || !offerTitle.trim()) {
+      Alert.alert('Required', 'Please enter a special offer headline');
+      return;
+    }
+
+    setPublishingOffer(true);
+    try {
+      let uploadedUrls: string[] = [];
+      if (offerImages.length > 0) {
+        for (const localUri of offerImages) {
+          const remoteUrl = await uploadOfferImage(localUri);
+          uploadedUrls.push(remoteUrl);
+        }
+      } else if (profile.avatarUrl) {
+        uploadedUrls.push(profile.avatarUrl);
+      }
+
+      await createBusinessOffer({
+        title_en: offerTitle.trim(),
+        description_en: `Special service offer by ${profile.fullName} (${profile.category}). Call to book service.`,
+        discountText: discountTag.trim(),
+        businessId: profile.id,
+        businessName: profile.fullName,
+        validUntil: validUntil.trim(),
+        bannerUrl: uploadedUrls[0] || '',
+        images: uploadedUrls,
+        phone: profile.phone,
+        category: profile.category,
+      });
+
+      Alert.alert('Deal Published!', 'Your service offer is now live on the Offers tab for all citizens in Kurnool.');
+      setOfferTitle('');
+      setOfferImages([]);
+      setOfferModalVisible(false);
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to publish offer');
+    } finally {
+      setPublishingOffer(false);
+    }
+  };
+
   const handleBack = () => {
     if (navigation.canGoBack()) {
       navigation.goBack();
@@ -211,8 +325,8 @@ export default function ManageProfessionalScreen({ navigation }: any) {
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <Text style={styles.analyticsTitle}>Client Inquiries & Reach</Text>
             <View style={styles.verifiedBadge}>
-              <Ionicons name="checkmark-circle" size={14} color="#0D9488" />
-              <Text style={styles.verifiedBadgeText}>Verified Pro</Text>
+              <Ionicons name="sparkles" size={14} color="#0D9488" />
+              <Text style={styles.verifiedBadgeText}>Active Pro</Text>
             </View>
           </View>
 
@@ -312,6 +426,26 @@ export default function ManageProfessionalScreen({ navigation }: any) {
             ))}
           </View>
         )}
+
+        {/* Broadcast Deal / Offer Banner */}
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => setOfferModalVisible(true)}
+          style={styles.offerCtaCard}
+        >
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="flame" size={18} color="#FFFFFF" />
+              <Text style={styles.offerCtaTitle}>Broadcast Special Service Offer</Text>
+            </View>
+            <Text style={styles.offerCtaSub}>
+              Post discounts, seasonal service packages or free inspection to the Offers feed.
+            </Text>
+          </View>
+          <View style={styles.offerCtaBtn}>
+            <Text style={styles.offerCtaBtnText}>Post Deal</Text>
+          </View>
+        </TouchableOpacity>
 
         {/* Pricing Plan Badge */}
         <View style={styles.planBanner}>
@@ -536,6 +670,83 @@ export default function ManageProfessionalScreen({ navigation }: any) {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* ─── OFFER MODAL ────────────────────────────────────────────────── */}
+      <Modal visible={offerModalVisible} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContent}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <Text style={styles.modalTitle}>Post Special Service Offer</Text>
+              <TouchableOpacity onPress={() => setOfferModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#111827" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.label}>Offer Headline *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. Free Inspection on AC Servicing"
+              value={offerTitle}
+              onChangeText={setOfferTitle}
+            />
+
+            <Text style={styles.label}>Discount Tag *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. FREE VISIT or 20% OFF"
+              value={discountTag}
+              onChangeText={setDiscountTag}
+            />
+
+            <Text style={styles.label}>Validity / Expiry *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. Valid until 31st October"
+              value={validUntil}
+              onChangeText={setValidUntil}
+            />
+
+            <Text style={styles.label}>Deal Photos (Up to 2)</Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+              {offerImages.map((uri, idx) => (
+                <View key={idx} style={styles.offerThumbnailWrap}>
+                  <Image source={{ uri }} style={styles.offerThumbnailImg} />
+                  <TouchableOpacity
+                    onPress={() => handleRemoveOfferImage(idx)}
+                    style={styles.removeThumbnailBtn}
+                  >
+                    <Ionicons name="close" size={14} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              {offerImages.length < 2 && (
+                <TouchableOpacity
+                  onPress={handlePickOfferImage}
+                  style={styles.addOfferPhotoBtn}
+                >
+                  <Ionicons name="camera-outline" size={24} color="#0D9488" />
+                  <Text style={[styles.addOfferPhotoText, { color: '#0D9488' }]}>
+                    {offerImages.length === 0 ? '+ Add Photo' : '+ 2nd Photo'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <TouchableOpacity
+              onPress={handlePublishOffer}
+              disabled={publishingOffer}
+              style={[styles.saveBtn, { backgroundColor: '#0D9488', marginTop: 6 }]}
+            >
+              {publishingOffer ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.saveBtnText}>Publish to Offers Tab</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -701,5 +912,80 @@ const styles = StyleSheet.create({
     backgroundColor: '#16A34A',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  offerCtaCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#0D9488',
+    padding: 16,
+    borderRadius: 18,
+    marginBottom: 16,
+    gap: 12,
+  },
+  offerCtaTitle: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
+  offerCtaSub: { fontSize: 11, color: '#CCFBF1', marginTop: 2, lineHeight: 15 },
+  offerCtaBtn: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  offerCtaBtnText: {
+    color: '#0D9488',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: {
+    backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 20, paddingBottom: 40,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: '#111827' },
+  label: { fontSize: 11, fontWeight: '700', color: '#374151', textTransform: 'uppercase', marginBottom: 6 },
+  input: {
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 14, color: '#111827', marginBottom: 14,
+  },
+  offerThumbnailWrap: {
+    width: 76,
+    height: 76,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  offerThumbnailImg: {
+    width: '100%',
+    height: '100%',
+  },
+  removeThumbnailBtn: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addOfferPhotoBtn: {
+    width: 76,
+    height: 76,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#99F6E4',
+    borderStyle: 'dashed',
+    backgroundColor: '#F0FDFA',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addOfferPhotoText: {
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 2,
   },
 });

@@ -126,12 +126,12 @@ function LoginFormContent() {
 
           <Link
             href="/professional/login"
-            className="flex items-center gap-2 p-3 rounded-2xl bg-teal-50 border border-teal-200 hover:bg-teal-100/70 text-teal-800 text-xs font-bold transition text-left"
+            className="flex items-center gap-2 p-3 rounded-2xl bg-blue-50 border border-blue-200 hover:bg-blue-100/70 text-blue-800 text-xs font-bold transition text-left"
           >
-            <UserCheck className="w-4 h-4 text-teal-600 shrink-0" />
+            <UserCheck className="w-4 h-4 text-blue-600 shrink-0" />
             <div>
               <span className="block text-slate-900 font-bold text-xs">Pro Portal</span>
-              <span className="text-[10px] text-teal-600 font-normal">Phone OTP Login →</span>
+              <span className="text-[10px] text-blue-600 font-normal">Phone OTP Login →</span>
             </div>
           </Link>
         </div>

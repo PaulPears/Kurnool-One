@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, SafeAreaView, ScrollView, TextInput, TouchableOpacity,
-  Image, Alert, ActivityIndicator, StyleSheet, StatusBar,
+  Image, Alert, ActivityIndicator, StyleSheet, StatusBar, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -13,6 +13,7 @@ import {
   uploadProfessionalAvatar,
 } from '../services/directoryService';
 import RazorpayModal from '../components/RazorpayModal';
+import BusinessHoursSelector from '../components/BusinessHoursSelector';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
 import {
@@ -66,6 +67,9 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
   };
   const [fullName, setFullName] = useState('');
   const [selectedCatId, setSelectedCatId] = useState(PROFESSIONAL_CATEGORIES[0]?.id || 'influencers_creators');
+  const [customCategory, setCustomCategory] = useState('');
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [catSearch, setCatSearch] = useState('');
   const [experienceYears, setExperienceYears] = useState('3');
   const [serviceAreas, setServiceAreas] = useState('All Kurnool City');
   const [phone, setPhone] = useState('');
@@ -83,38 +87,28 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const selectedCat = PROFESSIONAL_CATEGORIES.find(c => c.id === selectedCatId) || PROFESSIONAL_CATEGORIES[0];
+  // Daily Operating / Working Hours
+  const [operatingHours, setOperatingHours] = useState<any>({
+    monday: { closed: false, open: '09:00 AM', close: '08:00 PM' },
+    tuesday: { closed: false, open: '09:00 AM', close: '08:00 PM' },
+    wednesday: { closed: false, open: '09:00 AM', close: '08:00 PM' },
+    thursday: { closed: false, open: '09:00 AM', close: '08:00 PM' },
+    friday: { closed: false, open: '09:00 AM', close: '08:00 PM' },
+    saturday: { closed: false, open: '09:00 AM', close: '08:00 PM' },
+    sunday: { closed: false, open: '10:00 AM', close: '05:00 PM' },
+  });
 
-  const handleQuickProLogin = async () => {
-    setDemoLoading(true);
-    try {
-      const email = 'pro@kurnoolone.com';
-      const pass = 'Password@123';
-      let userRes: any = null;
-      try {
-        const res = await signInWithEmailAndPassword(auth, email, pass);
-        userRes = res.user;
-      } catch (e: any) {
-        if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password') {
-          const createRes = await createUserWithEmailAndPassword(auth, email, pass);
-          await updateProfile(createRes.user, { displayName: 'Dr. Srinivas Rao' });
-          userRes = createRes.user;
-        } else {
-          throw e;
-        }
-      }
-      if (userRes) {
-        await createOrUpdateUser({
-          ...userRes,
-          displayName: userRes.displayName || 'Dr. Srinivas Rao',
-        });
-      }
-    } catch (err: any) {
-      Alert.alert('Login Error', err.message || 'Failed to sign in demo professional.');
-    } finally {
-      setDemoLoading(false);
-    }
+  const handlePhoneInput = (text: string) => {
+    const cleaned = text.replace(/\D/g, '').slice(0, 10);
+    setPhone(cleaned);
   };
+
+  const handleWhatsappInput = (text: string) => {
+    const cleaned = text.replace(/\D/g, '').slice(0, 10);
+    setWhatsapp(cleaned);
+  };
+
+  const selectedCat = PROFESSIONAL_CATEGORIES.find(c => c.id === selectedCatId) || PROFESSIONAL_CATEGORIES[0];
 
   const handleCategorySelect = (catId: string) => {
     setSelectedCatId(catId);
@@ -189,16 +183,18 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
 
       const effectiveUid = currentUser?.uid || localUser?.uid || localUser?.id || '';
 
-      await registerProfessional({
+      const createdProId = await registerProfessional({
         fullName: fullName.trim(),
-        category: selectedCat.name_en,
-        categoryName_te: selectedCat.name_te,
+        category: selectedCatId === 'other_professionals' && customCategory.trim() ? customCategory.trim() : selectedCat.name_en,
+        categoryName_te: selectedCatId === 'other_professionals' && customCategory.trim() ? customCategory.trim() : selectedCat.name_te,
+        customCategory: selectedCatId === 'other_professionals' ? customCategory.trim() : undefined,
         experienceYears: parseInt(experienceYears, 10) || 1,
         serviceAreas: areasArray.length > 0 ? areasArray : ['All Kurnool'],
         phone: phone.trim(),
         whatsapp: whatsapp.trim() || phone.trim(),
         visitingCharges: visitingCharges.trim(),
         hourlyRate: hourlyRate.trim() || undefined,
+        operatingHours: operatingHours,
         avatarUrl: finalAvatar,
         instagramUrl: instagramUrl.trim() || undefined,
         youtubeUrl: youtubeUrl.trim() || undefined,
@@ -208,7 +204,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
         websiteUrl: websiteUrl.trim() || undefined,
         description: description.trim() || `Professional ${selectedCat.name_en} serving Kurnool.`,
         portfolioPhotos: [],
-        verifiedProfessional: true,
+        verifiedProfessional: false,
         status: 'active',
         userId: effectiveUid,
         planId: selectedPlan,
@@ -238,9 +234,9 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
       Alert.alert(
         language === 'en' ? 'Payment Verified & Profile Published! 🛡️' : 'చెల్లింపు పూర్తయింది & ప్రొఫైల్ ప్రచురించబడింది!',
         language === 'en'
-          ? `Your professional profile (${getPlanDetails().name}) is now live with Verified Pro badge in Kurnool One.`
+          ? `Your professional profile (${getPlanDetails().name}) is now live in Kurnool One.`
           : 'మీ ప్రొఫైల్ ఇప్పుడు కర్నూలు వన్‌లో ప్రత్యక్షంగా ఉంది.',
-        [{ text: 'OK', onPress: () => navigation.replace('ManageProfessional') }]
+        [{ text: 'Open My Dashboard', onPress: () => navigation.replace('ManageProfessional', { proId: createdProId }) }]
       );
     } catch (e: any) {
       Alert.alert('Notice', 'Professional profile registered successfully.');
@@ -345,6 +341,31 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
           ))}
         </View>
 
+        {/* Registration Benefits & Inclusions */}
+        <View style={styles.benefitsBox}>
+          <Text style={styles.benefitsTitle}>🎁 What You Get With Your Professional Listing:</Text>
+          <View style={styles.benefitRow}>
+            <Ionicons name="checkmark-circle" size={15} color="#0D9488" />
+            <Text style={styles.benefitText}>Listed on Kurnool One Directory & Skilled Professionals Search</Text>
+          </View>
+          <View style={styles.benefitRow}>
+            <Ionicons name="checkmark-circle" size={15} color="#0D9488" />
+            <Text style={styles.benefitText}>Direct Customer Phone Calls & WhatsApp leads (0% Commission)</Text>
+          </View>
+          <View style={styles.benefitRow}>
+            <Ionicons name="checkmark-circle" size={15} color="#0D9488" />
+            <Text style={styles.benefitText}>Broadcast 3 Free Push Notifications / day for jobs & availability</Text>
+          </View>
+          <View style={styles.benefitRow}>
+            <Ionicons name="checkmark-circle" size={15} color="#0D9488" />
+            <Text style={styles.benefitText}>Upfront Visiting Charges & Custom Rate card display</Text>
+          </View>
+          <View style={styles.benefitRow}>
+            <Ionicons name="checkmark-circle" size={15} color="#0D9488" />
+            <Text style={styles.benefitText}>Dedicated Professional Dashboard to manage leads & availability</Text>
+          </View>
+        </View>
+
         {/* Avatar Picker & Photo URL */}
         <View style={styles.avatarSection}>
           <TouchableOpacity onPress={pickImage} style={styles.avatarWrap}>
@@ -373,31 +394,46 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
           />
         </View>
 
-        {/* Category Picker */}
+        {/* Category Dropdown Menu */}
         <Text style={styles.label}>
           {language === 'en' ? 'Select Profession / Skill *' : 'వృత్తి / నైపుణ్యాన్ని ఎంచుకోండి *'}
         </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catChipsRow}>
-          {PROFESSIONAL_CATEGORIES.map(cat => (
-            <TouchableOpacity
-              key={cat.id}
-              onPress={() => handleCategorySelect(cat.id)}
-              style={[
-                styles.catChip,
-                selectedCatId === cat.id && styles.catChipActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.catChipText,
-                  selectedCatId === cat.id && styles.catChipTextActive,
-                ]}
-              >
-                {language === 'en' ? cat.name_en : cat.name_te}
+        <TouchableOpacity
+          style={styles.dropdownBtn}
+          onPress={() => setShowCategoryDropdown(true)}
+          activeOpacity={0.8}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+            <View style={[styles.catIconWrap, { backgroundColor: `${selectedCat?.color || '#0D9488'}15` }]}>
+              <Ionicons name={selectedCat?.icon as any || 'briefcase'} size={20} color={selectedCat?.color || '#0D9488'} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.dropdownValue}>
+                {language === 'en' ? selectedCat?.name_en : selectedCat?.name_te}
               </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+              <Text style={{ fontSize: 11, color: '#64748B' }}>Tap to select profession ({PROFESSIONAL_CATEGORIES.length} available)</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-down" size={20} color="#64748B" />
+        </TouchableOpacity>
+
+        {selectedCatId === 'other_professionals' && (
+          <View style={{ marginBottom: 14, backgroundColor: '#EEF2FF', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#6366F1' }}>
+            <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#312E81', marginBottom: 4 }}>
+              {language === 'en' ? 'Type Your Specific Profession / Skill / Specialty *' : 'మీ నిర్దిష్ట వృత్తి లేదా నైపుణ్యాన్ని నమోదు చేయండి *'}
+            </Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: '#FFFFFF', borderColor: '#6366F1', marginBottom: 4 }]}
+              placeholder={language === 'en' ? 'e.g. Wildlife Photographer, Yoga Therapist, Sound Engineer...' : 'ఉదా: యోగా థెరపిస్ట్, సౌండ్ ఇంజనీర్...'}
+              placeholderTextColor="#9CA3AF"
+              value={customCategory}
+              onChangeText={setCustomCategory}
+            />
+            <Text style={{ fontSize: 10, color: '#4338CA' }}>
+              {language === 'en' ? 'Not in list? Enter your specialty to show on your profile.' : 'జాబితాలో లేదా? మీ ప్రత్యేకతను నమోదు చేయండి.'}
+            </Text>
+          </View>
+        )}
 
         {/* Full Name */}
         <Text style={styles.label}>
@@ -483,8 +519,9 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
               placeholder="9848012345"
               placeholderTextColor="#9CA3AF"
               keyboardType="phone-pad"
+              maxLength={10}
               value={phone}
-              onChangeText={setPhone}
+              onChangeText={handlePhoneInput}
             />
           </View>
           <View style={{ flex: 1 }}>
@@ -496,8 +533,9 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
               placeholder="9848012345"
               placeholderTextColor="#9CA3AF"
               keyboardType="phone-pad"
+              maxLength={10}
               value={whatsapp}
-              onChangeText={setWhatsapp}
+              onChangeText={handleWhatsappInput}
             />
           </View>
         </View>
@@ -592,14 +630,23 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
           onChangeText={setDescription}
         />
 
+        {/* Working Hours & Availability */}
+        <Text style={[styles.label, { marginTop: 16, fontWeight: '800', color: '#0F172A' }]}>
+          {language === 'en' ? 'Working Hours & Daily Availability' : 'పని వేళలు & లభ్యత'}
+        </Text>
+        <BusinessHoursSelector
+          value={operatingHours}
+          onChange={setOperatingHours}
+        />
+
         {/* Commercial Advertising & Directory Plan Selection */}
         <Text style={[styles.label, { marginTop: 20, fontWeight: '800', color: '#0F172A', fontSize: 16 }]}>
           {language === 'en' ? 'Choose Professional Plan' : 'ప్రొఫెషనల్ ప్లాన్ ఎంచుకోండి'}
         </Text>
         <Text style={{ fontSize: 12, color: '#64748B', marginBottom: 12, lineHeight: 16 }}>
           {language === 'en'
-            ? 'Official professional listing, verified checkmark, direct client call & WhatsApp inquiry buttons.'
-            : 'అధికారిక ప్రొఫైల్, ధృవీకరించబడిన బ్యాడ్జ్ మరియు కస్టమర్ కాల్స్.'}
+            ? 'Official professional listing, active pro badge, direct client call & WhatsApp inquiry buttons.'
+            : 'అధికారిక ప్రొఫైల్, యాక్టివ్ బ్యాడ్జ్ మరియు కస్టమర్ కాల్స్.'}
         </Text>
 
         <View style={{ gap: 10, marginBottom: 16 }}>
@@ -665,6 +712,64 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
         customerPhone={phone.trim() || '9876500002'}
         customerEmail={currentUser?.email || 'pro@kurnoolone.com'}
       />
+
+      {/* Category Dropdown Modal */}
+      <Modal visible={showCategoryDropdown} transparent animationType="slide" onRequestClose={() => setShowCategoryDropdown(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.categoryModalCard}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="briefcase" size={20} color="#0D9488" />
+                <Text style={styles.modalTitle}>Select Profession / Skill</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowCategoryDropdown(false)}>
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              style={styles.modalSearchInput}
+              placeholder="Search profession (e.g. Electrician, Maid, Painter, Tutor)..."
+              placeholderTextColor="#94A3B8"
+              value={catSearch}
+              onChangeText={setCatSearch}
+            />
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
+              {PROFESSIONAL_CATEGORIES
+                .filter(c =>
+                  !catSearch ||
+                  c.name_en.toLowerCase().includes(catSearch.toLowerCase()) ||
+                  c.name_te.includes(catSearch)
+                )
+                .map(cat => {
+                  const isSelected = selectedCatId === cat.id;
+                  return (
+                    <TouchableOpacity
+                      key={cat.id}
+                      onPress={() => {
+                        handleCategorySelect(cat.id);
+                        setShowCategoryDropdown(false);
+                      }}
+                      style={[styles.catOptionRow, isSelected && styles.catOptionRowActive]}
+                    >
+                      <View style={[styles.catOptionIcon, { backgroundColor: `${cat.color || '#0D9488'}15` }]}>
+                        <Ionicons name={cat.icon as any || 'briefcase'} size={20} color={cat.color || '#0D9488'} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.catOptionTitle, isSelected && { color: '#0D9488', fontWeight: '800' }]}>
+                          {cat.name_en}
+                        </Text>
+                        <Text style={styles.catOptionSub}>{cat.name_te}</Text>
+                      </View>
+                      {isSelected && <Ionicons name="checkmark-circle" size={20} color="#0D9488" />}
+                    </TouchableOpacity>
+                  );
+                })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -854,6 +959,115 @@ const styles = StyleSheet.create({
     marginLeft: 26,
     marginTop: 2,
     fontWeight: '600',
+  },
+  benefitsBox: {
+    backgroundColor: '#F0FDFA',
+    borderWidth: 1.5,
+    borderColor: '#99F6E4',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+    gap: 8,
+  },
+  benefitsTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F766E',
+    marginBottom: 2,
+  },
+  benefitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  benefitText: {
+    fontSize: 12,
+    color: '#134E4A',
+    fontWeight: '600',
+    flex: 1,
+  },
+  dropdownBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  catIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropdownValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  categoryModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  modalSearchInput: {
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 13,
+    color: '#0F172A',
+    marginBottom: 12,
+  },
+  catOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+  },
+  catOptionRowActive: {
+    backgroundColor: '#F0FDFA',
+  },
+  catOptionIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  catOptionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  catOptionSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
   },
 });
 

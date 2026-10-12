@@ -489,9 +489,9 @@ export default function EventsPage() {
 
             <a
               href="/register-professional"
-              className="mt-6 w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2"
+              className="mt-6 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2"
             >
-              <span>Register as Pro / Creator</span>
+              <span>+ Add Professionals</span>
               <ChevronRight className="w-4 h-4" />
             </a>
           </div>

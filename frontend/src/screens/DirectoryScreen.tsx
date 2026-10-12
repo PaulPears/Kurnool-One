@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, SafeAreaView, FlatList, TouchableOpacity,
-  TextInput, Image, ActivityIndicator, StatusBar, Linking, StyleSheet,
+  TextInput, Image, ActivityIndicator, StatusBar, Linking, StyleSheet, Modal, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
@@ -11,16 +11,33 @@ import {
 } from '../services/directoryService';
 
 export default function DirectoryScreen({ route, navigation }: any) {
-  const { initialCategory } = route.params || {};
+  const { initialCategory, initialTab } = route.params || {};
   const { language } = useLanguage();
 
   const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory || 'all');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'businesses' | 'professionals'>('businesses');
+  const [activeTab, setActiveTab] = useState<'businesses' | 'professionals'>(
+    initialTab === 'professionals' ? 'professionals' : 'businesses'
+  );
   const [businesses, setBusinesses] = useState<BusinessItem[]>([]);
   const [professionals, setProfessionals] = useState<ProfessionalItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (route.params?.initialTab === 'professionals') {
+      setActiveTab('professionals');
+    } else if (route.params?.initialTab === 'businesses') {
+      setActiveTab('businesses');
+    }
+  }, [route.params?.initialTab]);
+
+  useEffect(() => {
+    if (route.params?.initialCategory) {
+      setSelectedCategory(route.params.initialCategory);
+    }
+  }, [route.params?.initialCategory]);
 
   useEffect(() => {
     loadData();
@@ -143,6 +160,42 @@ export default function DirectoryScreen({ route, navigation }: any) {
         </TouchableOpacity>
       </View>
 
+      {/* Category Dropdown and Filter Bar */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 10, marginBottom: 4 }}>
+        <TouchableOpacity
+          onPress={() => setShowCategoryModal(true)}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: '#EFF6FF',
+            paddingHorizontal: 12,
+            paddingVertical: 7,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: '#BFDBFE',
+            gap: 6,
+          }}
+        >
+          <Ionicons name="grid-outline" size={14} color="#2563EB" />
+          <Text style={{ fontSize: 12, fontWeight: '700', color: '#1D4ED8' }}>
+            {selectedCategory === 'all'
+              ? (activeTab === 'professionals' ? 'All Professions ▼' : 'All Categories ▼')
+              : ((activeTab === 'professionals'
+                  ? PROFESSIONAL_CATEGORIES.find(c => c.id === selectedCategory)
+                  : MASTER_CATEGORIES.find(c => c.id === selectedCategory))?.name_en || 'Category') + ' ▼'}
+          </Text>
+        </TouchableOpacity>
+
+        {selectedCategory !== 'all' && (
+          <TouchableOpacity
+            onPress={() => setSelectedCategory('all')}
+            style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+          >
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#EF4444' }}>Clear Filter ✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       {/* Category Horizontal Filter (Businesses & Professionals) */}
       <View style={styles.categoryScrollWrap}>
         <FlatList
@@ -157,15 +210,37 @@ export default function DirectoryScreen({ route, navigation }: any) {
           contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, gap: 8 }}
           renderItem={({ item }) => {
             const isSelected = selectedCategory === item.id;
+            const catColor = (item as any).color || '#2563EB';
+            const catBg = (item as any).bgLight || '#EFF6FF';
             return (
               <TouchableOpacity
                 onPress={() => {
                   setSelectedCategory(item.id);
                   setSelectedSubcategory('all');
                 }}
-                style={[styles.categoryChip, isSelected && styles.categoryChipActive]}
+                style={[
+                  styles.categoryChip,
+                  isSelected
+                    ? { backgroundColor: catColor, borderColor: catColor }
+                    : { backgroundColor: catBg, borderColor: `${catColor}30` }
+                ]}
               >
-                <Text style={[styles.categoryChipText, isSelected && styles.categoryChipTextActive]}>
+                {(item as any).icon && item.id !== 'all' ? (
+                  <Ionicons
+                    name={(item as any).icon}
+                    size={13}
+                    color={isSelected ? '#FFFFFF' : catColor}
+                    style={{ marginRight: 5 }}
+                  />
+                ) : null}
+                <Text
+                  style={[
+                    styles.categoryChipText,
+                    isSelected
+                      ? { color: '#FFFFFF', fontWeight: '800' }
+                      : { color: catColor, fontWeight: '700' }
+                  ]}
+                >
                   {language === 'en' ? item.name_en : item.name_te}
                 </Text>
               </TouchableOpacity>
@@ -185,21 +260,23 @@ export default function DirectoryScreen({ route, navigation }: any) {
           keyExtractor={item => item.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() => navigation.navigate('BusinessDetail', { businessId: item.id })}
-              style={styles.bizCard}
-            >
-              {item.images && item.images.length > 0 ? (
-                <Image source={{ uri: item.images[0] }} style={styles.bizImage} resizeMode="cover" />
-              ) : (
-                <View style={[styles.bizImage, { backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' }]}>
-                  <Ionicons name="storefront-outline" size={36} color="#2563EB" />
-                </View>
-              )}
+          renderItem={({ item }) => {
+            const coverUri = item.coverImage || item.bannerUrl || (item.images && item.images.length > 0 ? item.images[0] : null);
+            return (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => navigation.navigate('BusinessDetail', { businessId: item.id })}
+                style={styles.bizCard}
+              >
+                {coverUri ? (
+                  <Image source={{ uri: coverUri }} style={styles.bizImage} resizeMode="cover" />
+                ) : (
+                  <View style={[styles.bizImage, { backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' }]}>
+                    <Ionicons name="storefront-outline" size={36} color="#2563EB" />
+                  </View>
+                )}
 
-              <View style={styles.bizContent}>
+                <View style={styles.bizContent}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Text style={styles.bizTitle} numberOfLines={1}>
                     {language === 'en' ? item.name_en : (item.name_te || item.name_en)}
@@ -210,6 +287,21 @@ export default function DirectoryScreen({ route, navigation }: any) {
                     </View>
                   )}
                 </View>
+
+                {(() => {
+                  const bizCat = MASTER_CATEGORIES.find(c => c.id === item.categoryId);
+                  const catColor = bizCat?.color || '#2563EB';
+                  const catBg = bizCat?.bgLight || '#EFF6FF';
+                  const catIcon = (bizCat?.icon as any) || 'storefront';
+                  return (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: catBg, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-start', marginTop: 4, marginBottom: 4, borderWidth: 1, borderColor: `${catColor}30` }}>
+                      <Ionicons name={catIcon} size={12} color={catColor} />
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: catColor }}>
+                        {language === 'en' ? (bizCat?.name_en || item.customCategory || 'Business') : (bizCat?.name_te || item.customCategory || 'వ్యాపారం')}
+                      </Text>
+                    </View>
+                  );
+                })()}
 
                 <Text style={styles.bizAddress} numberOfLines={1}>
                   <Ionicons name="location-outline" size={13} color="#6B7280" /> {item.address}
@@ -257,7 +349,8 @@ export default function DirectoryScreen({ route, navigation }: any) {
                 </View>
               </View>
             </TouchableOpacity>
-          )}
+            );
+          }}
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
               <Ionicons name="search-outline" size={48} color="#9CA3AF" />
@@ -276,35 +369,44 @@ export default function DirectoryScreen({ route, navigation }: any) {
           keyExtractor={item => item.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() => navigation.navigate('ProfessionalDetail', { pro: item })}
-              style={styles.proCard}
-            >
-              <View style={styles.proHeader}>
-                <View style={styles.proAvatar}>
-                  {item.avatarUrl ? (
-                    <Image source={{ uri: item.avatarUrl }} style={{ width: 44, height: 44, borderRadius: 22 }} />
-                  ) : (
-                    <Text style={styles.proAvatarText}>{item.fullName.charAt(0)}</Text>
-                  )}
-                </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.proName} numberOfLines={1}>{item.fullName}</Text>
-                    {item.verifiedProfessional && (
-                      <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
+          renderItem={({ item }) => {
+            const proCat = PROFESSIONAL_CATEGORIES.find(c => c.id === item.category || c.name_en === item.category);
+            const catColor = proCat?.color || '#0D9488';
+            const catBg = proCat?.bgLight || '#F0FDFA';
+            const catIcon = (proCat?.icon as any) || 'briefcase';
+
+            return (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => navigation.navigate('ProfessionalDetail', { pro: item })}
+                style={styles.proCard}
+              >
+                <View style={styles.proHeader}>
+                  <View style={[styles.proAvatar, { backgroundColor: catBg, borderColor: `${catColor}40` }]}>
+                    {item.avatarUrl ? (
+                      <Image source={{ uri: item.avatarUrl }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+                    ) : (
+                      <Text style={[styles.proAvatarText, { color: catColor }]}>{item.fullName.charAt(0)}</Text>
                     )}
                   </View>
-                  <Text style={styles.proCategory}>
-                    {language === 'en' ? item.category : (item.categoryName_te || item.category)}
-                  </Text>
-                  <Text style={styles.proExp}>
-                    {item.experienceYears} Years Experience • Rating {item.ratingAvg.toFixed(1)} ★
-                  </Text>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={styles.proName} numberOfLines={1}>{item.fullName}</Text>
+                      {item.verifiedProfessional && (
+                        <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
+                      )}
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: catBg, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-start', marginTop: 4, marginBottom: 3, borderWidth: 1, borderColor: `${catColor}30` }}>
+                      <Ionicons name={catIcon} size={12} color={catColor} />
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: catColor }}>
+                        {language === 'en' ? (proCat?.name_en || item.category) : (proCat?.name_te || item.categoryName_te || item.category)}
+                      </Text>
+                    </View>
+                    <Text style={styles.proExp}>
+                      {item.experienceYears} Years Experience • Rating {item.ratingAvg.toFixed(1)} ★
+                    </Text>
+                  </View>
                 </View>
-              </View>
 
               {item.serviceAreas && item.serviceAreas.length > 0 && (
                 <View style={styles.serviceAreasWrap}>
@@ -342,9 +444,128 @@ export default function DirectoryScreen({ route, navigation }: any) {
                 </View>
               </View>
             </TouchableOpacity>
-          )}
-        />
-      )}
+          );
+        }}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <Ionicons name="construct-outline" size={48} color="#9CA3AF" />
+            <Text style={styles.emptyTitle}>
+              {language === 'en' ? 'No professionals found' : 'నిపుణులు కనిపించలేదు'}
+            </Text>
+            <Text style={styles.emptySub}>
+              {language === 'en' ? 'Try searching another category or keyword.' : 'మరొక వర్గాన్ని శోధించండి.'}
+            </Text>
+          </View>
+        }
+      />
+    )}
+
+      {/* Category Dropdown Selection Modal */}
+      <Modal
+        visible={showCategoryModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCategoryModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '80%' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <View>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: '#111827' }}>
+                  {activeTab === 'professionals' ? 'Select Profession' : 'Select Business Category'}
+                </Text>
+                <Text style={{ fontSize: 12, color: '#6B7280' }}>
+                  Filter Kurnool {activeTab === 'professionals' ? 'experts & technicians' : 'commercial shops'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowCategoryModal(false)} style={{ padding: 4 }}>
+                <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Option to view all */}
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedCategory('all');
+                  setShowCategoryModal(false);
+                }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: 12,
+                  paddingHorizontal: 14,
+                  borderRadius: 12,
+                  marginBottom: 6,
+                  backgroundColor: selectedCategory === 'all' ? '#EFF6FF' : '#F9FAFB',
+                  borderWidth: 1,
+                  borderColor: selectedCategory === 'all' ? '#BFDBFE' : '#F3F4F6',
+                }}
+              >
+                <Ionicons name="apps" size={20} color={selectedCategory === 'all' ? '#2563EB' : '#6B7280'} />
+                <Text style={{ marginLeft: 12, fontSize: 14, fontWeight: selectedCategory === 'all' ? '800' : '600', color: selectedCategory === 'all' ? '#1D4ED8' : '#374151', flex: 1 }}>
+                  {activeTab === 'professionals' ? 'All Professionals & Specialists' : 'All Commercial Categories'}
+                </Text>
+                {selectedCategory === 'all' && (
+                  <Ionicons name="checkmark-circle" size={18} color="#2563EB" />
+                )}
+              </TouchableOpacity>
+
+              {(activeTab === 'professionals' ? PROFESSIONAL_CATEGORIES : MASTER_CATEGORIES).map((cat) => {
+                const isSelected = selectedCategory === cat.id;
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    onPress={() => {
+                      setSelectedCategory(cat.id);
+                      setShowCategoryModal(false);
+                    }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingVertical: 12,
+                      paddingHorizontal: 14,
+                      borderRadius: 12,
+                      marginBottom: 6,
+                      backgroundColor: isSelected ? '#EFF6FF' : '#FFFFFF',
+                      borderWidth: 1,
+                      borderColor: isSelected ? '#BFDBFE' : '#F3F4F6',
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
+                        backgroundColor: `${(cat as any).color || '#2563EB'}18`,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Ionicons
+                        name={(cat.icon as any) || 'pricetag'}
+                        size={19}
+                        color={(cat as any).color || '#2563EB'}
+                      />
+                    </View>
+                    <View style={{ marginLeft: 12, flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: isSelected ? '800' : '600', color: isSelected ? '#1D4ED8' : '#1F2937' }}>
+                        {language === 'en' ? cat.name_en : cat.name_te}
+                      </Text>
+                      {cat.name_te && language === 'en' ? (
+                        <Text style={{ fontSize: 11, color: '#9CA3AF' }}>{cat.name_te}</Text>
+                      ) : null}
+                    </View>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={18} color="#2563EB" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

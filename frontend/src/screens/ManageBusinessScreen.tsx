@@ -12,14 +12,16 @@ import {
   createBusinessOffer,
   uploadBusinessLogo,
   uploadBusinessCover,
+  uploadOfferImage,
   fetchMyLeads,
   BusinessItem,
   LeadItem,
 } from '../services/directoryService';
-import { auth } from '../config/firebase';
+import { auth, db } from '../config/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export default function ManageBusinessScreen({ navigation }: any) {
+export default function ManageBusinessScreen({ navigation, route }: any) {
   const { language } = useLanguage();
 
   const [loading, setLoading] = useState(true);
@@ -52,6 +54,7 @@ export default function ManageBusinessScreen({ navigation }: any) {
   const [discountTag, setDiscountTag] = useState('FLAT 20% OFF');
   const [validUntil, setValidUntil] = useState('Valid for next 15 days');
   const [publishingOffer, setPublishingOffer] = useState(false);
+  const [offerImages, setOfferImages] = useState<string[]>([]);
 
   useEffect(() => {
     loadData();
@@ -71,9 +74,27 @@ export default function ManageBusinessScreen({ navigation }: any) {
         } catch {}
       }
 
-      const list = await fetchMyBusinesses(uid, userPhone);
-      if (list && list.length > 0) {
-        const b = list[0];
+      let b: BusinessItem | null = null;
+      const targetBizId = route?.params?.businessId;
+      if (targetBizId) {
+        try {
+          const docSnap = await getDoc(doc(db, 'businesses', targetBizId));
+          if (docSnap.exists()) {
+            b = { id: docSnap.id, ...docSnap.data() } as BusinessItem;
+          }
+        } catch (fetchErr) {
+          console.warn('Direct fetch error:', fetchErr);
+        }
+      }
+
+      if (!b) {
+        const list = await fetchMyBusinesses(uid, userPhone);
+        if (list && list.length > 0) {
+          b = list[0];
+        }
+      }
+
+      if (b) {
         setBusiness(b);
         setPhone(b.phone || '');
         setWhatsapp(b.whatsapp || '');
@@ -184,6 +205,51 @@ export default function ManageBusinessScreen({ navigation }: any) {
     }
   };
 
+  const handlePickOfferImage = async () => {
+    if (offerImages.length >= 2) {
+      Alert.alert('Limit Reached', 'You can attach up to 2 photos per deal.');
+      return;
+    }
+
+    if (offerImages.length === 1) {
+      Alert.alert(
+        'Add 2nd Photo',
+        '1st photo is 100% Free! You can attach a 2nd photo to highlight extra products, menus, or service details.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Choose Photo #2',
+            onPress: () => launchOfferPicker(),
+          },
+        ]
+      );
+      return;
+    }
+
+    launchOfferPicker();
+  };
+
+  const launchOfferPicker = async () => {
+    try {
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.75,
+      });
+
+      if (!res.canceled && res.assets?.[0]?.uri) {
+        setOfferImages(prev => [...prev, res.assets[0].uri]);
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Could not pick image');
+    }
+  };
+
+  const handleRemoveOfferImage = (index: number) => {
+    setOfferImages(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handlePublishOffer = async () => {
     if (!business || !offerTitle.trim()) {
       Alert.alert('Required', 'Please enter an offer headline');
@@ -192,6 +258,16 @@ export default function ManageBusinessScreen({ navigation }: any) {
 
     setPublishingOffer(true);
     try {
+      let uploadedUrls: string[] = [];
+      if (offerImages.length > 0) {
+        for (const localUri of offerImages) {
+          const remoteUrl = await uploadOfferImage(localUri);
+          uploadedUrls.push(remoteUrl);
+        }
+      } else if (business.images && business.images.length > 0) {
+        uploadedUrls.push(business.images[0]);
+      }
+
       await createBusinessOffer({
         title_en: offerTitle.trim(),
         description_en: `Exclusive offer from ${business.name_en}. Call or visit to redeem.`,
@@ -199,13 +275,15 @@ export default function ManageBusinessScreen({ navigation }: any) {
         businessId: business.id,
         businessName: business.name_en,
         validUntil: validUntil.trim(),
-        bannerUrl: business.images?.[0] || '',
+        bannerUrl: uploadedUrls[0] || '',
+        images: uploadedUrls,
         phone: business.phone,
         category: business.categoryId,
       });
 
-      Alert.alert('Offer Published!', 'Your deal is now visible on the Offers & Events tab across Kurnool.');
+      Alert.alert('Offer Published!', 'Your deal is now visible on the Offers tab across Kurnool.');
       setOfferTitle('');
+      setOfferImages([]);
       setOfferModalVisible(false);
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to publish offer');
@@ -310,7 +388,7 @@ export default function ManageBusinessScreen({ navigation }: any) {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
             <View style={styles.tierPill}>
               <Text style={styles.tierPillText}>
-                {business.tier === 'featured' ? '👑 PREMIUM' : business.verificationBadge === 'verified_business' ? '🛡️ VERIFIED' : 'FREE'}
+                {business.tier === 'featured' ? '👑 PREMIUM LISTING' : 'STORE LISTING'}
               </Text>
             </View>
             <Text style={{ fontSize: 11, color: '#DBEAFE', fontWeight: 'bold' }}>365 Days Active</Text>
@@ -653,18 +731,37 @@ export default function ManageBusinessScreen({ navigation }: any) {
               onChangeText={setDiscountTag}
             />
 
-            <Text style={styles.label}>Validity / Expiry *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Valid until 31st October"
-              value={validUntil}
-              onChangeText={setValidUntil}
-            />
+            <Text style={styles.label}>Deal Photos (Up to 2)</Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+              {offerImages.map((uri, idx) => (
+                <View key={idx} style={styles.offerThumbnailWrap}>
+                  <Image source={{ uri }} style={styles.offerThumbnailImg} />
+                  <TouchableOpacity
+                    onPress={() => handleRemoveOfferImage(idx)}
+                    style={styles.removeThumbnailBtn}
+                  >
+                    <Ionicons name="close" size={14} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              {offerImages.length < 2 && (
+                <TouchableOpacity
+                  onPress={handlePickOfferImage}
+                  style={styles.addOfferPhotoBtn}
+                >
+                  <Ionicons name="camera-outline" size={24} color="#2563EB" />
+                  <Text style={styles.addOfferPhotoText}>
+                    {offerImages.length === 0 ? '+ Add Photo' : '+ 2nd Photo'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
 
             <TouchableOpacity
               onPress={handlePublishOffer}
               disabled={publishingOffer}
-              style={[styles.saveBtn, { backgroundColor: '#F59E0B', marginTop: 10 }]}
+              style={[styles.saveBtn, { backgroundColor: '#F59E0B', marginTop: 6 }]}
             >
               {publishingOffer ? (
                 <ActivityIndicator color="#FFFFFF" />
@@ -891,5 +988,46 @@ const styles = StyleSheet.create({
     backgroundColor: '#16A34A',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  offerThumbnailWrap: {
+    width: 76,
+    height: 76,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  offerThumbnailImg: {
+    width: '100%',
+    height: '100%',
+  },
+  removeThumbnailBtn: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addOfferPhotoBtn: {
+    width: 76,
+    height: 76,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#93C5FD',
+    borderStyle: 'dashed',
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addOfferPhotoText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#2563EB',
+    marginTop: 2,
   },
 });

@@ -166,6 +166,19 @@ export default function ExploreScreen({ navigation }: any) {
               </View>
             </View>
           )}
+          ListEmptyComponent={
+            <View style={{ alignItems: 'center', justifyContent: 'center', padding: 40, marginTop: 40 }}>
+              <Ionicons name="compass-outline" size={48} color="#94A3B8" />
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E293B', marginTop: 12 }}>
+                {language === 'en' ? 'No places listed yet' : 'దర్శనీయ స్థలాలు ఇంకా నమోదు కాలేదు'}
+              </Text>
+              <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center', marginTop: 4 }}>
+                {language === 'en'
+                  ? 'Attractions and heritage places added from the Admin Panel will appear here.'
+                  : 'అడ్మిన్ ప్యానెల్ నుండి జోడించబడిన స్థలాలు ఇక్కడ కనిపిస్తాయి.'}
+              </Text>
+            </View>
+          }
         />
       )}
     </SafeAreaView>

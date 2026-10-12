@@ -49,8 +49,15 @@ export default function ContactPage() {
                   </a>
                 </div>
                 <div className="flex items-center gap-2.5">
-                  <Phone className="w-4 h-4 text-blue-600 shrink-0" />
-                  <span className="font-bold">+91 98480 12345 (Mon–Sat, 10 AM – 6 PM)</span>
+                  <Phone className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <a
+                    href="https://wa.me/919440054321?text=Hello%20Kurnool%20One%20Support"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-bold text-emerald-700 hover:underline flex items-center gap-1.5"
+                  >
+                    <span>WhatsApp Helpline (24/7 Desk)</span>
+                  </a>
                 </div>
                 <div className="flex items-center gap-2.5">
                   <MapPin className="w-4 h-4 text-blue-600 shrink-0" />

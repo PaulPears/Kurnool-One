@@ -9,6 +9,7 @@ import {
   fetchBusinessById, fetchBusinessReviews, addBusinessReview, trackBusinessInteraction,
   recordCustomerLead, BusinessItem, BusinessReview,
 } from '../services/directoryService';
+import { MASTER_CATEGORIES } from '../data/masterCategories';
 import { auth } from '../config/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -194,8 +195,12 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         {/* Cover Photo */}
-        {business.images && business.images.length > 0 ? (
-          <Image source={{ uri: business.images[0] }} style={styles.coverImage} resizeMode="cover" />
+        {business.coverImage || business.bannerUrl || (business.images && business.images.length > 0) ? (
+          <Image
+            source={{ uri: business.coverImage || business.bannerUrl || business.images[0] }}
+            style={styles.coverImage}
+            resizeMode="cover"
+          />
         ) : (
           <View style={[styles.coverImage, { backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' }]}>
             <Ionicons name="storefront-outline" size={60} color="#2563EB" />
@@ -205,6 +210,18 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
         <View style={styles.body}>
           {/* Header & Badges */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+            {(() => {
+              const bizCat = MASTER_CATEGORIES.find(c => c.id === business.categoryId);
+              if (!bizCat) return null;
+              return (
+                <View style={[styles.categoryBadge, { backgroundColor: bizCat.bgLight, borderColor: `${bizCat.color}33` }]}>
+                  <Ionicons name={(bizCat.icon as any) || 'storefront'} size={12} color={bizCat.color} />
+                  <Text style={[styles.categoryBadgeText, { color: bizCat.color }]}>
+                    {language === 'en' ? bizCat.name_en : bizCat.name_te}
+                  </Text>
+                </View>
+              );
+            })()}
             {business.verificationBadge === 'verified_business' && (
               <View style={styles.verifiedBadge}>
                 <Ionicons name="shield-checkmark" size={12} color="#15803D" />
@@ -381,6 +398,14 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
               ))
             )}
           </View>
+
+          {/* Third-Party Listing Disclaimer */}
+          <View style={styles.disclaimerBox}>
+            <Ionicons name="information-circle-outline" size={16} color="#64748B" style={{ marginTop: 2 }} />
+            <Text style={styles.disclaimerText}>
+              Disclaimer: Information, services, and rates displayed are provided directly by this independent business. Kurnool One does not endorse, guarantee, or warranty any service quality. Users are advised to verify details independently.
+            </Text>
+          </View>
         </View>
       </ScrollView>
 
@@ -539,4 +564,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   submitReviewText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
+  categoryBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
+    borderWidth: 1,
+  },
+  categoryBadgeText: { fontSize: 11, fontWeight: '700' },
+  disclaimerBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    backgroundColor: '#F8FAFC', borderRadius: 14, padding: 14,
+    marginTop: 10, marginBottom: 20, borderWidth: 1, borderColor: '#E2E8F0',
+  },
+  disclaimerText: { flex: 1, fontSize: 11, color: '#64748B', lineHeight: 16 },
 });

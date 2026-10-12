@@ -75,8 +75,7 @@ const DAYS_OF_WEEK = [
 ] as const;
 
 export default function RegisterBusinessPage() {
-  const { user, loading: authLoading, loginWithGoogle, loginWithDemo } = useAuth();
-  const [demoLoginLoading, setDemoLoginLoading] = useState(false);
+  const { user, loading: authLoading, loginWithGoogle } = useAuth();
 
   // ─── PLAN SELECTION ────────────────────────────────────────────────────────
   const [selectedPlanId, setSelectedPlanId] = useState<'biz_monthly' | 'biz_half_yearly' | 'biz_yearly'>('biz_yearly');
@@ -87,6 +86,7 @@ export default function RegisterBusinessPage() {
   const [slug, setSlug] = useState('');
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [categoryId, setCategoryId] = useState(MASTER_CATEGORIES[0].id);
+  const [customCategory, setCustomCategory] = useState('');
   const [catFilter, setCatFilter] = useState('');
   const [area, setArea] = useState(KURNOOL_AREAS[0]);
   const [tagline, setTagline] = useState('');
@@ -313,6 +313,7 @@ export default function RegisterBusinessPage() {
         name_te: nameTe.trim(),
         slug: slug.trim() || nameEn.toLowerCase().replace(/[^a-z0-9]/g, '-'),
         categoryId,
+        customCategory: categoryId === 'other' ? customCategory.trim() : undefined,
         area,
         tagline: tagline.trim(),
         description_en: description.trim() || `${nameEn} is located in ${area}, Kurnool, offering quality service.`,
@@ -793,6 +794,25 @@ export default function RegisterBusinessPage() {
                 </button>
               ))}
             </div>
+
+            {categoryId === 'other' && (
+              <div className="mt-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-1.5 animate-fadeIn">
+                <label className="block text-xs font-black text-amber-900 uppercase tracking-wider">
+                  Type Your Custom Category / Trade Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Solar Rooftop Solutions, Terracotta Pottery, Handloom Weaving..."
+                  value={customCategory}
+                  onChange={(e) => setCustomCategory(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-amber-300 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+                <p className="text-[11px] text-amber-700 font-medium">
+                  Didn't find your category? Type it manually! Kurnool One admins will review and can feature it as a dedicated category across Kurnool.
+                </p>
+              </div>
+            )}
           </div>
 
           <div>

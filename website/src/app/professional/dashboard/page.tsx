@@ -36,7 +36,7 @@ type ProTab = 'overview' | 'rates' | 'plan';
 
 export default function ProfessionalDashboardPage() {
   const router = useRouter();
-  const { user, loading: authLoading, logout, loginWithDemo } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<ProTab>('overview');
   const [profile, setProfile] = useState<ProfessionalItem | null>(null);
   const [loading, setLoading] = useState(true);

@@ -25,21 +25,24 @@ import {
 } from 'lucide-react';
 import {
   fetchMyBusinesses,
+  fetchMyLeads,
   updateBusinessProfile,
   createBusinessOffer,
   uploadBusinessImage,
   BusinessItem,
+  LeadItem,
 } from '@/services/directoryService';
 import { useAuth } from '@/context/AuthContext';
 
-type PortalTab = 'analytics' | 'edit' | 'offers';
+type PortalTab = 'analytics' | 'leads' | 'edit' | 'offers';
 
 export default function MyBusinessPortalPage() {
-  const { user, loading: authLoading, loginWithGoogle, loginWithDemo } = useAuth();
-  const [demoLoading, setDemoLoading] = useState(false);
+  const { user, loading: authLoading, loginWithGoogle } = useAuth();
   const [activeTab, setActiveTab] = useState<PortalTab>('analytics');
   const [businesses, setBusinesses] = useState<BusinessItem[]>([]);
   const [selectedBiz, setSelectedBiz] = useState<BusinessItem | null>(null);
+  const [leads, setLeads] = useState<LeadItem[]>([]);
+  const [loadingLeads, setLoadingLeads] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Edit form state
@@ -76,7 +79,7 @@ export default function MyBusinessPortalPage() {
       const list = await fetchMyBusinesses(uid);
       setBusinesses(list);
       if (list.length > 0) {
-        selectBusiness(list[0]);
+        selectBusiness(list[0], uid);
       }
     } catch (err) {
       console.error(err);
@@ -85,7 +88,7 @@ export default function MyBusinessPortalPage() {
     }
   };
 
-  const selectBusiness = (biz: BusinessItem) => {
+  const selectBusiness = async (biz: BusinessItem, uid?: string) => {
     setSelectedBiz(biz);
     setPhone(biz.phone || '');
     setWhatsapp(biz.whatsapp || '');
@@ -96,6 +99,18 @@ export default function MyBusinessPortalPage() {
     setGoogleMapsUrl(biz.googleMapsUrl || '');
     setDescription(biz.description_en || '');
     setProfileSuccess(false);
+
+    // Fetch live inquiries for this business
+    try {
+      setLoadingLeads(true);
+      const ownerId = uid || user?.uid;
+      const fetchedLeads = await fetchMyLeads(ownerId, biz.id);
+      setLeads(fetchedLeads);
+    } catch (e) {
+      console.warn('Could not load leads for business:', e);
+    } finally {
+      setLoadingLeads(false);
+    }
   };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -294,7 +309,19 @@ export default function MyBusinessPortalPage() {
           }`}
         >
           <Eye className="w-4 h-4" />
-          <span>Customer Analytics & Leads</span>
+          <span>Analytics Overview</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('leads')}
+          className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-extrabold transition cursor-pointer ${
+            activeTab === 'leads'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Phone className="w-4 h-4" />
+          <span>Customer Leads ({leads.length})</span>
         </button>
 
         <button
@@ -407,7 +434,123 @@ export default function MyBusinessPortalPage() {
         </div>
       )}
 
-      {/* ─── TAB 2: EDIT LISTING & PHOTOS ───────────────────────────────── */}
+      {/* ─── TAB 2: LIVE CUSTOMER INQUIRIES & LEADS ────────────────────── */}
+      {activeTab === 'leads' && (
+        <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-10 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+            <div>
+              <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                <Phone className="w-5 h-5 text-blue-600" />
+                <span>Customer Inquiries & Caller Leads</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Real-time record of citizens in Kurnool who called, sent WhatsApp messages, or inquired about your business.
+              </p>
+            </div>
+            <div className="px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-800 text-xs font-bold self-start sm:self-auto">
+              {leads.length} Total Inquiries Recorded
+            </div>
+          </div>
+
+          {loadingLeads ? (
+            <div className="py-16 text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
+              <p className="text-xs text-slate-500 font-medium">Fetching customer inquiries...</p>
+            </div>
+          ) : leads.length === 0 ? (
+            <div className="py-16 text-center space-y-3">
+              <div className="w-14 h-14 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                <Phone className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-bold text-slate-800">No Inquiries Yet</h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                As citizens discover your business on Kurnool One and tap to call or message you, their verified phone numbers and timestamps will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 text-[11px] font-black uppercase text-slate-500 tracking-wider">
+                    <th className="py-3 px-4">Caller / Citizen</th>
+                    <th className="py-3 px-4">Contact Phone</th>
+                    <th className="py-3 px-4">Action Type</th>
+                    <th className="py-3 px-4">Time</th>
+                    <th className="py-3 px-4 text-right">Quick Response</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {leads.map((lead) => {
+                    const dateStr = lead.createdAt?.seconds
+                      ? new Date(lead.createdAt.seconds * 1000).toLocaleString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : 'Just now';
+                    const callerPhone = lead.citizenPhone || 'Direct App User';
+                    return (
+                      <tr key={lead.id} className="hover:bg-slate-50/80 transition">
+                        <td className="py-3.5 px-4 font-bold text-slate-900">
+                          {lead.citizenName || 'Kurnool Resident'}
+                        </td>
+                        <td className="py-3.5 px-4 font-mono font-semibold text-slate-700">
+                          {callerPhone}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                              lead.actionType === 'call'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : lead.actionType === 'whatsapp'
+                                ? 'bg-green-50 text-green-700 border border-green-200'
+                                : 'bg-blue-50 text-blue-700 border border-blue-200'
+                            }`}
+                          >
+                            {lead.actionType === 'call' ? (
+                              <>
+                                <Phone className="w-3 h-3" />
+                                <span>Direct Call</span>
+                              </>
+                            ) : lead.actionType === 'whatsapp' ? (
+                              <>
+                                <MessageCircle className="w-3 h-3" />
+                                <span>WhatsApp</span>
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="w-3 h-3" />
+                                <span>Catalog View</span>
+                              </>
+                            )}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-500 text-[11px]">
+                          {dateStr}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          {lead.citizenPhone && lead.citizenPhone.length >= 10 ? (
+                            <a
+                              href={`tel:${lead.citizenPhone}`}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] transition shadow-xs"
+                            >
+                              <Phone className="w-3 h-3" />
+                              <span>Call Back</span>
+                            </a>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">In-app inquiry</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
       {activeTab === 'edit' && (
         <form onSubmit={handleSaveProfile} className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-10 shadow-xs space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">

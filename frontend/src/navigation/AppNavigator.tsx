@@ -25,6 +25,7 @@ import ManageBusinessScreen from '../screens/ManageBusinessScreen';
 import RegisterProfessionalScreen from '../screens/RegisterProfessionalScreen';
 import ManageProfessionalScreen from '../screens/ManageProfessionalScreen';
 import SplashScreen from '../screens/SplashScreen';
+import NewsScreen from '../screens/NewsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -105,6 +106,7 @@ export default function AppNavigator() {
         <Stack.Screen name="ManageBusiness" component={ManageBusinessScreen} />
         <Stack.Screen name="RegisterProfessional" component={RegisterProfessionalScreen} />
         <Stack.Screen name="ManageProfessional" component={ManageProfessionalScreen} />
+        <Stack.Screen name="News" component={NewsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

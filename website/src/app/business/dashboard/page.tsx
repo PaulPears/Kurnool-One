@@ -39,7 +39,7 @@ type PortalTab = 'analytics' | 'edit' | 'offers' | 'plan';
 
 export default function BusinessDashboardPage() {
   const router = useRouter();
-  const { user, loading: authLoading, logout, loginWithDemo } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<PortalTab>('analytics');
   const [businesses, setBusinesses] = useState<BusinessItem[]>([]);
   const [selectedBiz, setSelectedBiz] = useState<BusinessItem | null>(null);

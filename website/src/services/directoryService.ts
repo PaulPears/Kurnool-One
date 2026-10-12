@@ -1,5 +1,5 @@
 import {
-  collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, increment, query, where, limit, serverTimestamp,
+  collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, increment, query, where, limit, orderBy, serverTimestamp,
 } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
@@ -11,6 +11,8 @@ export interface CategoryItem {
   name_en: string;
   name_te: string;
   icon: string;
+  color?: string;
+  bgLight?: string;
   subcategories: { id: string; name_en: string; name_te: string }[];
 }
 
@@ -26,6 +28,7 @@ export interface BusinessItem {
   name_te: string;
   slug?: string;
   categoryId: string;
+  customCategory?: string;
   subcategoryId?: string;
   area?: string;
   tagline?: string;
@@ -94,6 +97,7 @@ export interface ProfessionalItem {
   userId?: string;
   fullName: string;
   category: string;
+  customCategory?: string;
   categoryName_te?: string;
   experienceYears: number;
   serviceAreas: string[];
@@ -101,8 +105,12 @@ export interface ProfessionalItem {
   whatsapp?: string;
   hourlyRate?: string;
   visitingCharges?: string;
+  startingPrice?: string;
+  pricingUnit?: string;
   description?: string;
-  portfolioPhotos: string[];
+  about_en?: string;
+  about_te?: string;
+  portfolioPhotos?: string[];
   avatarUrl?: string; // Profile photo/image
   instagramUrl?: string;
   youtubeUrl?: string;
@@ -124,40 +132,40 @@ export interface ProfessionalCategory {
   name_en: string;
   name_te: string;
   icon: string;
+  color: string;
+  bgLight: string;
   placeholderRate?: string;
 }
 
 export const PROFESSIONAL_CATEGORIES: ProfessionalCategory[] = [
-  { id: 'business_owners', name_en: 'Business Owners & Entrepreneurs', name_te: 'వ్యాపారవేత్తలు & వ్యవస్థాపకులు', icon: 'business', placeholderRate: 'Business Consultation' },
-  { id: 'it_software', name_en: 'IT & Software Professionals', name_te: 'ఐటీ & సాఫ్ట్‌వేర్ నిపుణులు', icon: 'laptop', placeholderRate: 'Hourly / Project Rate' },
-  { id: 'doctors_healthcare', name_en: 'Doctors & Healthcare Professionals', name_te: 'వైద్యులు & ఆరోగ్య నిపుణులు', icon: 'medkit', placeholderRate: '₹300 - ₹500 (Consultation)' },
-  { id: 'education_teaching', name_en: 'Education & Teaching', name_te: 'విద్య & ఉపాధ్యాయులు', icon: 'school', placeholderRate: '₹3,000 / month (Tuition)' },
-  { id: 'students', name_en: 'Students', name_te: 'విద్యార్థులు', icon: 'person', placeholderRate: 'Project Intern / Volunteer' },
-  { id: 'job_seekers', name_en: 'Job Seekers', name_te: 'ఉద్యోగార్థులు', icon: 'search', placeholderRate: 'Open to Opportunities' },
-  { id: 'freelancers', name_en: 'Freelancers', name_te: 'ఫ్రీలాన్సర్లు', icon: 'briefcase', placeholderRate: 'Per Project Quote' },
-  { id: 'digital_marketing', name_en: 'Digital Marketing Professionals', name_te: 'డిజిటల్ మార్కెటింగ్ నిపుణులు', icon: 'trending-up', placeholderRate: 'Monthly Retainer' },
-  { id: 'govt_employees', name_en: 'Government Employees', name_te: 'ప్రభుత్వ ఉద్యోగులు', icon: 'shield', placeholderRate: 'Public Guidance' },
-  { id: 'legal_advocates', name_en: 'Legal Professionals', name_te: 'న్యాయవాదులు & చట్ట నిపుణులు', icon: 'document-text', placeholderRate: '₹300 (Legal Consultation)' },
-  { id: 'finance_accounting', name_en: 'Finance & Accounting Professionals', name_te: 'ఆర్థిక & అకౌంటింగ్ నిపుణులు', icon: 'calculator', placeholderRate: 'ITR & GST Filing Rates' },
-  { id: 'real_estate', name_en: 'Real Estate Professionals', name_te: 'రియల్ ఎస్టేట్ నిపుణులు', icon: 'home', placeholderRate: 'Standard Brokerage / Advisory' },
-  { id: 'artists_creators', name_en: 'Artists & Creators', name_te: 'కళాకారులు & సృష్టికర్తలు', icon: 'brush', placeholderRate: 'Custom Art Commission' },
-  { id: 'media_journalism', name_en: 'Media & Journalism', name_te: 'మీడియా & జర్నలిస్టులు', icon: 'mic', placeholderRate: 'News & Press Coverage' },
-  { id: 'beauty_personal_care', name_en: 'Beauty & Personal Care', name_te: 'సౌందర్యం & వ్యక్తిగత సంరక్షణ', icon: 'sparkles', placeholderRate: 'Bridal & Parlour Packages' },
-  { id: 'fitness_sports', name_en: 'Fitness & Sports Professionals', name_te: 'ఫిట్‌నెస్ & క్రీడా నిపుణులు', icon: 'fitness', placeholderRate: '₹2,500 / month (Training)' },
-  { id: 'skilled_technicians', name_en: 'Skilled Professionals & Technicians', name_te: 'నైపుణ్య వృత్తి నిపుణులు & టెక్నీషియన్లు', icon: 'construct', placeholderRate: '₹150 / visit (Electrician, Plumber)' },
-  { id: 'agriculture_farming', name_en: 'Agriculture & Farming', name_te: 'వ్యవసాయం & రైతాంగం', icon: 'leaf', placeholderRate: 'Produce & Agri Consultation' },
-  { id: 'event_professionals', name_en: 'Event Professionals', name_te: 'ఈవెంట్ నిర్వాహకులు & డెకరేటర్లు', icon: 'calendar', placeholderRate: 'Custom Event Quotation' },
-  { id: 'social_workers_ngo', name_en: 'Social Workers & NGO Professionals', name_te: 'సామాజిక కార్యకర్తలు & ఎన్జీఓ', icon: 'heart', placeholderRate: 'Community Service' },
-  { id: 'home_service_providers', name_en: 'Home Service Providers', name_te: 'గృహ సేవా ప్రదాతలు', icon: 'hammer', placeholderRate: '₹150 / visit (Carpentry, Painting)' },
-  { id: 'transportation_drivers', name_en: 'Transportation Professionals', name_te: 'రవాణా & డ్రైవర్లు', icon: 'car', placeholderRate: '₹500 / day or trip' },
-  { id: 'fashion_modeling', name_en: 'Fashion & Modeling', name_te: 'ఫ్యాషన్ & మోడలింగ్', icon: 'shirt', placeholderRate: 'Per Shoot / Show' },
-  { id: 'consultants_mentors', name_en: 'Consultants & Mentors', name_te: 'కన్సల్టెంట్లు & మెంటార్లు', icon: 'bulb', placeholderRate: 'Hourly Advisory' },
-  { id: 'influencers_creators', name_en: 'Influencers & Content Creators', name_te: 'ఇన్‌ఫ్లుయెన్సర్లు & కంటెంట్ క్రియేటర్లు', icon: 'logo-instagram', placeholderRate: '₹1,500 / Reel Collab' },
-  { id: 'startup_founders', name_en: 'Startup Founders', name_te: 'స్టార్టప్ వ్యవస్థాపకులు', icon: 'rocket', placeholderRate: 'Networking / Collab' },
-  { id: 'women_entrepreneurs', name_en: 'Women Entrepreneurs', name_te: 'మహిళా పారిశ్రామికవేత్తలు', icon: 'ribbon', placeholderRate: 'Product / Service Rates' },
-  { id: 'community_leaders', name_en: 'Community Leaders', name_te: 'సమాజ నాయకులు & ప్రముఖులు', icon: 'people', placeholderRate: 'Public Affairs' },
-  { id: 'nri_profiles', name_en: 'NRI Profiles', name_te: 'ప్రవాసాంధ్రులు (NRI ప్రొఫైల్స్)', icon: 'airplane', placeholderRate: 'Kurnool Global Network' },
-  { id: 'other_professionals', name_en: 'Other Professionals', name_te: 'ఇతర వృత్తి నిపుణులు', icon: 'ellipsis-horizontal', placeholderRate: 'As Applicable' },
+  { id: 'influencer', name_en: 'Influencer & Content Creator', name_te: 'ఇన్‌ఫ్లుయెన్సర్లు & కంటెంట్ క్రియేటర్స్', icon: 'videocam', color: '#E11D48', bgLight: '#FFE4E6', placeholderRate: 'Brand Collaboration / Shoot Quote' },
+  { id: 'plumbers', name_en: 'Plumbers', name_te: 'ప్లంబర్లు', icon: 'water', color: '#0284C7', bgLight: '#E0F2FE', placeholderRate: '₹150 - ₹300 (Visit / Work)' },
+  { id: 'electricians', name_en: 'Electricians', name_te: 'ఎలక్ట్రీషియన్లు', icon: 'flash', color: '#D97706', bgLight: '#FEF3C7', placeholderRate: '₹150 - ₹350 (Wiring & Fittings)' },
+  { id: 'carpenters', name_en: 'Carpenters & Wood Work', name_te: 'వడ్రంగులు & వుడ్ వర్కర్స్', icon: 'hammer', color: '#92400E', bgLight: '#FEF3C7', placeholderRate: '₹300 - ₹600 (Furniture / Repair)' },
+  { id: 'painters', name_en: 'House & Wall Painters', name_te: 'పెయింటర్లు & డిస్టెంపర్', icon: 'color-palette', color: '#BE185D', bgLight: '#FCE7F3', placeholderRate: 'Per Sq.Ft / Day Wage' },
+  { id: 'ac_appliance_repair', name_en: 'AC & Refrigerator Technicians', name_te: 'ఏసీ & ఫ్రిడ్జ్ టెక్నీషియన్లు', icon: 'snow', color: '#0891B2', bgLight: '#CFFAFE', placeholderRate: '₹350 - ₹500 (Service / Gas Refill)' },
+  { id: 'appliance_repair', name_en: 'Washing Machine, TV & Appliance Repair', name_te: 'వాషింగ్ మెషీన్, టీవీ & గృహోపకరణాల రిపేర్', icon: 'hardware-chip', color: '#6366F1', bgLight: '#EEF2FF', placeholderRate: '₹250 - ₹400 (Inspection)' },
+  { id: 'auto_mechanics', name_en: 'Two & Four Wheeler Mechanics', name_te: 'టూ & ఫోర్ వీలర్ మెకానిక్స్', icon: 'car-sport', color: '#DC2626', bgLight: '#FEE2E2', placeholderRate: '₹200 - ₹500 (Vehicle Service)' },
+  { id: 'mason_civil', name_en: 'Masons, Tile & Civil Workers', name_te: 'మేస్త్రీలు, టైల్స్ & సివిల్ వర్కర్లు', icon: 'construct', color: '#57534E', bgLight: '#F5F5F4', placeholderRate: 'Daily Wage / Contract' },
+  { id: 'cleaning_housekeeping', name_en: 'House Cleaning & Deep Cleaning', name_te: 'హౌస్ కీపింగ్ & డీప్ క్లీనింగ్', icon: 'sparkles', color: '#059669', bgLight: '#D1FAE5', placeholderRate: '₹1,000 - ₹2,500 (Full Home Clean)' },
+  { id: 'beauticians_makeup', name_en: 'Beauticians & Bridal Makeup Artists', name_te: 'బ్యూటీషియన్లు & బ్రైడల్ మేకప్', icon: 'rose', color: '#E11D48', bgLight: '#FFE4E6', placeholderRate: 'Bridal & Party Packages' },
+  { id: 'tailors_designers', name_en: 'Tailors & Boutique Designers', name_te: 'టైలర్లు & బోటిక్ డిజైనర్లు', icon: 'cut', color: '#7C3AED', bgLight: '#EDE9FE', placeholderRate: 'Stitching & Alteration Rates' },
+  { id: 'photographers_videographers', name_en: 'Photographers & Videographers', name_te: 'ఫోటోగ్రాఫర్లు & వీడియో ఎడిటర్లు', icon: 'camera', color: '#2563EB', bgLight: '#EFF6FF', placeholderRate: 'Event & Wedding Quotes' },
+  { id: 'drivers', name_en: 'Car, Auto & Heavy Drivers', name_te: 'కార్, ఆటో & హెవీ డ్రైవర్లు', icon: 'car', color: '#0D9488', bgLight: '#CCFBF1', placeholderRate: '₹500 - ₹800 / Day' },
+  { id: 'cooks_caterers', name_en: 'Cooks & Catering Chefs', name_te: 'వంట మాస్టర్లు & క్యాటరింగ్', icon: 'restaurant', color: '#EA580C', bgLight: '#FFEDD5', placeholderRate: 'Per Day / Event Rates' },
+  { id: 'home_tutors', name_en: 'Home Tutors & Academic Teachers', name_te: 'హోమ్ ట్యూటర్లు & ఉపాధ్యాయులు', icon: 'book', color: '#4338CA', bgLight: '#E0E7FF', placeholderRate: '₹2,500 - ₹5,000 / Month' },
+  { id: 'doctors_healthcare', name_en: 'Doctors & Health Experts', name_te: 'వైద్యులు & ఆరోగ్య నిపుణులు', icon: 'medkit', color: '#0284C7', bgLight: '#E0F2FE', placeholderRate: '₹300 - ₹500 (Consultation)' },
+  { id: 'advocates_legal', name_en: 'Advocates & Legal Advisors', name_te: 'న్యాయవాదులు & లీగల్ అడ్వైజర్లు', icon: 'scale', color: '#334155', bgLight: '#F1F5F9', placeholderRate: '₹300 - ₹1,000 (Consultation)' },
+  { id: 'ca_tax_accountants', name_en: 'Chartered Accountants & GST Consultants', name_te: 'సీఏ & జీఎస్టీ ఫైలింగ్ నిపుణులు', icon: 'calculator', color: '#047857', bgLight: '#ECFDF5', placeholderRate: 'Tax Filing & Audit Rates' },
+  { id: 'real_estate_agents', name_en: 'Real Estate Agents & Brokers', name_te: 'రియల్ ఎస్టేట్ ఏజెంట్లు & బ్రోకర్లు', icon: 'home', color: '#1D4ED8', bgLight: '#DBEAFE', placeholderRate: 'Standard Advisory / Brokerage' },
+  { id: 'pandits_purohits', name_en: 'Pandits, Purohits & Astrologers', name_te: 'పండితులు, పురోహితులు & జ్యోతిష్యులు', icon: 'flame', color: '#C2410C', bgLight: '#FFEDD5', placeholderRate: 'Pooja & Muhurtham Dakshina' },
+  { id: 'event_decorators', name_en: 'Event Decorators & Sound Lights', name_te: 'డెకరేషన్ & సౌండ్ సిస్టమ్స్', icon: 'balloon', color: '#C026D3', bgLight: '#FAE8FF', placeholderRate: 'Custom Event Quotations' },
+  { id: 'security_guards', name_en: 'Security Guards & Watchmen', name_te: 'సెక్యూరిటీ గార్డులు & సూపర్వైజర్లు', icon: 'shield-checkmark', color: '#1E293B', bgLight: '#F8FAFC', placeholderRate: 'Monthly Guard Charges' },
+  { id: 'it_software', name_en: 'IT & Software Developers', name_te: 'ఐటీ & వెబ్ డిజైనర్లు', icon: 'laptop', color: '#3B82F6', bgLight: '#EFF6FF', placeholderRate: 'Project / Hourly Quote' },
+  { id: 'digital_marketing', name_en: 'Digital Marketers & Social Media', name_te: 'డిజిటల్ మార్కెటింగ్ & సోషల్ మీడియా', icon: 'trending-up', color: '#10B981', bgLight: '#ECFDF5', placeholderRate: 'Monthly Retainers' },
+  { id: 'fitness_gym_trainers', name_en: 'Gym Trainers & Yoga Gurus', name_te: 'ఫిట్‌నెస్ ట్రైనర్లు & యోగా గురువులు', icon: 'fitness', color: '#E11D48', bgLight: '#FFE4E6', placeholderRate: '₹2,000 - ₹4,000 / Month' },
+  { id: 'delivery_couriers', name_en: 'Delivery Partners & Couriers', name_te: 'డెలివరీ బాయ్స్ & కొరియర్ సర్వీసెస్', icon: 'bicycle', color: '#D97706', bgLight: '#FEF3C7', placeholderRate: 'Per Parcel / Day' },
+  { id: 'other_professionals', name_en: 'Other Specialized Professionals', name_te: 'ఇతర నైపుణ్య వృత్తి నిపుణులు', icon: 'ellipsis-horizontal-circle', color: '#64748B', bgLight: '#F1F5F9', placeholderRate: 'As Applicable' },
 ];
 
 export interface PlaceItem {
@@ -171,10 +179,29 @@ export interface PlaceItem {
   timings: string;
   entryFee?: string;
   bestTimeToVisit?: string;
+  dressCodeRules?: string;
   photos: string[];
   latitude?: number;
   longitude?: number;
   isPromoted: boolean;
+}
+
+export interface LeadItem {
+  id: string;
+  businessId?: string;
+  businessName?: string;
+  professionalId?: string;
+  professionalName?: string;
+  citizenName?: string;
+  citizenPhone?: string;
+  citizenId?: string;
+  citizenArea?: string;
+  targetId?: string;
+  targetName?: string;
+  targetType?: 'business' | 'professional' | string;
+  actionType?: 'call' | 'whatsapp' | 'inquiry' | 'quote' | 'view';
+  notes?: string;
+  createdAt?: any;
 }
 
 export interface OfferItem {
@@ -786,54 +813,9 @@ export const SEED_BUSINESSES: BusinessItem[] = [];
 
 export const SEED_PROFESSIONALS: ProfessionalItem[] = [];
 
-export const SEED_PLACES: PlaceItem[] = [
-  {
-    id: 'place_1',
-    type: 'landmark',
-    name_en: 'Konda Reddy Buruju (Fort)',
-    name_te: 'కొండారెడ్డి బురుజు',
-    description_en: 'The historic military bastion in the heart of Kurnool, built during Vijayanagara empire. A prominent symbol and pride of Kurnool city.',
-    description_te: 'కర్నూలు నగర నడిబొడ్డున ఉన్న చారిత్రక కట్టడం మరియు కర్నూలు ముఖ్యమైన గుర్తింపు.',
-    address: 'Old City, Kurnool, Andhra Pradesh 518001',
-    timings: '09:00 AM - 06:00 PM (Everyday)',
-    entryFee: '₹10 per person',
-    bestTimeToVisit: 'Morning & Evening Sunset',
-    photos: ['https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?w=800'],
-    latitude: 15.8281,
-    longitude: 78.0373,
-    isPromoted: true,
-  },
-  {
-    id: 'place_2',
-    type: 'tourist',
-    name_en: 'Orvakal Rock Garden',
-    name_te: 'ఓర్వకల్లు రాక్ గార్డెన్',
-    description_en: 'Spectacular natural 3 billion-year-old silica and quartz rock formations surrounding a natural water reservoir. 20 km from Kurnool.',
-    description_te: 'సహజసిద్ధమైన రాతి ఆకారాలు మరియు సుందరమైన ప్రకృతి సరస్సుతో కూడిన విహార ప్రదేశం.',
-    address: 'NH 40, Near Orvakal Village, Kurnool District',
-    timings: '08:00 AM - 06:30 PM',
-    entryFee: '₹20 (Adults), ₹10 (Children)',
-    bestTimeToVisit: 'Winter & Monsoon seasons',
-    photos: ['https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800'],
-    latitude: 15.6983,
-    longitude: 78.2238,
-    isPromoted: true,
-  },
-  {
-    id: 'place_3',
-    type: 'temple',
-    name_en: 'Ahobilam Narasimha Swamy Temple',
-    name_te: 'అహోబిలం నరసింహ స్వామి ఆలయం',
-    description_en: 'Sacred pilgrimage hill shrine with nine forms of Lord Narasimha (Nava Narasimha) nestled in the lush Nallamala forest hills.',
-    description_te: 'నవ నరసింహ క్షేత్రం, ప్రసిద్ధ పుణ్యక్షేత్రం.',
-    address: 'Allagadda, Kurnool District',
-    timings: '06:00 AM - 08:30 PM',
-    photos: ['https://images.unsplash.com/photo-1544717305-2782549b5136?w=800'],
-    latitude: 15.1378,
-    longitude: 78.7188,
-    isPromoted: false,
-  },
-];
+export const SEED_PLACES: PlaceItem[] = [];
+
+export const SEED_WORSHIP_PLACES: PlaceItem[] = [];
 
 export const SEED_OFFERS: OfferItem[] = [];
 
@@ -1346,3 +1328,64 @@ export const registerEvent = async (data: Partial<EventItem>): Promise<string> =
 };
 
 
+
+// ─── LEADS & CATEGORY ADMIN APIS ─────────────────────────────────────────────
+
+export const fetchPlatformLeads = async (maxCount = 100): Promise<LeadItem[]> => {
+  try {
+    const q = query(collection(db, 'leads'), orderBy('createdAt', 'desc'), limit(maxCount));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as LeadItem));
+  } catch (err) {
+    console.error('fetchPlatformLeads error:', err);
+    return [];
+  }
+};
+
+export const fetchMyLeads = async (ownerId?: string, businessId?: string): Promise<LeadItem[]> => {
+  try {
+    const coll = collection(db, 'leads');
+    let q;
+    if (businessId) {
+      q = query(coll, where('businessId', '==', businessId), limit(100));
+    } else if (ownerId) {
+      q = query(coll, where('ownerId', '==', ownerId), limit(100));
+    } else {
+      return [];
+    }
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as LeadItem));
+  } catch (err) {
+    console.error('fetchMyLeads error:', err);
+    return [];
+  }
+};
+
+export const syncMasterCategoriesToFirestore = async (): Promise<{ count: number }> => {
+  let count = 0;
+  try {
+    for (const cat of MASTER_CATEGORIES) {
+      await setDoc(doc(db, 'categories', cat.id), cat, { merge: true });
+      count++;
+    }
+  } catch (err) {
+    console.error('syncMasterCategoriesToFirestore error:', err);
+  }
+  return { count };
+};
+
+export const saveCategoryToFirestore = async (category: Partial<CategoryItem> & { id: string }): Promise<void> => {
+  try {
+    await setDoc(doc(db, 'categories', category.id), category, { merge: true });
+  } catch (err) {
+    console.error('saveCategoryToFirestore error:', err);
+  }
+};
+
+export const deleteCategoryFromFirestore = async (categoryId: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, 'categories', categoryId));
+  } catch (err) {
+    console.error('deleteCategoryFromFirestore error:', err);
+  }
+};

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, SafeAreaView, ScrollView, TextInput, TouchableOpacity,
-  Image, Alert, ActivityIndicator, StyleSheet, StatusBar,
+  Image, Alert, ActivityIndicator, StyleSheet, StatusBar, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -14,6 +14,7 @@ import {
   uploadBusinessCover
 } from '../services/directoryService';
 import RazorpayModal from '../components/RazorpayModal';
+import BusinessHoursSelector from '../components/BusinessHoursSelector';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
 import {
@@ -67,6 +68,7 @@ export default function RegisterBusinessScreen({ navigation }: any) {
   const [nameEn, setNameEn] = useState('');
   const [nameTe, setNameTe] = useState('');
   const [categoryId, setCategoryId] = useState(MASTER_CATEGORIES[0]?.id || 'restaurants');
+  const [customCategory, setCustomCategory] = useState('');
   const [catSearch, setCatSearch] = useState('');
   const [phone, setPhone] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
@@ -95,6 +97,19 @@ export default function RegisterBusinessScreen({ navigation }: any) {
     saturday: { closed: false, open: '09:00 AM', close: '09:00 PM' },
     sunday: { closed: false, open: '10:00 AM', close: '08:00 PM' },
   });
+
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const currentCategory = MASTER_CATEGORIES.find(c => c.id === categoryId) || MASTER_CATEGORIES[0];
+
+  const handlePhoneInput = (text: string) => {
+    const cleaned = text.replace(/\D/g, '').slice(0, 10);
+    setPhone(cleaned);
+  };
+
+  const handleWhatsappInput = (text: string) => {
+    const cleaned = text.replace(/\D/g, '').slice(0, 10);
+    setWhatsapp(cleaned);
+  };
 
   const pickLogo = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({
@@ -129,6 +144,20 @@ export default function RegisterBusinessScreen({ navigation }: any) {
     if (!nameEn.trim() || !phone.trim() || !address.trim()) {
       Alert.alert('Required Fields', 'Please provide Business Name, Phone Number, and Address.');
       return;
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 10 || !/^[6-9]\d{9}$/.test(cleanPhone)) {
+      Alert.alert('Invalid Mobile Number', 'Please enter a valid 10-digit Indian mobile number (e.g. 9848012345) starting with 6, 7, 8, or 9.');
+      return;
+    }
+
+    if (whatsapp.trim()) {
+      const cleanWa = whatsapp.replace(/\D/g, '');
+      if (cleanWa.length !== 10 || !/^[6-9]\d{9}$/.test(cleanWa)) {
+        Alert.alert('Invalid WhatsApp Number', 'Please enter a valid 10-digit WhatsApp number.');
+        return;
+      }
     }
 
     setShowRazorpayModal(true);
@@ -170,10 +199,11 @@ export default function RegisterBusinessScreen({ navigation }: any) {
 
       const effectiveUid = currentUser?.uid || localUser?.uid || localUser?.id || '';
 
-      await registerBusiness({
+      const createdBizId = await registerBusiness({
         name_en: nameEn.trim(),
         name_te: nameTe.trim() || nameEn.trim(),
         categoryId,
+        customCategory: categoryId === 'other' ? customCategory.trim() : undefined,
         subcategoryId: 'general',
         phone: phone.trim(),
         whatsapp: whatsapp.trim() || phone.trim(),
@@ -189,7 +219,7 @@ export default function RegisterBusinessScreen({ navigation }: any) {
         bannerUrl: uploadedCoverUrl || undefined,
         images: uploadedCoverUrl ? [uploadedCoverUrl] : uploadedLogoUrl ? [uploadedLogoUrl] : [],
         thumbnailUrl: uploadedCoverUrl || uploadedLogoUrl || undefined,
-        amenities: ['UPI Accepted', 'Verified Merchant'],
+        amenities: ['UPI Accepted'],
         socialLinks: {
           facebook: facebook.trim() || undefined,
           instagram: instagram.trim() || undefined,
@@ -201,8 +231,8 @@ export default function RegisterBusinessScreen({ navigation }: any) {
         paymentStatus: 'paid',
         paymentId: paymentData.razorpay_payment_id || `pay_${Date.now()}`,
         tier: 'featured',
-        verificationBadge: 'verified_business',
-        claimStatus: 'verified',
+        verificationBadge: 'none',
+        claimStatus: 'claimed',
         ownerUid: effectiveUid,
         operatingHours,
       });
@@ -229,8 +259,8 @@ export default function RegisterBusinessScreen({ navigation }: any) {
 
       Alert.alert(
         'Payment Verified & Business Published! 🛡️',
-        `Your business listing (${getPlanDetails().name}) has been activated with the Verified Blue Tick badge.`,
-        [{ text: 'Open My Dashboard', onPress: () => navigation.replace('ManageBusiness') }]
+        `Your business listing (${getPlanDetails().name}) is now live on Kurnool One.`,
+        [{ text: 'Open My Dashboard', onPress: () => navigation.replace('ManageBusiness', { businessId: createdBizId }) }]
       );
     } catch (e: any) {
       Alert.alert('Registration Complete', 'Business listing registered successfully!');
@@ -332,6 +362,31 @@ export default function RegisterBusinessScreen({ navigation }: any) {
           ))}
         </View>
 
+        {/* Registration Benefits & Inclusions */}
+        <View style={styles.benefitsBox}>
+          <Text style={styles.benefitsTitle}>🎁 What You Get With Your Registration:</Text>
+          <View style={styles.benefitRow}>
+            <Ionicons name="checkmark-circle" size={15} color="#16A34A" />
+            <Text style={styles.benefitText}>Listed on Kurnool One Directory & City-Wide Search</Text>
+          </View>
+          <View style={styles.benefitRow}>
+            <Ionicons name="checkmark-circle" size={15} color="#16A34A" />
+            <Text style={styles.benefitText}>Direct Customer Phone Calls & WhatsApp leads (0% Commission)</Text>
+          </View>
+          <View style={styles.benefitRow}>
+            <Ionicons name="checkmark-circle" size={15} color="#16A34A" />
+            <Text style={styles.benefitText}>Broadcast 5 Free Push Notifications / day for deals & offers</Text>
+          </View>
+          <View style={styles.benefitRow}>
+            <Ionicons name="checkmark-circle" size={15} color="#16A34A" />
+            <Text style={styles.benefitText}>Store Timings, Google Maps Directions & Photo Showcase</Text>
+          </View>
+          <View style={styles.benefitRow}>
+            <Ionicons name="checkmark-circle" size={15} color="#16A34A" />
+            <Text style={styles.benefitText}>Dedicated Merchant Dashboard to update offers & track leads</Text>
+          </View>
+        </View>
+
         {/* Form Fields */}
         <Text style={styles.label}>Business / Service Name (English) *</Text>
         <TextInput
@@ -351,61 +406,65 @@ export default function RegisterBusinessScreen({ navigation }: any) {
           onChangeText={setNameTe}
         />
 
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-          <Text style={styles.label}>Category *</Text>
-          <Text style={{ fontSize: 11, color: '#2563EB', fontWeight: 'bold' }}>
-            {MASTER_CATEGORIES.find(c => c.id === categoryId)?.name_en}
-          </Text>
-        </View>
-
-        <TextInput
-          style={[styles.input, { height: 42, fontSize: 13, marginBottom: 8 }]}
-          placeholder="Filter categories (e.g. Restaurant, Hotel, Clinic, Jewellery)..."
-          placeholderTextColor="#9CA3AF"
-          value={catSearch}
-          onChangeText={setCatSearch}
-        />
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {MASTER_CATEGORIES
-              .filter(c =>
-                !catSearch ||
-                c.name_en.toLowerCase().includes(catSearch.toLowerCase()) ||
-                c.name_te.includes(catSearch)
-              )
-              .map(cat => (
-                <TouchableOpacity
-                  key={cat.id}
-                  onPress={() => setCategoryId(cat.id)}
-                  style={[styles.catPill, categoryId === cat.id && styles.catPillActive]}
-                >
-                  <Text style={[styles.catPillText, categoryId === cat.id && styles.catPillTextActive]}>
-                    {language === 'en' ? cat.name_en : cat.name_te}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+        {/* Category Dropdown Menu */}
+        <Text style={styles.label}>Business Category *</Text>
+        <TouchableOpacity
+          style={styles.dropdownBtn}
+          onPress={() => setShowCategoryDropdown(true)}
+          activeOpacity={0.8}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+            <View style={[styles.catIconWrap, { backgroundColor: `${currentCategory?.color || '#2563EB'}15` }]}>
+              <Ionicons name={currentCategory?.icon as any || 'storefront'} size={20} color={currentCategory?.color || '#2563EB'} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.dropdownValue}>
+                {language === 'en' ? currentCategory?.name_en : currentCategory?.name_te}
+              </Text>
+              <Text style={{ fontSize: 11, color: '#64748B' }}>Tap to change category ({MASTER_CATEGORIES.length} available)</Text>
+            </View>
           </View>
-        </ScrollView>
+          <Ionicons name="chevron-down" size={20} color="#64748B" />
+        </TouchableOpacity>
+
+        {categoryId === 'other_businesses' && (
+          <View style={{ marginBottom: 14, backgroundColor: '#FEF3C7', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#F59E0B' }}>
+            <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#92400E', marginBottom: 4 }}>
+              {language === 'en' ? 'Type Your Custom Category / Trade Name *' : 'మీ నిర్దిష్ట వర్గం / వ్యాపార రకం నమోదు చేయండి *'}
+            </Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: '#FFFFFF', borderColor: '#F59E0B', marginBottom: 4 }]}
+              placeholder={language === 'en' ? 'e.g. Solar Solutions, Terracotta Pottery...' : 'ఉదా: సోలార్, కుండల తయారీ...'}
+              placeholderTextColor="#9CA3AF"
+              value={customCategory}
+              onChangeText={setCustomCategory}
+            />
+            <Text style={{ fontSize: 10, color: '#B45309' }}>
+              {language === 'en' ? 'Admins will review and feature it across Kurnool One.' : 'అడ్మిన్లు సమీక్షించి దీన్ని ప్రత్యేక వర్గంగా జోడిస్తారు.'}
+            </Text>
+          </View>
+        )}
 
         <Text style={styles.label}>Phone Number (For Customer Calls) *</Text>
         <TextInput
           style={styles.input}
-          placeholder="e.g. 9848012345"
+          placeholder="e.g. 9848012345 (10 digits)"
           placeholderTextColor="#9CA3AF"
           keyboardType="phone-pad"
+          maxLength={10}
           value={phone}
-          onChangeText={setPhone}
+          onChangeText={handlePhoneInput}
         />
 
         <Text style={styles.label}>WhatsApp Number</Text>
         <TextInput
           style={styles.input}
-          placeholder="e.g. 9848012345"
+          placeholder="e.g. 9848012345 (10 digits)"
           placeholderTextColor="#9CA3AF"
           keyboardType="phone-pad"
+          maxLength={10}
           value={whatsapp}
-          onChangeText={setWhatsapp}
+          onChangeText={handleWhatsappInput}
         />
 
         <Text style={styles.label}>Full Address (Street / Area / Kurnool) *</Text>
@@ -448,14 +507,14 @@ export default function RegisterBusinessScreen({ navigation }: any) {
           onChangeText={setGoogleMapsUrl}
         />
 
-        {/* Operating Hours */}
-        <Text style={styles.label}>Business Hours (Monday – Sunday)</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. Monday to Saturday 09:30 AM - 09:00 PM, Sunday 10:00 AM - 02:00 PM"
-          placeholderTextColor="#9CA3AF"
-          value={timing}
-          onChangeText={setTiming}
+        {/* Operating Hours Selector */}
+        <BusinessHoursSelector
+          value={operatingHours}
+          onChange={(newSched, summary) => {
+            setOperatingHours(newSched);
+            setTiming(summary);
+          }}
+          title="Store / Business Hours"
         />
 
         {/* Social Media & Online Links (All Optional) */}
@@ -627,6 +686,64 @@ export default function RegisterBusinessScreen({ navigation }: any) {
         customerPhone={phone.trim() || '9876500001'}
         customerEmail={currentUser?.email || 'merchant@kurnoolone.com'}
       />
+
+      {/* Category Dropdown Modal */}
+      <Modal visible={showCategoryDropdown} transparent animationType="slide" onRequestClose={() => setShowCategoryDropdown(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.categoryModalCard}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="grid" size={20} color="#2563EB" />
+                <Text style={styles.modalTitle}>Select Business Category</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowCategoryDropdown(false)}>
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              style={styles.modalSearchInput}
+              placeholder="Search category (e.g. Restaurant, Hotel, Hospital, Cloth)..."
+              placeholderTextColor="#94A3B8"
+              value={catSearch}
+              onChangeText={setCatSearch}
+            />
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
+              {MASTER_CATEGORIES
+                .filter(c =>
+                  !catSearch ||
+                  c.name_en.toLowerCase().includes(catSearch.toLowerCase()) ||
+                  c.name_te.includes(catSearch)
+                )
+                .map(cat => {
+                  const isSelected = categoryId === cat.id;
+                  return (
+                    <TouchableOpacity
+                      key={cat.id}
+                      onPress={() => {
+                        setCategoryId(cat.id);
+                        setShowCategoryDropdown(false);
+                      }}
+                      style={[styles.catOptionRow, isSelected && styles.catOptionRowActive]}
+                    >
+                      <View style={[styles.catOptionIcon, { backgroundColor: `${cat.color || '#2563EB'}15` }]}>
+                        <Ionicons name={cat.icon as any || 'storefront'} size={20} color={cat.color || '#2563EB'} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.catOptionTitle, isSelected && { color: '#2563EB', fontWeight: '800' }]}>
+                          {cat.name_en}
+                        </Text>
+                        <Text style={styles.catOptionSub}>{cat.name_te}</Text>
+                      </View>
+                      {isSelected && <Ionicons name="checkmark-circle" size={20} color="#2563EB" />}
+                    </TouchableOpacity>
+                  );
+                })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -842,6 +959,119 @@ const styles = StyleSheet.create({
     marginLeft: 26,
     marginTop: 2,
     fontWeight: '600',
+  },
+  benefitsBox: {
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+    gap: 8,
+  },
+  benefitsTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#166534',
+    marginBottom: 4,
+  },
+  benefitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  benefitText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#15803D',
+    flex: 1,
+  },
+  dropdownBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+  },
+  catIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropdownValue: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'flex-end',
+  },
+  categoryModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: '85%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  modalSearchInput: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 13,
+    color: '#0F172A',
+    marginBottom: 12,
+  },
+  catOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  catOptionRowActive: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 12,
+  },
+  catOptionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  catOptionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  catOptionSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
   },
 });
 

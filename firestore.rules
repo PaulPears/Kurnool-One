@@ -160,5 +160,16 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+
+    // City news
+    match /news/{newsId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Admin access grants audit log
+    match /admin_access_grants/{grantId} {
+      allow read, write: if isAdmin();
+    }
   }
 }

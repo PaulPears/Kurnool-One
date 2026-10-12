@@ -2,18 +2,20 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, SafeAreaView, ScrollView, TouchableOpacity,
   FlatList, ActivityIndicator, Alert, RefreshControl, Image, Linking,
+  Modal, TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getAdminStats, fetchPendingPromotions, fetchFeedPosts,
   updatePostStatus, deletePost, fetchReportedPosts, dismissPostReports,
-  fetchAllUsers, banUser, changeUserRole
+  fetchAllUsers, banUser, changeUserRole, grantRoleWithAudit,
 } from '../services/firestoreService';
+import { fetchNews, createNews, deleteNews, NewsItem } from '../services/directoryService';
 import { auth, db } from '../config/firebase';
-import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc, doc, orderBy, limit } from 'firebase/firestore';
 
-type Tab = 'overview' | 'businesses' | 'promotions' | 'posts' | 'reports' | 'banners' | 'users';
+type Tab = 'overview' | 'businesses' | 'promotions' | 'posts' | 'reports' | 'banners' | 'users' | 'news' | 'grants';
 
 export default function AdminDashboardScreen({ navigation }: any) {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -55,6 +57,12 @@ export default function AdminDashboardScreen({ navigation }: any) {
         setData(res);
       } else if (activeTab === 'banners') {
         setData([]);
+      } else if (activeTab === 'news') {
+        const res = await fetchNews();
+        setData(res);
+      } else if (activeTab === 'grants') {
+        const snap = await getDocs(query(collection(db, 'admin_access_grants'), orderBy('createdAt', 'desc'), limit(50)));
+        setData(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       }
     } catch (err) {
       console.error(err);
@@ -132,9 +140,9 @@ export default function AdminDashboardScreen({ navigation }: any) {
         </Text>
         <TouchableOpacity
           style={{ backgroundColor: '#2563EB', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
-          onPress={() => navigation.navigate('CreatePost', { isPromotionMode: true })}
+          onPress={() => setActiveTab('news')}
         >
-          <Text style={{ color: 'white', fontWeight: 'bold' }}>Send Announcement</Text>
+          <Text style={{ color: 'white', fontWeight: 'bold' }}>Manage News & Announcements</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -273,6 +281,143 @@ export default function AdminDashboardScreen({ navigation }: any) {
     );
   };
 
+  const handleGrantRole = (user: any) => {
+    Alert.alert(
+      `Role Access: ${user.name || 'User'}`,
+      `Current Role: ${user.role || 'user'}\nSelect new account role:`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Citizen (Reset to User)',
+          onPress: async () => {
+            try {
+              await grantRoleWithAudit(
+                user.id,
+                'user',
+                auth.currentUser?.uid || 'admin',
+                auth.currentUser?.email || '',
+                'Reset to Citizen'
+              );
+              Alert.alert('Success', 'User set to Citizen');
+              fetchData();
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Failed to update role');
+            }
+          },
+        },
+        {
+          text: '🏢 Business Merchant',
+          onPress: async () => {
+            try {
+              await grantRoleWithAudit(
+                user.id,
+                'business',
+                auth.currentUser?.uid || 'admin',
+                auth.currentUser?.email || '',
+                'Admin granted Business Merchant access'
+              );
+              Alert.alert('Success', 'Business access granted to user');
+              fetchData();
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Failed to grant business access');
+            }
+          },
+        },
+        {
+          text: '🛠️ Service Professional',
+          onPress: async () => {
+            try {
+              await grantRoleWithAudit(
+                user.id,
+                'professional',
+                auth.currentUser?.uid || 'admin',
+                auth.currentUser?.email || '',
+                'Admin granted Professional access'
+              );
+              Alert.alert('Success', 'Professional access granted to user');
+              fetchData();
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Failed to grant professional access');
+            }
+          },
+        },
+        ...(currentUserRole === 'super_admin' ? [{
+          text: '👑 Admin Role',
+          onPress: async () => {
+            try {
+              await grantRoleWithAudit(
+                user.id,
+                'admin',
+                auth.currentUser?.uid || 'admin',
+                auth.currentUser?.email || '',
+                'Super Admin elevated user to Admin'
+              );
+              Alert.alert('Success', 'Admin privileges granted');
+              fetchData();
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Failed to elevate to admin');
+            }
+          },
+        }] : []),
+      ]
+    );
+  };
+
+  const [showAddNewsModal, setShowAddNewsModal] = useState(false);
+  const [newsTitleEn, setNewsTitleEn] = useState('');
+  const [newsTitleTe, setNewsTitleTe] = useState('');
+  const [newsContentEn, setNewsContentEn] = useState('');
+  const [newsCategory, setNewsCategory] = useState('Development');
+  const [newsSource, setNewsSource] = useState('Public Administration');
+  const [submittingNews, setSubmittingNews] = useState(false);
+
+  const handleCreateNews = async () => {
+    if (!newsTitleEn.trim() || !newsContentEn.trim()) {
+      Alert.alert('Missing Info', 'Please enter Title and Content');
+      return;
+    }
+    setSubmittingNews(true);
+    try {
+      await createNews({
+        title_en: newsTitleEn.trim(),
+        title_te: newsTitleTe.trim() || undefined,
+        content_en: newsContentEn.trim(),
+        content_te: undefined,
+        category: newsCategory,
+        source: newsSource,
+        publishedAt: new Date().toISOString().split('T')[0],
+      });
+      setShowAddNewsModal(false);
+      setNewsTitleEn('');
+      setNewsTitleTe('');
+      setNewsContentEn('');
+      Alert.alert('Success', 'City News Published!');
+      fetchData();
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to create news');
+    } finally {
+      setSubmittingNews(false);
+    }
+  };
+
+  const handleDeleteNews = async (id: string) => {
+    Alert.alert('Delete Article', 'Are you sure you want to remove this news article?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteNews(id);
+            fetchData();
+          } catch {
+            Alert.alert('Error', 'Failed to delete');
+          }
+        },
+      },
+    ]);
+  };
+
   const renderUsers = () => (
     <FlatList
       data={data}
@@ -290,10 +435,13 @@ export default function AdminDashboardScreen({ navigation }: any) {
           <View className="flex-1 ml-4">
             <Text className="font-bold text-gray-900" numberOfLines={1}>{item.name || 'Anonymous'}</Text>
             <Text className="text-gray-500 text-xs">{item.email || item.phoneNumber || 'No contact info'}</Text>
-            <TouchableOpacity onPress={() => handleRoleChange(item.id, item.role || 'user')}>
-              <Text className={`text-[10px] uppercase font-bold mt-1 ${item.role === 'admin' ? 'text-purple-600' : item.role === 'super_admin' ? 'text-red-600' : 'text-blue-500'}`}>
-                Role: {item.role || 'user'} {currentUserRole === 'super_admin' ? '✏️' : ''}
-              </Text>
+            <TouchableOpacity onPress={() => handleGrantRole(item)}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                <Text className={`text-[10px] uppercase font-bold ${item.role === 'admin' ? 'text-purple-600' : item.role === 'super_admin' ? 'text-red-600' : item.role === 'business' ? 'text-blue-600' : item.role === 'professional' ? 'text-green-600' : 'text-gray-500'}`}>
+                  Role: {item.role || 'user'}
+                </Text>
+                <Text style={{ fontSize: 10, color: '#2563EB', fontWeight: '800' }}>[Grant / Change ⚙️]</Text>
+              </View>
             </TouchableOpacity>
           </View>
           <TouchableOpacity 
@@ -307,6 +455,71 @@ export default function AdminDashboardScreen({ navigation }: any) {
         </View>
       )}
       ListEmptyComponent={<Text className="text-center mt-20 text-gray-400">No users found</Text>}
+    />
+  );
+
+  const renderNews = () => (
+    <View style={{ flex: 1 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 12 }}>
+        <Text style={{ fontSize: 16, fontWeight: '800', color: '#111827' }}>City News Articles</Text>
+        <TouchableOpacity
+          onPress={() => setShowAddNewsModal(true)}
+          style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#2563EB', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, gap: 4 }}
+        >
+          <Ionicons name="add" size={16} color="#FFFFFF" />
+          <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 12 }}>+ Add News</Text>
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={data}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
+        renderItem={({ item }) => (
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#E5E7EB' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: '#111827' }}>{item.title_en}</Text>
+                {item.title_te ? (
+                  <Text style={{ fontSize: 12, color: '#4B5563', marginTop: 2 }}>{item.title_te}</Text>
+                ) : null}
+              </View>
+              <TouchableOpacity onPress={() => handleDeleteNews(item.id)} style={{ padding: 4 }}>
+                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+              </TouchableOpacity>
+            </View>
+            <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 6 }} numberOfLines={2}>{item.content_en}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+              <Text style={{ fontSize: 10, color: '#2563EB', fontWeight: '700' }}>🏷️ {item.category || 'General'}</Text>
+              <Text style={{ fontSize: 10, color: '#9CA3AF' }}>📅 {item.publishedAt}</Text>
+            </View>
+          </View>
+        )}
+        ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40, color: '#9CA3AF' }}>No news articles found</Text>}
+      />
+    </View>
+  );
+
+  const renderGrants = () => (
+    <FlatList
+      data={data}
+      keyExtractor={(item) => item.id}
+      contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
+      renderItem={({ item }) => (
+        <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#E5E7EB' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={{ fontSize: 13, fontWeight: '800', color: '#111827' }}>User: {item.targetUserId?.substring(0, 10)}...</Text>
+            <View style={{ backgroundColor: item.role === 'business' ? '#DBEAFE' : item.role === 'professional' ? '#DCFCE7' : '#F3F4F6', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
+              <Text style={{ fontSize: 10, fontWeight: '800', color: item.role === 'business' ? '#1D4ED8' : item.role === 'professional' ? '#15803D' : '#374151' }}>
+                {item.role?.toUpperCase()}
+              </Text>
+            </View>
+          </View>
+          <Text style={{ fontSize: 11, color: '#6B7280', marginTop: 4 }}>Granted by: {item.grantedByEmail || item.grantedByUid}</Text>
+          <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>Notes: {item.notes}</Text>
+        </View>
+      )}
+      ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40, color: '#9CA3AF' }}>No access grant audit logs found</Text>}
     />
   );
 
@@ -425,7 +638,7 @@ export default function AdminDashboardScreen({ navigation }: any) {
 
       <View className="flex-row px-4 py-4 space-x-2">
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {(['overview', 'businesses', 'promotions', 'posts', 'reports', 'banners', 'users'] as Tab[]).map((t) => (
+          {(['overview', 'businesses', 'promotions', 'posts', 'reports', 'banners', 'users', 'news', 'grants'] as Tab[]).map((t) => (
             <TouchableOpacity
               key={t}
               onPress={() => setActiveTab(t)}
@@ -460,8 +673,80 @@ export default function AdminDashboardScreen({ navigation }: any) {
             </View>
           )}
           {activeTab === 'users'       && renderUsers()}
+          {activeTab === 'news'        && renderNews()}
+          {activeTab === 'grants'      && renderGrants()}
         </View>
       )}
+
+      {/* Modal for adding City News */}
+      <Modal visible={showAddNewsModal} animationType="slide" transparent>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '85%' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <Text style={{ fontSize: 18, fontWeight: '900', color: '#111827' }}>Add City News</Text>
+              <TouchableOpacity onPress={() => setShowAddNewsModal(false)} style={{ padding: 4 }}>
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 4 }}>Title (English) *</Text>
+              <TextInput
+                value={newsTitleEn}
+                onChangeText={setNewsTitleEn}
+                placeholder="e.g. New Flyover opened at Bellary Chowrasta"
+                style={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 10, padding: 10, fontSize: 13, marginBottom: 12 }}
+              />
+
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 4 }}>Title (Telugu)</Text>
+              <TextInput
+                value={newsTitleTe}
+                onChangeText={setNewsTitleTe}
+                placeholder="e.g. బళ్లారి చౌరస్తా వద్ద నూతన ఫ్లైఓవర్ ప్రారంభం"
+                style={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 10, padding: 10, fontSize: 13, marginBottom: 12 }}
+              />
+
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 4 }}>Category</Text>
+              <TextInput
+                value={newsCategory}
+                onChangeText={setNewsCategory}
+                placeholder="Development / Tourism / Culture"
+                style={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 10, padding: 10, fontSize: 13, marginBottom: 12 }}
+              />
+
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 4 }}>Source Attribution</Text>
+              <TextInput
+                value={newsSource}
+                onChangeText={setNewsSource}
+                placeholder="e.g. Kurnool District Administration / Public Release"
+                style={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 10, padding: 10, fontSize: 13, marginBottom: 12 }}
+              />
+
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 4 }}>Content (English) *</Text>
+              <TextInput
+                value={newsContentEn}
+                onChangeText={setNewsContentEn}
+                placeholder="Enter full news report..."
+                multiline
+                numberOfLines={4}
+                style={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 10, padding: 10, fontSize: 13, marginBottom: 20, textAlignVertical: 'top' }}
+              />
+
+              <TouchableOpacity
+                onPress={handleCreateNews}
+                disabled={submittingNews}
+                style={{ backgroundColor: '#2563EB', paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginBottom: 20 }}
+              >
+                {submittingNews ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>Publish City News</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

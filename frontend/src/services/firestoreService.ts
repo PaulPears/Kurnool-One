@@ -556,8 +556,33 @@ export const banUser = async (uid: string, banned: boolean) => {
   });
 };
 
-export const changeUserRole = async (uid: string, role: 'user' | 'admin' | 'super_admin') => {
+export const changeUserRole = async (
+  uid: string,
+  role: 'user' | 'business' | 'professional' | 'admin' | 'super_admin'
+) => {
   await updateDoc(doc(db, 'users', uid), { role });
+};
+
+export const grantRoleWithAudit = async (
+  targetUserId: string,
+  newRole: 'user' | 'business' | 'professional' | 'admin' | 'super_admin',
+  grantedByUid: string,
+  grantedByEmail?: string,
+  notes?: string
+) => {
+  await updateDoc(doc(db, 'users', targetUserId), {
+    role: newRole,
+    roleUpdatedAt: serverTimestamp(),
+  });
+
+  await addDoc(collection(db, 'admin_access_grants'), {
+    targetUserId,
+    role: newRole,
+    grantedByUid,
+    grantedByEmail: grantedByEmail || '',
+    notes: notes || 'Admin manual access grant',
+    createdAt: serverTimestamp(),
+  });
 };
 
 // ─── ANONYMOUS (Skip Login) ──────────────────────────────────────────────────

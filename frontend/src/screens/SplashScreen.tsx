@@ -56,6 +56,9 @@ export default function SplashScreen({ navigation }: any) {
             } else if (role === 'professional') {
               navigation.replace('ManageProfessional');
               return;
+            } else if (role === 'admin' || role === 'super_admin') {
+              navigation.replace('AdminDashboard');
+              return;
             } else {
               navigation.replace('Main');
               return;
@@ -110,7 +113,7 @@ export default function SplashScreen({ navigation }: any) {
         
         <View style={styles.badgeContainer}>
           <Text style={styles.tagline}>
-            The Smart City Network • అధికారిక వేదిక
+            Everything in One App • అన్నీ ఒకే యాప్‌లో
           </Text>
         </View>
       </Animated.View>

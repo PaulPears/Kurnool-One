@@ -23,6 +23,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.kurnoolone",
+      "versionCode": 1,
       "googleServicesFile": "./google-services.json"
     },
     "web": {

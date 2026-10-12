@@ -58,19 +58,6 @@ export default function Navbar() {
               <span>Pro Portal</span>
             </Link>
 
-            {user && (profile?.role === 'admin' || (profile as any)?.role === 'super_admin' || user.email?.includes('admin') || user.email?.includes('paul')) && (
-              <>
-                <span className="text-slate-300">|</span>
-                <Link
-                  href="/admin"
-                  className="hover:text-purple-700 transition text-purple-900 font-bold flex items-center gap-1.5 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-purple-700" />
-                  <span>Admin</span>
-                </Link>
-              </>
-            )}
-
             <span className="text-slate-300">|</span>
 
             {user ? (
@@ -141,9 +128,9 @@ export default function Navbar() {
 
           <Link
             href="/directory?tab=professionals"
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold text-slate-700 hover:text-teal-700 hover:bg-white transition shadow-none hover:shadow-sm"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold text-slate-700 hover:text-blue-700 hover:bg-white transition shadow-none hover:shadow-sm"
           >
-            <UserCheck className="w-4 h-4 text-teal-600" />
+            <UserCheck className="w-4 h-4 text-blue-600" />
             <span>Professionals</span>
           </Link>
 
@@ -176,10 +163,10 @@ export default function Navbar() {
         <div className="hidden sm:flex items-center gap-2.5">
           <Link
             href="/register-professional"
-            className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-200 transition"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-md shadow-blue-600/20 transition active:scale-[0.98]"
           >
-            <Briefcase className="w-3.5 h-3.5 text-teal-600" />
-            <span>+ List Pro</span>
+            <Briefcase className="w-3.5 h-3.5 text-blue-200" />
+            <span>+ Add Professionals</span>
           </Link>
 
           <Link
@@ -240,9 +227,9 @@ export default function Navbar() {
               <Link
                 href="/professional/login"
                 onClick={() => setMobileMenuOpen(false)}
-                className="p-3 rounded-xl bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold flex flex-col items-center justify-center gap-1"
+                className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs font-bold flex flex-col items-center justify-center gap-1"
               >
-                <Briefcase className="w-4 h-4 text-teal-600" />
+                <Briefcase className="w-4 h-4 text-blue-600" />
                 <span>Pro Login</span>
               </Link>
             </div>
@@ -254,7 +241,7 @@ export default function Navbar() {
             className="flex items-center gap-3 py-2.5 text-slate-800 font-semibold text-sm border-b border-slate-100"
           >
             <Building2 className="w-4 h-4 text-blue-600" />
-            <span>Commercial Businesses (50 Categories)</span>
+            <span>Commercial Businesses (36 Categories)</span>
           </Link>
 
           <Link
@@ -262,8 +249,8 @@ export default function Navbar() {
             onClick={() => setMobileMenuOpen(false)}
             className="flex items-center gap-3 py-2.5 text-slate-800 font-semibold text-sm border-b border-slate-100"
           >
-            <UserCheck className="w-4 h-4 text-teal-600" />
-            <span>Skilled Pros, Doctors & Creators (30 Categories)</span>
+            <UserCheck className="w-4 h-4 text-blue-600" />
+            <span>Skilled Pros, Doctors & Freelancers</span>
           </Link>
 
           <Link
@@ -297,9 +284,9 @@ export default function Navbar() {
             <Link
               href="/register-professional"
               onClick={() => setMobileMenuOpen(false)}
-              className="py-2.5 text-center rounded-xl bg-teal-50 text-teal-800 text-xs font-bold border border-teal-200"
+              className="py-2.5 text-center rounded-xl bg-blue-600 text-white text-xs font-black shadow-md"
             >
-              + List Pro Profile
+              + Register Pro
             </Link>
             <Link
               href="/register-business"

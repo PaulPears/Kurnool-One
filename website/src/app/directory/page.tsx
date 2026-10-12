@@ -94,7 +94,7 @@ export default async function DirectoryPage({
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-800 text-xs font-bold uppercase tracking-wider">
             {tab === 'professionals' ? (
               <>
-                <UserCheck className="w-3.5 h-3.5 text-teal-600" />
+                <UserCheck className="w-3.5 h-3.5 text-blue-600" />
                 <span>Kurnool Personal Profiles & Creator Network</span>
               </>
             ) : (
@@ -169,7 +169,7 @@ export default async function DirectoryPage({
           href={`/directory?tab=professionals${q ? `&q=${encodeURIComponent(q)}` : ''}`}
           className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-xs sm:text-sm font-bold transition shrink-0 ${
             tab === 'professionals'
-              ? 'bg-teal-700 text-white shadow-md'
+              ? 'bg-blue-600 text-white shadow-md'
               : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
           }`}
         >
@@ -230,7 +230,7 @@ export default async function DirectoryPage({
           href={tab === 'professionals' ? '/register-professional' : '/register-business'}
           className="text-xs font-bold text-blue-700 hover:text-blue-900 flex items-center gap-1 transition"
         >
-          <span>{tab === 'professionals' ? '+ List personal profile' : '+ Add your business here'}</span>
+          <span>{tab === 'professionals' ? '+ Add Professionals' : '+ Add your business here'}</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       </div>

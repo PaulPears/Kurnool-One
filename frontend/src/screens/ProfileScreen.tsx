@@ -7,17 +7,18 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
-  Alert,
   RefreshControl,
   Share,
   StyleSheet,
   StatusBar,
+  Linking,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from '../context/LanguageContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { auth } from '../config/firebase';
+import { auth, db } from '../config/firebase';
+import { collection, getDocs } from 'firebase/firestore';
 import { getUser } from '../services/firestoreService';
 
 export default function ProfileScreen({ route, navigation }: any) {
@@ -27,6 +28,11 @@ export default function ProfileScreen({ route, navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [isSelf, setIsSelf] = useState(true);
   const { language } = useLanguage();
+
+  // Dynamic real counts from Firestore
+  const [bizCount, setBizCount] = useState<number>(0);
+  const [proCount, setProCount] = useState<number>(0);
+  const [placeCount, setPlaceCount] = useState<number>(0);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -54,6 +60,20 @@ export default function ProfileScreen({ route, navigation }: any) {
           setCurrentUser(updatedLocalUser);
         }
       }
+
+      // Load real live counts from Firestore
+      try {
+        const [bizSnap, proSnap, placeSnap] = await Promise.all([
+          getDocs(collection(db, 'businesses')),
+          getDocs(collection(db, 'professionals')),
+          getDocs(collection(db, 'places')),
+        ]);
+        setBizCount(bizSnap.size);
+        setProCount(proSnap.size);
+        setPlaceCount(placeSnap.size);
+      } catch (countErr) {
+        console.warn('Count fetch non-fatal:', countErr);
+      }
     } catch (error) {
       console.error('Load Profile Error:', error);
     } finally {
@@ -64,7 +84,7 @@ export default function ProfileScreen({ route, navigation }: any) {
   const handleShareProfile = async () => {
     try {
       await Share.share({
-        message: `Discover Kurnool One — Everything in One Place! Explore local businesses, skilled pros, deals & tourism in Kurnool city: https://kurnoolone.com`,
+        message: `Discover Kurnool One — Everything in One App! Explore local shops, skilled pros, deals & tourism in Kurnool city: https://kurnool-kaburlu.web.app`,
       });
     } catch (error) {
       console.error('Share Error:', error);
@@ -89,6 +109,9 @@ export default function ProfileScreen({ route, navigation }: any) {
     currentUser?.email ||
     auth.currentUser?.email ||
     '';
+
+  const isMerchant = currentUser?.role === 'business' || user?.role === 'business';
+  const isProfessional = currentUser?.role === 'professional' || user?.role === 'professional';
 
   if (loading && !user && !currentUser) {
     return (
@@ -145,21 +168,11 @@ export default function ProfileScreen({ route, navigation }: any) {
             ) : null}
           </View>
 
-          {/* Edit Profile Button */}
-          {isSelf && (
-            <TouchableOpacity style={styles.editProfileButton} onPress={() => navigation.navigate('EditProfile')}>
-              <Ionicons name="pencil" size={16} color="#fff" />
-              <Text style={styles.editProfileButtonText}>
-                {language === 'en' ? 'Edit Profile' : 'ప్రొఫైల్ సవరించు'}
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Directory Stats / City Hub Badges */}
+          {/* Directory Stats / Real Live Counts */}
           <View style={styles.statsContainer}>
             <TouchableOpacity style={styles.statColumn} onPress={() => navigation.navigate('Directory')}>
               <Ionicons name="storefront-outline" size={22} color="#2563EB" />
-              <Text style={styles.statCount}>50+</Text>
+              <Text style={styles.statCount}>{bizCount}</Text>
               <Text style={styles.statLabel}>{language === 'en' ? 'Shops' : 'దుకాణాలు'}</Text>
             </TouchableOpacity>
 
@@ -170,7 +183,7 @@ export default function ProfileScreen({ route, navigation }: any) {
               onPress={() => navigation.navigate('Directory', { initialTab: 'professionals' })}
             >
               <Ionicons name="construct-outline" size={22} color="#0D9488" />
-              <Text style={styles.statCount}>30+</Text>
+              <Text style={styles.statCount}>{proCount}</Text>
               <Text style={styles.statLabel}>{language === 'en' ? 'Skilled Pros' : 'నిపుణులు'}</Text>
             </TouchableOpacity>
 
@@ -178,94 +191,168 @@ export default function ProfileScreen({ route, navigation }: any) {
 
             <TouchableOpacity style={styles.statColumn} onPress={() => navigation.navigate('Explore')}>
               <Ionicons name="compass-outline" size={22} color="#EA580C" />
-              <Text style={styles.statCount}>15+</Text>
+              <Text style={styles.statCount}>{placeCount}</Text>
               <Text style={styles.statLabel}>{language === 'en' ? 'Heritage Spots' : 'దర్శనీయ స్థలాలు'}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Portals & Merchant Controls */}
+        {/* ─── MANAGE LISTINGS & GROWTH (PROMINENT ON PROFILE) ───────────────────── */}
         <View style={styles.menuContainer}>
-          {isSelf && (
-            <>
-              {/* Commercial Business Portal Section */}
-              <View style={{ marginBottom: 8 }}>
-                <Text style={styles.portalSectionHeader}>
-                  {language === 'en' ? 'Commercial Business Portal' : 'వాణిజ్య వ్యాపార పోర్టల్'}
+          <Text style={styles.portalSectionHeader}>
+            {language === 'en' ? 'Manage Listings & Growth' : 'వ్యాపార & వృత్తి నిర్వహణ'}
+          </Text>
+
+          {/* Business Action Card */}
+          <TouchableOpacity
+            style={[styles.menuCard, { borderColor: '#BFDBFE', backgroundColor: '#F8FAFC' }]}
+            onPress={() => {
+              if (isMerchant) {
+                navigation.navigate('ManageBusiness');
+              } else {
+                navigation.navigate('RegisterBusiness');
+              }
+            }}
+          >
+            <View style={[styles.menuIconContainer, { backgroundColor: '#EFF6FF' }]}>
+              <Ionicons name="storefront" size={24} color="#2563EB" />
+            </View>
+            <View style={styles.menuContent}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.menuTitle}>
+                  {language === 'en' ? 'My Business Listings & Leads' : 'నా వ్యాపారం & లీడ్స్'}
                 </Text>
-
-                <TouchableOpacity style={styles.menuCard} onPress={() => navigation.navigate('ManageBusiness')}>
-                  <View style={[styles.menuIconContainer, { backgroundColor: '#EFF6FF' }]}>
-                    <Ionicons name="storefront" size={22} color="#2563EB" />
+                {isMerchant && (
+                  <View style={styles.activeBadge}>
+                    <Text style={styles.activeBadgeText}>ACTIVE</Text>
                   </View>
-                  <View style={styles.menuContent}>
-                    <Text style={styles.menuTitle}>
-                      {language === 'en' ? 'Business Dashboard' : 'వ్యాపార డాష్‌బోర్డ్'}
-                    </Text>
-                    <Text style={styles.menuSubtitle}>
-                      {language === 'en' ? 'Shop hours, analytics & post offers' : 'సమయాలు, అనలిటిక్స్ మరియు ఆఫర్లు'}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuCard} onPress={() => navigation.navigate('RegisterBusiness')}>
-                  <View style={[styles.menuIconContainer, { backgroundColor: '#EFF6FF' }]}>
-                    <Ionicons name="add-circle" size={22} color="#2563EB" />
-                  </View>
-                  <View style={styles.menuContent}>
-                    <Text style={styles.menuTitle}>
-                      {language === 'en' ? 'Register Business' : 'వ్యాపారం నమోదు చేయండి'}
-                    </Text>
-                    <Text style={styles.menuSubtitle}>
-                      {language === 'en' ? 'Get verified & receive customer calls' : 'ధృవీకరణ & కస్టమర్ కాల్స్ పొందండి'}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
-                </TouchableOpacity>
+                )}
               </View>
+              <Text style={styles.menuSubtitle}>
+                {isMerchant
+                  ? (language === 'en' ? 'View calls, customer inquiries & edit hours' : 'కాల్స్, కస్టమర్ లీడ్స్ మరియు సమయాల నిర్వహణ')
+                  : (language === 'en' ? 'Register your shop, get verified & receive calls' : 'మీ దుకాణాన్ని నమోదు చేసుకోండి')}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#2563EB" />
+          </TouchableOpacity>
 
-              {/* Professional & Creator Portal Section */}
-              <View style={{ marginBottom: 8 }}>
-                <Text style={[styles.portalSectionHeader, { color: '#0D9488' }]}>
-                  {language === 'en' ? 'Professional & Creator Portal' : 'నైపుణ్య నిపుణుల పోర్టల్'}
+          {/* Professional Action Card */}
+          <TouchableOpacity
+            style={[styles.menuCard, { borderColor: '#99F6E4', backgroundColor: '#F8FAFC' }]}
+            onPress={() => {
+              if (isProfessional) {
+                navigation.navigate('ManageProfessional');
+              } else {
+                navigation.navigate('RegisterProfessional');
+              }
+            }}
+          >
+            <View style={[styles.menuIconContainer, { backgroundColor: '#F0FDFA' }]}>
+              <Ionicons name="briefcase" size={24} color="#0D9488" />
+            </View>
+            <View style={styles.menuContent}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[styles.menuTitle, { color: '#0F766E' }]}>
+                  {language === 'en' ? 'My Professional Services & Clients' : 'నా వృత్తి సేవలు & క్లయింట్లు'}
                 </Text>
-
-                <TouchableOpacity style={styles.menuCard} onPress={() => navigation.navigate('ManageProfessional')}>
-                  <View style={[styles.menuIconContainer, { backgroundColor: '#F0FDFA' }]}>
-                    <Ionicons name="briefcase" size={22} color="#0D9488" />
+                {isProfessional && (
+                  <View style={[styles.activeBadge, { backgroundColor: '#CCFBF1' }]}>
+                    <Text style={[styles.activeBadgeText, { color: '#0F766E' }]}>ACTIVE</Text>
                   </View>
-                  <View style={styles.menuContent}>
-                    <Text style={styles.menuTitle}>
-                      {language === 'en' ? 'Professional Dashboard' : 'ప్రొఫెషనల్ డాష్‌బోర్డ్'}
-                    </Text>
-                    <Text style={styles.menuSubtitle}>
-                      {language === 'en' ? 'Manage rates, leads & social links' : 'ధరలు, లీడ్స్ & సోషల్ లింకులు'}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.menuCard} onPress={() => navigation.navigate('RegisterProfessional')}>
-                  <View style={[styles.menuIconContainer, { backgroundColor: '#F0FDFA' }]}>
-                    <Ionicons name="person-add" size={22} color="#0D9488" />
-                  </View>
-                  <View style={styles.menuContent}>
-                    <Text style={styles.menuTitle}>
-                      {language === 'en' ? 'List Pro Profile' : 'వ్యక్తిగత ప్రొఫైల్ నమోదు'}
-                    </Text>
-                    <Text style={styles.menuSubtitle}>
-                      {language === 'en'
-                        ? 'Doctor, Influencer, Tech & Freelancer'
-                        : 'డాక్టర్, ఇన్‌ఫ్లుయెన్సర్, టెక్నీషియన్ & ఫ్రీలాన్సర్'}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
-                </TouchableOpacity>
+                )}
               </View>
-            </>
-          )}
+              <Text style={styles.menuSubtitle}>
+                {isProfessional
+                  ? (language === 'en' ? 'Manage service rates, areas & client calls' : 'సర్వీస్ ఛార్జీలు, ప్రాంతాలు & క్లయింట్ కాల్స్')
+                  : (language === 'en' ? 'List your skill (Plumber, Electrician, CA, etc.)' : 'మీ నైపుణ్యాన్ని నమోదు చేసుకోండి')}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#0D9488" />
+          </TouchableOpacity>
+        </View>
 
+        {/* ─── CONNECT & SUPPORT ──────────────────────────────────────────────── */}
+        <View style={styles.menuContainer}>
+          <Text style={[styles.portalSectionHeader, { color: '#1E293B' }]}>
+            {language === 'en' ? 'Connect with Kurnool One' : 'కర్నూలు వన్ తో అనుసంధానం'}
+          </Text>
+
+          {/* WhatsApp Support */}
+          <TouchableOpacity
+            style={styles.menuCard}
+            onPress={() => Linking.openURL('https://wa.me/919494300000?text=Hello%20Kurnool%20One%20Team').catch(() => {})}
+          >
+            <View style={[styles.menuIconContainer, { backgroundColor: '#DCFCE7' }]}>
+              <Ionicons name="logo-whatsapp" size={22} color="#16A34A" />
+            </View>
+            <View style={styles.menuContent}>
+              <Text style={styles.menuTitle}>24/7 WhatsApp Helpline</Text>
+              <Text style={styles.menuSubtitle}>Chat directly with our Kurnool city desk</Text>
+            </View>
+            <Ionicons name="open-outline" size={16} color="#94A3B8" />
+          </TouchableOpacity>
+
+          {/* Share App */}
+          <TouchableOpacity style={styles.menuCard} onPress={handleShareProfile}>
+            <View style={[styles.menuIconContainer, { backgroundColor: '#EFF6FF' }]}>
+              <Ionicons name="share-social-outline" size={22} color="#2563EB" />
+            </View>
+            <View style={styles.menuContent}>
+              <Text style={styles.menuTitle}>{language === 'en' ? 'Share Kurnool One' : 'కర్నూలు వన్ పంచుకోండి'}</Text>
+              <Text style={styles.menuSubtitle}>
+                {language === 'en' ? 'Spread the word with family & friends' : 'యాప్‌ను స్నేహితులతో పంచుకోండి'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+          </TouchableOpacity>
+
+          {/* Instagram */}
+          <TouchableOpacity
+            style={styles.menuCard}
+            onPress={() => Linking.openURL('https://instagram.com/kurnoolone').catch(() => {})}
+          >
+            <View style={[styles.menuIconContainer, { backgroundColor: '#FDF2F8' }]}>
+              <Ionicons name="logo-instagram" size={22} color="#E11D48" />
+            </View>
+            <View style={styles.menuContent}>
+              <Text style={styles.menuTitle}>Instagram Page</Text>
+              <Text style={styles.menuSubtitle}>@kurnoolone • Updates & photos</Text>
+            </View>
+            <Ionicons name="open-outline" size={16} color="#94A3B8" />
+          </TouchableOpacity>
+
+          {/* Facebook */}
+          <TouchableOpacity
+            style={styles.menuCard}
+            onPress={() => Linking.openURL('https://facebook.com/kurnoolone').catch(() => {})}
+          >
+            <View style={[styles.menuIconContainer, { backgroundColor: '#EFF6FF' }]}>
+              <Ionicons name="logo-facebook" size={22} color="#1D4ED8" />
+            </View>
+            <View style={styles.menuContent}>
+              <Text style={styles.menuTitle}>Facebook Page</Text>
+              <Text style={styles.menuSubtitle}>Follow Kurnool One on Facebook</Text>
+            </View>
+            <Ionicons name="open-outline" size={16} color="#94A3B8" />
+          </TouchableOpacity>
+
+          {/* Official YouTube Channel */}
+          <TouchableOpacity
+            style={styles.menuCard}
+            onPress={() => Linking.openURL('https://youtube.com/@kurnoolone').catch(() => {})}
+          >
+            <View style={[styles.menuIconContainer, { backgroundColor: '#FEF2F2' }]}>
+              <Ionicons name="logo-youtube" size={22} color="#DC2626" />
+            </View>
+            <View style={styles.menuContent}>
+              <Text style={styles.menuTitle}>Official YouTube Channel</Text>
+              <Text style={styles.menuSubtitle}>@kurnoolone • City tours, news & events</Text>
+            </View>
+            <Ionicons name="open-outline" size={16} color="#94A3B8" />
+          </TouchableOpacity>
+
+          {/* Admin Dashboard (Visible only if admin) */}
           {user && (user.role === 'admin' || user.role === 'super_admin') && isSelf && (
             <TouchableOpacity style={styles.menuCard} onPress={() => navigation.navigate('AdminDashboard')}>
               <View style={[styles.menuIconContainer, { backgroundColor: '#FEE2E2' }]}>
@@ -280,39 +367,20 @@ export default function ProfileScreen({ route, navigation }: any) {
               <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
             </TouchableOpacity>
           )}
-
-          {/* Share App */}
-          <TouchableOpacity style={styles.menuCard} onPress={handleShareProfile}>
-            <View style={[styles.menuIconContainer, { backgroundColor: '#F8FAFC' }]}>
-              <Ionicons name="share-social-outline" size={22} color="#2563EB" />
-            </View>
-            <View style={styles.menuContent}>
-              <Text style={styles.menuTitle}>{language === 'en' ? 'Share Kurnool One' : 'కర్నూలు వన్ పంచుకోండి'}</Text>
-              <Text style={styles.menuSubtitle}>
-                {language === 'en' ? 'Share app with family & friends' : 'యాప్‌ను స్నేహితులతో పంచుకోండి'}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
-          </TouchableOpacity>
         </View>
 
-        {/* Digital City Trust Card */}
+        {/* DPDP Trust Notice */}
         <View style={styles.trustCard}>
           <View style={styles.trustHeader}>
-            <Ionicons name="shield-checkmark" size={22} color="#2563EB" />
+            <Ionicons name="shield-checkmark" size={18} color="#2563EB" />
             <Text style={styles.trustTitle}>
-              {language === 'en' ? 'Kurnool One Digital City Platform' : 'కర్నూలు వన్ డిజిటల్ సిటీ వేదిక'}
+              {language === 'en' ? 'Official Kurnool City Platform' : 'అధికారిక కర్నూలు సిటీ వేదిక'}
             </Text>
           </View>
           <Text style={styles.trustDesc}>
             {language === 'en'
-              ? 'Dedicated city directory connecting citizens, businesses, skilled technicians, exclusive offers, and heritage in Kurnool.'
-              : 'కర్నూలు పౌరులకు ధృవీకరించబడిన దుకాణాలు, నిపుణుల సేవలు, ఆఫర్లు మరియు దర్శనీయ స్థలాలను అనుసంధానించే సమగ్ర వేదిక.'}
-          </Text>
-          <Text style={styles.disclaimerText}>
-            {language === 'en'
-              ? 'Kurnool One is an independent private platform and is not affiliated with the Kurnool Municipal Corporation or Government of AP.'
-              : 'కర్నూలు వన్ ఒక స్వతంత్ర ప్రైవేట్ వేదిక, కర్నూలు మునిసిపల్ కార్పొరేషన్ లేదా ప్రభుత్వంతో అనుబంధించబడలేదు.'}
+              ? 'Connecting verified businesses, skilled professionals, and local citizens under one transparent directory.'
+              : 'ధృవీకరించబడిన వ్యాపారాలు, నిపుణులు మరియు పౌరులను ఒకే వేదికపై అనుసంధానించే విశ్వసనీయ వేదిక.'}
           </Text>
         </View>
       </ScrollView>
@@ -329,7 +397,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8FAFC',
   },
   scrollView: {
     flex: 1,
@@ -342,6 +410,8 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 10,
     backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
   headerTitle: {
     fontSize: 22,
@@ -359,7 +429,7 @@ const styles = StyleSheet.create({
   profileCard: {
     backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
-    marginTop: 12,
+    marginTop: 14,
     marginBottom: 16,
     borderRadius: 20,
     padding: 20,
@@ -423,22 +493,6 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontWeight: '500',
   },
-  editProfileButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#2563EB',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    gap: 6,
-    marginBottom: 16,
-  },
-  editProfileButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -448,6 +502,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderWidth: 1,
     borderColor: '#EDF2F7',
+    marginTop: 8,
   },
   statColumn: {
     alignItems: 'center',
@@ -459,7 +514,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E2E8F0',
   },
   statCount: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '800',
     color: '#0F172A',
     marginTop: 4,
@@ -472,16 +527,15 @@ const styles = StyleSheet.create({
   },
   menuContainer: {
     paddingHorizontal: 16,
-    gap: 10,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   portalSectionHeader: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     color: '#1E40AF',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
-    marginBottom: 6,
+    marginBottom: 8,
     marginLeft: 4,
   },
   menuCard: {
@@ -495,9 +549,9 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   menuIconContainer: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -514,6 +568,19 @@ const styles = StyleSheet.create({
   menuSubtitle: {
     fontSize: 12,
     color: '#64748B',
+    lineHeight: 16,
+  },
+  activeBadge: {
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  activeBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#1D4ED8',
+    letterSpacing: 0.5,
   },
   trustCard: {
     backgroundColor: '#FFFFFF',
@@ -539,12 +606,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#475569',
     lineHeight: 18,
-    marginBottom: 10,
-  },
-  disclaimerText: {
-    fontSize: 10,
-    color: '#94A3B8',
-    lineHeight: 14,
-    fontStyle: 'italic',
   },
 });

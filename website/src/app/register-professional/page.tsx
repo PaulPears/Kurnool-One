@@ -53,8 +53,7 @@ const YoutubeIcon = ({ className }: { className?: string }) => (
 );
 
 export default function RegisterProfessionalPage() {
-  const { user, loading: authLoading, loginWithGoogle, loginWithDemo } = useAuth();
-  const [demoLoginLoading, setDemoLoginLoading] = useState(false);
+  const { user, loading: authLoading, loginWithGoogle } = useAuth();
 
   // Plan Selection
   const [selectedPlanId, setSelectedPlanId] = useState<'pro_monthly' | 'pro_half_yearly' | 'pro_yearly'>('pro_half_yearly');
@@ -68,6 +67,7 @@ export default function RegisterProfessionalPage() {
     }
   }, [user]);
   const [selectedCategory, setSelectedCategory] = useState(PROFESSIONAL_CATEGORIES[0].id);
+  const [customCategory, setCustomCategory] = useState('');
   const [categorySearch, setCategorySearch] = useState('');
   const [experienceYears, setExperienceYears] = useState('5');
   const [serviceAreas, setServiceAreas] = useState('All Kurnool City');
@@ -175,8 +175,9 @@ export default function RegisterProfessionalPage() {
 
       const docId = await registerProfessional({
         fullName: fullName.trim(),
-        category: currentCategoryObj.name_en,
-        categoryName_te: currentCategoryObj.name_te,
+        category: selectedCategory === 'other_professionals' && customCategory.trim() ? customCategory.trim() : currentCategoryObj.name_en,
+        categoryName_te: selectedCategory === 'other_professionals' && customCategory.trim() ? customCategory.trim() : currentCategoryObj.name_te,
+        customCategory: selectedCategory === 'other_professionals' ? customCategory.trim() : undefined,
         experienceYears: parseInt(experienceYears, 10) || 1,
         serviceAreas: areasArray.length > 0 ? areasArray : [selectedArea, 'All Kurnool'],
         phone: phone.trim(),
@@ -531,6 +532,25 @@ export default function RegisterProfessionalPage() {
               </button>
             ))}
           </div>
+
+          {selectedCategory === 'other_professionals' && (
+            <div className="mt-3 p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 space-y-1.5 animate-fadeIn">
+              <label className="block text-xs font-black text-indigo-950 uppercase tracking-wider">
+                Type Your Specific Profession / Skill / Specialty *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Wildlife Photographer, Yoga Therapist, Sound Engineer, RO Water Technician..."
+                value={customCategory}
+                onChange={(e) => setCustomCategory(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-indigo-300 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+              <p className="text-[11px] text-indigo-700 font-medium">
+                Not found in list? Type it here! We will list you under your specialized title and create a matching profile tag.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* ─── 3. BASIC PERSONAL INFO ─── */}

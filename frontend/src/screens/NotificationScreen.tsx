@@ -32,11 +32,25 @@ export default function NotificationScreen({ navigation }: any) {
     }
   };
 
+  const handleNotificationPress = (item: any) => {
+    if (item.type === 'deal' || item.type === 'offer') {
+      navigation.navigate('Main', { screen: 'Offers' });
+    } else if (item.type === 'news') {
+      navigation.navigate('News');
+    } else if (item.type === 'business' && item.businessId) {
+      navigation.navigate('BusinessDetail', { businessId: item.businessId });
+    } else if (item.type === 'pro' && item.proId) {
+      navigation.navigate('ProfessionalDetail', { proId: item.proId });
+    }
+  };
+
   const renderNotification = ({ item }: any) => {
     const isLike   = item.type === 'like';
     const isReport = item.type === 'report';
     return (
       <TouchableOpacity
+        onPress={() => handleNotificationPress(item)}
+        activeOpacity={0.8}
         className={`px-4 py-4 border-b border-gray-50 flex-row items-center ${item.isRead ? 'bg-white' : 'bg-blue-50/50'}`}
       >
         <View className="w-12 h-12 rounded-full bg-blue-100 items-center justify-center mr-3">

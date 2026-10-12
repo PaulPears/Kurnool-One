@@ -145,8 +145,8 @@ export default async function HomePage() {
         {/* Civic Trust Strip */}
         <div className="max-w-4xl mx-auto mt-12 grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { count: '50', label: 'Commercial Categories' },
-            { count: '30', label: 'Professional Skills' },
+            { count: '36', label: 'Commercial Categories' },
+            { count: '30+', label: 'Professional Skills' },
             { count: '100%', label: 'Verified Phone Numbers' },
             { count: '₹0', label: 'Commission to Middlemen' },
           ].map((stat, idx) => (
@@ -179,7 +179,7 @@ export default async function HomePage() {
             href="/directory"
             className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 transition"
           >
-            <span>View All 50 Categories</span>
+            <span>View All 36 Categories</span>
             <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
@@ -191,8 +191,11 @@ export default async function HomePage() {
               href={`/directory?category=${cat.id}`}
               className="bg-white border border-slate-200 rounded-2xl p-4 hover:border-blue-400 hover:shadow-md transition group text-center flex flex-col items-center justify-center gap-2"
             >
-              <div className="w-12 h-12 rounded-xl bg-slate-50 group-hover:bg-blue-50 flex items-center justify-center transition">
-                {categoryIcons[cat.id] || <Building2 className="w-5 h-5 text-blue-600" />}
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center transition group-hover:scale-105"
+                style={{ backgroundColor: `${cat.color || '#2563EB'}18` }}
+              >
+                {categoryIcons[cat.id] || <Building2 className="w-5 h-5" style={{ color: cat.color || '#2563EB' }} />}
               </div>
               <div>
                 <h3 className="text-xs font-bold text-slate-900 group-hover:text-blue-600 transition line-clamp-1">

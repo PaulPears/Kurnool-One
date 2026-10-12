@@ -13,6 +13,8 @@ export interface CategoryItem {
   name_en: string;
   name_te: string;
   icon: string;
+  color?: string;
+  bgLight?: string;
   subcategories: { id: string; name_en: string; name_te: string }[];
 }
 
@@ -28,6 +30,7 @@ export interface BusinessItem {
   name_te: string;
   slug?: string;
   categoryId: string;
+  customCategory?: string;
   subcategoryId?: string;
   area?: string;
   tagline?: string;
@@ -72,7 +75,7 @@ export interface BusinessItem {
   customFeatures?: string[];
   priceRange?: '₹' | '₹₹' | '₹₹₹' | '₹₹₹₹';
   ownerUid?: string;
-  claimStatus: 'unclaimed' | 'pending' | 'verified';
+  claimStatus: 'unclaimed' | 'pending' | 'verified' | 'claimed';
   tier: 'free' | 'featured' | 'premium';
   verificationBadge: 'none' | 'verified_business';
   planId?: 'monthly' | 'half_yearly' | 'yearly' | 'free' | 'verified' | 'premium';
@@ -111,6 +114,7 @@ export interface ProfessionalItem {
   userId?: string;
   fullName: string;
   category: string;
+  customCategory?: string;
   categoryName_te?: string;
   experienceYears: number;
   serviceAreas: string[];
@@ -118,8 +122,12 @@ export interface ProfessionalItem {
   whatsapp?: string;
   hourlyRate?: string;
   visitingCharges?: string;
+  startingPrice?: string;
+  pricingUnit?: string;
   description?: string;
-  portfolioPhotos: string[];
+  about_en?: string;
+  about_te?: string;
+  portfolioPhotos?: string[];
   avatarUrl?: string; // Profile photo/image
   instagramUrl?: string;
   youtubeUrl?: string;
@@ -136,6 +144,7 @@ export interface ProfessionalItem {
   paymentStatus?: 'paid' | 'unpaid' | 'free';
   paymentId?: string;
   orderId?: string;
+  operatingHours?: any;
   planExpiresAt?: string;
   status: 'active' | 'pending' | 'suspended';
 }
@@ -145,40 +154,41 @@ export interface ProfessionalCategory {
   name_en: string;
   name_te: string;
   icon: string;
+  color: string;
+  bgLight: string;
   placeholderRate?: string;
 }
 
 export const PROFESSIONAL_CATEGORIES: ProfessionalCategory[] = [
-  { id: 'business_owners', name_en: 'Business Owners & Entrepreneurs', name_te: 'వ్యాపారవేత్తలు & వ్యవస్థాపకులు', icon: 'business', placeholderRate: 'Business Consultation' },
-  { id: 'it_software', name_en: 'IT & Software Professionals', name_te: 'ఐటీ & సాఫ్ట్‌వేర్ నిపుణులు', icon: 'laptop', placeholderRate: 'Hourly / Project Rate' },
-  { id: 'doctors_healthcare', name_en: 'Doctors & Healthcare Professionals', name_te: 'వైద్యులు & ఆరోగ్య నిపుణులు', icon: 'medkit', placeholderRate: '₹300 - ₹500 (Consultation)' },
-  { id: 'education_teaching', name_en: 'Education & Teaching', name_te: 'విద్య & ఉపాధ్యాయులు', icon: 'school', placeholderRate: '₹3,000 / month (Tuition)' },
-  { id: 'students', name_en: 'Students', name_te: 'విద్యార్థులు', icon: 'person', placeholderRate: 'Project Intern / Volunteer' },
-  { id: 'job_seekers', name_en: 'Job Seekers', name_te: 'ఉద్యోగార్థులు', icon: 'search', placeholderRate: 'Open to Opportunities' },
-  { id: 'freelancers', name_en: 'Freelancers', name_te: 'ఫ్రీలాన్సర్లు', icon: 'briefcase', placeholderRate: 'Per Project Quote' },
-  { id: 'digital_marketing', name_en: 'Digital Marketing Professionals', name_te: 'డిజిటల్ మార్కెటింగ్ నిపుణులు', icon: 'trending-up', placeholderRate: 'Monthly Retainer' },
-  { id: 'govt_employees', name_en: 'Government Employees', name_te: 'ప్రభుత్వ ఉద్యోగులు', icon: 'shield', placeholderRate: 'Public Guidance' },
-  { id: 'legal_advocates', name_en: 'Legal Professionals', name_te: 'న్యాయవాదులు & చట్ట నిపుణులు', icon: 'document-text', placeholderRate: '₹300 (Legal Consultation)' },
-  { id: 'finance_accounting', name_en: 'Finance & Accounting Professionals', name_te: 'ఆర్థిక & అకౌంటింగ్ నిపుణులు', icon: 'calculator', placeholderRate: 'ITR & GST Filing Rates' },
-  { id: 'real_estate', name_en: 'Real Estate Professionals', name_te: 'రియల్ ఎస్టేట్ నిపుణులు', icon: 'home', placeholderRate: 'Standard Brokerage / Advisory' },
-  { id: 'artists_creators', name_en: 'Artists & Creators', name_te: 'కళాకారులు & సృష్టికర్తలు', icon: 'brush', placeholderRate: 'Custom Art Commission' },
-  { id: 'media_journalism', name_en: 'Media & Journalism', name_te: 'మీడియా & జర్నలిస్టులు', icon: 'mic', placeholderRate: 'News & Press Coverage' },
-  { id: 'beauty_personal_care', name_en: 'Beauty & Personal Care', name_te: 'సౌందర్యం & వ్యక్తిగత సంరక్షణ', icon: 'sparkles', placeholderRate: 'Bridal & Parlour Packages' },
-  { id: 'fitness_sports', name_en: 'Fitness & Sports Professionals', name_te: 'ఫిట్‌నెస్ & క్రీడా నిపుణులు', icon: 'fitness', placeholderRate: '₹2,500 / month (Training)' },
-  { id: 'skilled_technicians', name_en: 'Skilled Professionals & Technicians', name_te: 'నైపుణ్య వృత్తి నిపుణులు & టెక్నీషియన్లు', icon: 'construct', placeholderRate: '₹150 / visit (Electrician, Plumber)' },
-  { id: 'agriculture_farming', name_en: 'Agriculture & Farming', name_te: 'వ్యవసాయం & రైతాంగం', icon: 'leaf', placeholderRate: 'Produce & Agri Consultation' },
-  { id: 'event_professionals', name_en: 'Event Professionals', name_te: 'ఈవెంట్ నిర్వాహకులు & డెకరేటర్లు', icon: 'calendar', placeholderRate: 'Custom Event Quotation' },
-  { id: 'social_workers_ngo', name_en: 'Social Workers & NGO Professionals', name_te: 'సామాజిక కార్యకర్తలు & ఎన్జీఓ', icon: 'heart', placeholderRate: 'Community Service' },
-  { id: 'home_service_providers', name_en: 'Home Service Providers', name_te: 'గృహ సేవా ప్రదాతలు', icon: 'hammer', placeholderRate: '₹150 / visit (Carpentry, Painting)' },
-  { id: 'transportation_drivers', name_en: 'Transportation Professionals', name_te: 'రవాణా & డ్రైవర్లు', icon: 'car', placeholderRate: '₹500 / day or trip' },
-  { id: 'fashion_modeling', name_en: 'Fashion & Modeling', name_te: 'ఫ్యాషన్ & మోడలింగ్', icon: 'shirt', placeholderRate: 'Per Shoot / Show' },
-  { id: 'consultants_mentors', name_en: 'Consultants & Mentors', name_te: 'కన్సల్టెంట్లు & మెంటార్లు', icon: 'bulb', placeholderRate: 'Hourly Advisory' },
-  { id: 'influencers_creators', name_en: 'Influencers & Content Creators', name_te: 'ఇన్‌ఫ్లుయెన్సర్లు & కంటెంట్ క్రియేటర్లు', icon: 'logo-instagram', placeholderRate: '₹1,500 / Reel Collab' },
-  { id: 'startup_founders', name_en: 'Startup Founders', name_te: 'స్టార్టప్ వ్యవస్థాపకులు', icon: 'rocket', placeholderRate: 'Networking / Collab' },
-  { id: 'women_entrepreneurs', name_en: 'Women Entrepreneurs', name_te: 'మహిళా పారిశ్రామికవేత్తలు', icon: 'ribbon', placeholderRate: 'Product / Service Rates' },
-  { id: 'community_leaders', name_en: 'Community Leaders', name_te: 'సమాజ నాయకులు & ప్రముఖులు', icon: 'people', placeholderRate: 'Public Affairs' },
-  { id: 'nri_profiles', name_en: 'NRI Profiles', name_te: 'ప్రవాసాంధ్రులు (NRI ప్రొఫైల్స్)', icon: 'airplane', placeholderRate: 'Kurnool Global Network' },
-  { id: 'other_professionals', name_en: 'Other Professionals', name_te: 'ఇతర వృత్తి నిపుణులు', icon: 'ellipsis-horizontal', placeholderRate: 'As Applicable' },
+  { id: 'influencer', name_en: 'Influencer & Content Creator', name_te: 'ఇన్‌ఫ్లుయెన్సర్లు & కంటెంట్ క్రియేటర్స్', icon: 'videocam', color: '#E11D48', bgLight: '#FFE4E6', placeholderRate: 'Brand Collaboration / Shoot Quote' },
+  { id: 'plumbers', name_en: 'Plumbers', name_te: 'ప్లంబర్లు', icon: 'water', color: '#0284C7', bgLight: '#E0F2FE', placeholderRate: '₹150 - ₹300 (Visit / Work)' },
+  { id: 'electricians', name_en: 'Electricians', name_te: 'ఎలక్ట్రీషియన్లు', icon: 'flash', color: '#D97706', bgLight: '#FEF3C7', placeholderRate: '₹150 - ₹350 (Wiring & Fittings)' },
+  { id: 'carpenters', name_en: 'Carpenters & Wood Work', name_te: 'వడ్రంగులు & వుడ్ వర్కర్స్', icon: 'hammer', color: '#92400E', bgLight: '#FEF3C7', placeholderRate: '₹300 - ₹600 (Furniture / Repair)' },
+  { id: 'painters', name_en: 'House & Wall Painters', name_te: 'పెయింటర్లు & డిస్టెంపర్', icon: 'color-palette', color: '#BE185D', bgLight: '#FCE7F3', placeholderRate: 'Per Sq.Ft / Day Wage' },
+  { id: 'ac_appliance_repair', name_en: 'AC & Refrigerator Technicians', name_te: 'ఏసీ & ఫ్రిడ్జ్ టెక్నీషియన్లు', icon: 'snow', color: '#0891B2', bgLight: '#CFFAFE', placeholderRate: '₹350 - ₹500 (Service / Gas Refill)' },
+  { id: 'appliance_repair', name_en: 'Washing Machine, TV & Appliance Repair', name_te: 'వాషింగ్ మెషీన్, టీవీ & గృహోపకరణాల రిపేర్', icon: 'hardware-chip', color: '#6366F1', bgLight: '#EEF2FF', placeholderRate: '₹250 - ₹400 (Inspection)' },
+  { id: 'auto_mechanics', name_en: 'Two & Four Wheeler Mechanics', name_te: 'టూ & ఫోర్ వీలర్ మెకానిక్స్', icon: 'car-sport', color: '#DC2626', bgLight: '#FEE2E2', placeholderRate: '₹200 - ₹500 (Vehicle Service)' },
+  { id: 'mason_civil', name_en: 'Masons, Tile & Civil Workers', name_te: 'మేస్త్రీలు, టైల్స్ & సివిల్ వర్కర్లు', icon: 'construct', color: '#57534E', bgLight: '#F5F5F4', placeholderRate: 'Daily Wage / Contract' },
+  { id: 'cleaning_housekeeping', name_en: 'House Cleaning & Deep Cleaning', name_te: 'హౌస్ కీపింగ్ & డీప్ క్లీనింగ్', icon: 'sparkles', color: '#059669', bgLight: '#D1FAE5', placeholderRate: '₹1,000 - ₹2,500 (Full Home Clean)' },
+  { id: 'house_maids', name_en: 'House Maids & Domestic Helpers', name_te: 'పని మనుషులు & హౌస్ మెయిడ్స్', icon: 'home', color: '#0D9488', bgLight: '#CCFBF1', placeholderRate: '₹2,000 - ₹5,000 / Month' },
+  { id: 'beauticians_makeup', name_en: 'Beauticians & Bridal Makeup Artists', name_te: 'బ్యూటీషియన్లు & బ్రైడల్ మేకప్', icon: 'rose', color: '#E11D48', bgLight: '#FFE4E6', placeholderRate: 'Bridal & Party Packages' },
+  { id: 'tailors_designers', name_en: 'Tailors & Boutique Designers', name_te: 'టైలర్లు & బోటిక్ డిజైనర్లు', icon: 'cut', color: '#7C3AED', bgLight: '#EDE9FE', placeholderRate: 'Stitching & Alteration Rates' },
+  { id: 'photographers_videographers', name_en: 'Photographers & Videographers', name_te: 'ఫోటోగ్రాఫర్లు & వీడియో ఎడిటర్లు', icon: 'camera', color: '#2563EB', bgLight: '#EFF6FF', placeholderRate: 'Event & Wedding Quotes' },
+  { id: 'drivers', name_en: 'Car, Auto & Heavy Drivers', name_te: 'కార్, ఆటో & హెవీ డ్రైవర్లు', icon: 'car', color: '#0D9488', bgLight: '#CCFBF1', placeholderRate: '₹500 - ₹800 / Day' },
+  { id: 'cooks_caterers', name_en: 'Cooks & Catering Chefs', name_te: 'వంట మాస్టర్లు & క్యాటరింగ్', icon: 'restaurant', color: '#EA580C', bgLight: '#FFEDD5', placeholderRate: 'Per Day / Event Rates' },
+  { id: 'home_tutors', name_en: 'Home Tutors & Academic Teachers', name_te: 'హోమ్ ట్యూటర్లు & ఉపాధ్యాయులు', icon: 'book', color: '#4338CA', bgLight: '#E0E7FF', placeholderRate: '₹2,500 - ₹5,000 / Month' },
+  { id: 'doctors_healthcare', name_en: 'Doctors & Health Experts', name_te: 'వైద్యులు & ఆరోగ్య నిపుణులు', icon: 'medkit', color: '#0284C7', bgLight: '#E0F2FE', placeholderRate: '₹300 - ₹500 (Consultation)' },
+  { id: 'advocates_legal', name_en: 'Advocates & Legal Advisors', name_te: 'న్యాయవాదులు & లీగల్ అడ్వైజర్లు', icon: 'scale', color: '#334155', bgLight: '#F1F5F9', placeholderRate: '₹300 - ₹1,000 (Consultation)' },
+  { id: 'ca_tax_accountants', name_en: 'Chartered Accountants & GST Consultants', name_te: 'సీఏ & జీఎస్టీ ఫైలింగ్ నిపుణులు', icon: 'calculator', color: '#047857', bgLight: '#ECFDF5', placeholderRate: 'Tax Filing & Audit Rates' },
+  { id: 'real_estate_agents', name_en: 'Real Estate Agents & Brokers', name_te: 'రియల్ ఎస్టేట్ ఏజెంట్లు & బ్రోకర్లు', icon: 'home', color: '#1D4ED8', bgLight: '#DBEAFE', placeholderRate: 'Standard Advisory / Brokerage' },
+  { id: 'pandits_purohits', name_en: 'Pandits, Purohits & Astrologers', name_te: 'పండితులు, పురోహితులు & జ్యోతిష్యులు', icon: 'flame', color: '#C2410C', bgLight: '#FFEDD5', placeholderRate: 'Pooja & Muhurtham Dakshina' },
+  { id: 'event_decorators', name_en: 'Event Decorators & Sound Lights', name_te: 'డెకరేషన్ & సౌండ్ సిస్టమ్స్', icon: 'balloon', color: '#C026D3', bgLight: '#FAE8FF', placeholderRate: 'Custom Event Quotations' },
+  { id: 'security_guards', name_en: 'Security Guards & Watchmen', name_te: 'సెక్యూరిటీ గార్డులు & సూపర్వైజర్లు', icon: 'shield-checkmark', color: '#1E293B', bgLight: '#F8FAFC', placeholderRate: 'Monthly Guard Charges' },
+  { id: 'it_software', name_en: 'IT & Software Developers', name_te: 'ఐటీ & వెబ్ డిజైనర్లు', icon: 'laptop', color: '#3B82F6', bgLight: '#EFF6FF', placeholderRate: 'Project / Hourly Quote' },
+  { id: 'digital_marketing', name_en: 'Digital Marketers & Social Media', name_te: 'డిజిటల్ మార్కెటింగ్ & సోషల్ మీడియా', icon: 'trending-up', color: '#10B981', bgLight: '#ECFDF5', placeholderRate: 'Monthly Retainers' },
+  { id: 'fitness_gym_trainers', name_en: 'Gym Trainers & Yoga Gurus', name_te: 'ఫిట్‌నెస్ ట్రైనర్లు & యోగా గురువులు', icon: 'fitness', color: '#E11D48', bgLight: '#FFE4E6', placeholderRate: '₹2,000 - ₹4,000 / Month' },
+  { id: 'delivery_couriers', name_en: 'Delivery Partners & Couriers', name_te: 'డెలివరీ బాయ్స్ & కొరియర్ సర్వీసెస్', icon: 'bicycle', color: '#D97706', bgLight: '#FEF3C7', placeholderRate: 'Per Parcel / Day' },
+  { id: 'other_professionals', name_en: 'Other Specialized Professionals', name_te: 'ఇతర నైపుణ్య వృత్తి నిపుణులు', icon: 'ellipsis-horizontal-circle', color: '#64748B', bgLight: '#F1F5F9', placeholderRate: 'As Applicable' },
 ];
 
 export interface PlaceItem {
@@ -225,6 +235,7 @@ export interface OfferItem {
   businessName: string;
   validUntil: string;
   bannerUrl?: string;
+  images?: string[];
   phone?: string;
   category: string;
 }
@@ -248,6 +259,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Restaurants & Cafes',
     name_te: 'రెస్టారెంట్లు & కేఫ్‌లు',
     icon: 'restaurant',
+    color: '#EA580C',
+    bgLight: '#FFEDD5',
     subcategories: [
       { id: 'family_restaurant', name_en: 'Family Restaurant', name_te: 'ఫ్యామిలీ రెస్టారెంట్' },
       { id: 'cafes', name_en: 'Cafes & Coffee Shops', name_te: 'కేఫ్‌లు & కాఫీ షాపులు' },
@@ -260,6 +273,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Hotels & Lodges',
     name_te: 'హోటళ్ళు & లాడ్జీలు',
     icon: 'bed',
+    color: '#4F46E5',
+    bgLight: '#EEF2FF',
     subcategories: [
       { id: 'luxury_hotels', name_en: 'Luxury & Business Hotels', name_te: 'లగ్జరీ హోటళ్ళు' },
       { id: 'budget_lodges', name_en: 'Budget Lodges & Rooms', name_te: 'బడ్జెట్ లాడ్జీలు' },
@@ -271,6 +286,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Supermarkets & Grocery Stores',
     name_te: 'సూపర్‌మార్కెట్లు & కిరాణా దుకాణాలు',
     icon: 'cart',
+    color: '#059669',
+    bgLight: '#D1FAE5',
     subcategories: [
       { id: 'supermarkets', name_en: 'Supermarkets', name_te: 'సూపర్‌మార్కెట్లు' },
       { id: 'kirana_stores', name_en: 'Kirana & General Stores', name_te: 'కిరాణా దుకాణాలు' },
@@ -282,6 +299,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Clothing & Fashion Stores',
     name_te: 'వస్త్ర & ఫ్యాషన్ దుకాణాలు',
     icon: 'shirt',
+    color: '#E11D48',
+    bgLight: '#FFE4E6',
     subcategories: [
       { id: 'saree_showrooms', name_en: 'Saree & Pattu Showrooms', name_te: 'చీరలు & పట్టు వస్త్రాలు' },
       { id: 'mens_wear', name_en: "Men's Clothing", name_te: 'పురుషుల దుస్తులు' },
@@ -293,6 +312,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Electronics & Mobile Stores',
     name_te: 'ఎలక్ట్రానిక్స్ & మొబైల్ స్టోర్లు',
     icon: 'phone-portrait',
+    color: '#0284C7',
+    bgLight: '#E0F2FE',
     subcategories: [
       { id: 'mobile_showrooms', name_en: 'Mobile Phone Showrooms', name_te: 'మొబైల్ షోరూమ్‌లు' },
       { id: 'home_appliances', name_en: 'TV, Fridge & AC Showrooms', name_te: 'గృహోపకరణాలు' },
@@ -304,6 +325,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Hospitals & Clinics',
     name_te: 'ఆసుపత్రులు & క్లినిక్‌లు',
     icon: 'medkit',
+    color: '#0D9488',
+    bgLight: '#CCFBF1',
     subcategories: [
       { id: 'multispeciality', name_en: 'Multi-Speciality Hospitals', name_te: 'మల్టీ-స్పెషాలిటీ ఆసుపత్రులు' },
       { id: 'dental_clinics', name_en: 'Dental Clinics', name_te: 'డెంటల్ క్లినిక్‌లు' },
@@ -316,6 +339,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Pharmacies & Medical Stores',
     name_te: 'మందుల దుకాణాలు',
     icon: 'flask',
+    color: '#7C3AED',
+    bgLight: '#EDE9FE',
     subcategories: [
       { id: '24hr_pharmacy', name_en: '24/7 Medical Stores', name_te: '24 గంటల మందుల షాపులు' },
       { id: 'ayurvedic', name_en: 'Ayurvedic & Homeo Stores', name_te: 'ఆయుర్వేదిక్ & హోమియో' },
@@ -327,6 +352,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Educational Institutions',
     name_te: 'విద్యా సంస్థలు',
     icon: 'school',
+    color: '#2563EB',
+    bgLight: '#EFF6FF',
     subcategories: [
       { id: 'schools', name_en: 'Private & CBSE Schools', name_te: 'పాఠశాలలు' },
       { id: 'colleges', name_en: 'Junior & Degree Colleges', name_te: 'జూనియర్ & డిగ్రీ కాలేజీలు' },
@@ -338,6 +365,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Coaching & Training Centers',
     name_te: 'కోచింగ్ & శిక్షణా సంస్థలు',
     icon: 'book',
+    color: '#D97706',
+    bgLight: '#FEF3C7',
     subcategories: [
       { id: 'govt_job_coaching', name_en: 'Govt Job & Bank Coaching', name_te: 'ప్రభుత్వ ఉద్యోగాల కోచింగ్' },
       { id: 'iit_neet_coaching', name_en: 'IIT-JEE & NEET Coaching', name_te: 'ఐఐటీ & నీట్ కోచింగ్' },
@@ -349,6 +378,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'IT & Software Companies',
     name_te: 'ఐటీ & సాఫ్ట్‌వేర్ సంస్థలు',
     icon: 'laptop',
+    color: '#3B82F6',
+    bgLight: '#EFF6FF',
     subcategories: [
       { id: 'web_app_development', name_en: 'Web & App Development', name_te: 'వెబ్ & యాప్ డెవలప్‌మెంట్' },
       { id: 'software_products', name_en: 'SaaS & Enterprise Software', name_te: 'ఎంటర్‌ప్రైజ్ సాఫ్ట్‌వేర్' },
@@ -360,6 +391,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Digital Marketing Agencies',
     name_te: 'డిజిటల్ మార్కెటింగ్ ఏజెన్సీలు',
     icon: 'megaphone',
+    color: '#10B981',
+    bgLight: '#ECFDF5',
     subcategories: [
       { id: 'social_media_marketing', name_en: 'Social Media Management', name_te: 'సోషల్ మీడియా మార్కెటింగ్' },
       { id: 'seo_branding', name_en: 'SEO & Brand Promotions', name_te: 'ఎస్ఈఓ & బ్రాండింగ్' },
@@ -371,6 +404,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Real Estate & Properties',
     name_te: 'రియల్ ఎస్టేట్ & ప్రాపర్టీస్',
     icon: 'home',
+    color: '#1D4ED8',
+    bgLight: '#DBEAFE',
     subcategories: [
       { id: 'open_plots', name_en: 'Open Plots & Ventures', name_te: 'ఓపెన్ ప్లాట్లు & వెంచర్లు' },
       { id: 'apartments_villas', name_en: 'Flats & Luxury Villas', name_te: 'ఫ్లాట్లు & విల్లాలు' },
@@ -382,6 +417,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Construction & Builders',
     name_te: 'కన్‌స్ట్రక్షన్ & బిల్డర్స్',
     icon: 'construct',
+    color: '#C2410C',
+    bgLight: '#FFEDD5',
     subcategories: [
       { id: 'civil_contractors', name_en: 'Civil & Building Contractors', name_te: 'భవన కాంట్రాక్టర్లు' },
       { id: 'architects_engineers', name_en: 'Architects & Interior Designers', name_te: 'ఆర్కిటెక్ట్స్ & డిజైనర్లు' },
@@ -393,6 +430,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Automobile Dealers',
     name_te: 'కార్ & బైక్ షోరూమ్‌లు',
     icon: 'car-sport',
+    color: '#BE185D',
+    bgLight: '#FCE7F3',
     subcategories: [
       { id: 'two_wheeler_dealers', name_en: 'Two-Wheeler Showrooms', name_te: 'బైక్ & స్కూటర్ షోరూమ్‌లు' },
       { id: 'car_dealers', name_en: 'New & Used Car Showrooms', name_te: 'కార్ల షోరూమ్‌లు' },
@@ -404,6 +443,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Automobile Service & Repair',
     name_te: 'ఆటోమొబైల్ సర్వీస్ & రిపేర్',
     icon: 'build',
+    color: '#0891B2',
+    bgLight: '#CFFAFE',
     subcategories: [
       { id: 'bike_mechanics', name_en: 'Two-Wheeler Service Centers', name_te: 'బైక్ రిపేర్ సెంటర్లు' },
       { id: 'car_garages', name_en: 'Car Garages & Denting/Painting', name_te: 'కార్ గ్యారేజీలు' },
@@ -415,6 +456,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Beauty Parlours & Salons',
     name_te: 'బ్యూటీ పార్లర్లు & సెలూన్లు',
     icon: 'sparkles',
+    color: '#DB2777',
+    bgLight: '#FCE7F3',
     subcategories: [
       { id: 'women_parlours', name_en: "Ladies Beauty Parlours", name_te: 'మహిళల బ్యూటీ పార్లర్లు' },
       { id: 'mens_salons', name_en: "Men's Hair Salons & Grooming", name_te: 'పురుషుల సెలూన్లు' },
@@ -426,6 +469,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Fitness Centers & Gyms',
     name_te: 'ఫిట్‌నెస్ సెంటర్లు & జిమ్‌లు',
     icon: 'barbell',
+    color: '#DC2626',
+    bgLight: '#FEE2E2',
     subcategories: [
       { id: 'unisex_gyms', name_en: 'Gyms & Weight Training', name_te: 'జిమ్‌లు & వర్కవుట్ సెంటర్లు' },
       { id: 'yoga_zumba', name_en: 'Yoga & Aerobics Studios', name_te: 'యోగా & ఏరోబిక్స్' },
@@ -437,6 +482,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Jewellery Stores',
     name_te: 'బంగారు & వెండి నగల దుకాణాలు',
     icon: 'diamond',
+    color: '#CA8A04',
+    bgLight: '#FEF9C3',
     subcategories: [
       { id: 'gold_diamond', name_en: 'Gold & Diamond Showrooms', name_te: 'బంగారు & డైమండ్ నగల దుకాణాలు' },
       { id: 'silver_ornaments', name_en: 'Silver Ornaments & Articles', name_te: 'వెండి ఆభరణాలు' },
@@ -448,6 +495,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Furniture & Home Decor',
     name_te: 'ఫర్నిచర్ & హోమ్ డెకర్',
     icon: 'bed',
+    color: '#9333EA',
+    bgLight: '#F3E8FF',
     subcategories: [
       { id: 'wooden_furniture', name_en: 'Sofas, Beds & Dining Sets', name_te: 'చెక్క ఫర్నిచర్' },
       { id: 'office_furniture', name_en: 'Office Chairs & Desks', name_te: 'ఆఫీస్ ఫర్నిచర్' },
@@ -459,6 +508,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Hardware & Electrical Stores',
     name_te: 'హార్డ్‌వేర్ & ఎలక్ట్రికల్ దుకాణాలు',
     icon: 'hardware-chip',
+    color: '#475569',
+    bgLight: '#F1F5F9',
     subcategories: [
       { id: 'electrical_goods', name_en: 'Wires, Lights & Fans', name_te: 'ఎలక్ట్రికల్ వస్తువులు' },
       { id: 'paints_sanitary', name_en: 'Paints & Sanitary Ware', name_te: 'పెయింట్లు & శానిటరీ' },
@@ -470,6 +521,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Wholesale & Distributors',
     name_te: 'హోల్‌సేల్ & డిస్ట్రిబ్యూటర్లు',
     icon: 'cube',
+    color: '#4338CA',
+    bgLight: '#E0E7FF',
     subcategories: [
       { id: 'fmcg_distributors', name_en: 'FMCG & Provision Distributors', name_te: 'ఎఫ్‌ఎంసీజీ డిస్ట్రిబ్యూటర్లు' },
       { id: 'pharma_distributors', name_en: 'Pharma Wholesalers', name_te: 'ఫార్మా హోల్‌సేలర్లు' },
@@ -481,6 +534,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Manufacturing & Industries',
     name_te: 'తయారీ & పరిశ్రమలు',
     icon: 'business',
+    color: '#334155',
+    bgLight: '#F1F5F9',
     subcategories: [
       { id: 'cement_granite', name_en: 'Slab, Cement & Granite Units', name_te: 'గ్రానైట్ & సిమెంట్ యూనిట్లు' },
       { id: 'plastic_packaging', name_en: 'Packaging & Plastics', name_te: 'ప్యాకేజింగ్ & ప్లాస్టిక్స్' },
@@ -492,6 +547,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Agriculture & Farming Businesses',
     name_te: 'వ్యవసాయం & విత్తన వ్యాపారాలు',
     icon: 'leaf',
+    color: '#15803D',
+    bgLight: '#DCFCE7',
     subcategories: [
       { id: 'seeds_fertilizers', name_en: 'Seeds & Fertilizer Shops', name_te: 'విత్తనాలు & ఎరువుల దుకాణాలు' },
       { id: 'farm_machinery', name_en: 'Tractors & Farm Equipment', name_te: 'ట్రాక్టర్లు & పనిముట్లు' },
@@ -503,6 +560,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Travel & Tourism Agencies',
     name_te: 'ట్రావెల్స్ & టూరిజం ఏజెన్సీలు',
     icon: 'airplane',
+    color: '#0284C7',
+    bgLight: '#E0F2FE',
     subcategories: [
       { id: 'tour_operators', name_en: 'Pilgrimage & Holiday Packages', name_te: 'తీర్థయాత్రలు & టూర్ ప్యాకేజీలు' },
       { id: 'car_rentals', name_en: 'Taxi Services & Self-Drive Cars', name_te: 'కార్ రెంటల్స్ & ట్యాక్సీ' },
@@ -514,6 +573,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Event Management Services',
     name_te: 'ఈవెంట్ మేనేజ్‌మెంట్',
     icon: 'calendar',
+    color: '#C026D3',
+    bgLight: '#FAE8FF',
     subcategories: [
       { id: 'corporate_events', name_en: 'Corporate Events & Launches', name_te: 'కార్పొరేట్ ఈవెంట్లు' },
       { id: 'stage_lighting', name_en: 'Stage, Sound & LED Walls', name_te: 'సౌండ్ & లైటింగ్ సిస్టమ్స్' },
@@ -525,6 +586,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Wedding Planners & Decorators',
     name_te: 'వెడ్డింగ్ ప్లానర్స్ & డెకరేటర్స్',
     icon: 'rose',
+    color: '#E11D48',
+    bgLight: '#FFE4E6',
     subcategories: [
       { id: 'wedding_decorators', name_en: 'Mandapam & Flower Decorators', name_te: 'మండపం & పూల అలంకరణ' },
       { id: 'destination_weddings', name_en: 'Complete Wedding Planners', name_te: 'సంపూర్ణ వివాహ ప్రణాళిక' },
@@ -536,6 +599,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Photography & Videography Studios',
     name_te: 'ఫోటో & వీడియో స్టూడియోలు',
     icon: 'camera',
+    color: '#6366F1',
+    bgLight: '#EEF2FF',
     subcategories: [
       { id: 'wedding_photography', name_en: 'Candid Wedding Photographers', name_te: 'వివాహ ఫోటోగ్రఫీ' },
       { id: 'drone_cinematography', name_en: 'Drone Shoots & 4K Video', name_te: 'డ్రోన్ & 4K వీడియోగ్రఫీ' },
@@ -547,6 +612,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Financial Services & Consultants',
     name_te: 'ఆర్థిక సేవలు & కన్సల్టెంట్లు',
     icon: 'cash',
+    color: '#047857',
+    bgLight: '#ECFDF5',
     subcategories: [
       { id: 'loan_consultants', name_en: 'Home & Business Loans', name_te: 'రుణాల కన్సల్టెంట్లు' },
       { id: 'mutual_funds_tax', name_en: 'Mutual Funds, Stocks & Tax Planning', name_te: 'మ్యూచువల్ ఫండ్స్ & పన్ను ప్రణాళిక' },
@@ -558,6 +625,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Banks & Insurance Services',
     name_te: 'బ్యాంకులు & ఇన్సూరెన్స్ సేవలు',
     icon: 'card',
+    color: '#1E40AF',
+    bgLight: '#DBEAFE',
     subcategories: [
       { id: 'public_private_banks', name_en: 'Bank Branches & ATMs', name_te: 'బ్యాంకు శాఖలు & ఏటీఎంలు' },
       { id: 'life_health_insurance', name_en: 'Life & Health Insurance Agents', name_te: 'జీవిత & ఆరోగ్య బీమా' },
@@ -569,6 +638,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Legal & Consultancy Services',
     name_te: 'న్యాయ & కన్సల్టెన్సీ సేవలు',
     icon: 'briefcase',
+    color: '#374151',
+    bgLight: '#F3F4F6',
     subcategories: [
       { id: 'advocates_chambers', name_en: 'Civil & Criminal Advocates', name_te: 'న్యాయవాదుల కార్యాలయాలు' },
       { id: 'doc_registration', name_en: 'Property Registration Document Writers', name_te: 'డాక్యుమెంట్ రైటర్లు' },
@@ -580,6 +651,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Courier & Logistics Services',
     name_te: 'కొరియర్ & లాజిస్టిక్స్ సర్వీసెస్',
     icon: 'paper-plane',
+    color: '#D97706',
+    bgLight: '#FEF3C7',
     subcategories: [
       { id: 'domestic_couriers', name_en: 'Domestic Parcel Services', name_te: 'దేశీయ కొరియర్ సేవలు' },
       { id: 'international_courier', name_en: 'International Courier Agencies', name_te: 'అంతర్జాతీయ కొరియర్' },
@@ -591,6 +664,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Transportation Services',
     name_te: 'రవాణా & ట్రాన్స్‌పోర్ట్ సర్వీసులు',
     icon: 'bus',
+    color: '#2563EB',
+    bgLight: '#EFF6FF',
     subcategories: [
       { id: 'lorry_goods_transport', name_en: 'Lorry & Truck Transport Office', name_te: 'లారీ & గూడ్స్ రవాణా' },
       { id: 'auto_cab_stands', name_en: 'Auto & Taxi Union Stands', name_te: 'ఆటో & క్యాబ్ స్టాండ్లు' },
@@ -602,6 +677,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Home Services & Repairs',
     name_te: 'గృహ మరమ్మతులు & సర్వీసులు',
     icon: 'hammer',
+    color: '#EA580C',
+    bgLight: '#FFEDD5',
     subcategories: [
       { id: 'plumbing_electrical', name_en: 'Plumbers & Electricians', name_te: 'ప్లంబింగ్ & ఎలక్ట్రికల్' },
       { id: 'appliance_repairs', name_en: 'RO, Fridge & Washing Machine Repair', name_te: 'గృహోపకరణాల మరమ్మతు' },
@@ -613,6 +690,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Cleaning & Pest Control Services',
     name_te: 'క్లీనింగ్ & పెస్ట్ కంట్రోల్',
     icon: 'shield-checkmark',
+    color: '#059669',
+    bgLight: '#D1FAE5',
     subcategories: [
       { id: 'pest_control', name_en: 'Termite & Cockroach Pest Control', name_te: 'చీడపీడల నియంత్రణ' },
       { id: 'deep_cleaning', name_en: 'Deep Home & Office Cleaning', name_te: 'డీప్ క్లీనింగ్ సేవలు' },
@@ -624,6 +703,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Printing & Advertising Agencies',
     name_te: 'ప్రింటింగ్ & అడ్వర్టైజింగ్',
     icon: 'print',
+    color: '#7C3AED',
+    bgLight: '#EDE9FE',
     subcategories: [
       { id: 'flex_banners', name_en: 'Flex Banners & Hoardings', name_te: 'ఫ్లెక్స్ బ్యానర్లు & హోర్డింగ్స్' },
       { id: 'offset_printing', name_en: 'Wedding Cards & Book Printing', name_te: 'పెళ్లి పత్రికలు & ఆఫ్‌సెట్ ప్రింటింగ్' },
@@ -635,6 +716,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Bakeries & Sweet Shops',
     name_te: 'బేకరీలు & స్వీట్ షాపులు',
     icon: 'fast-food',
+    color: '#D97706',
+    bgLight: '#FEF3C7',
     subcategories: [
       { id: 'traditional_sweets', name_en: 'Kurnool Traditional Sweets & Ghee Treats', name_te: 'సంప్రదాయ స్వీట్స్' },
       { id: 'cake_pastry_bakeries', name_en: 'Fresh Cakes, Puffs & Bakery Items', name_te: 'కేకులు & బేకరీ తినుబండారాలు' },
@@ -646,6 +729,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Food & Catering Services',
     name_te: 'క్యాటరింగ్ & భోజన సేవలు',
     icon: 'restaurant',
+    color: '#DC2626',
+    bgLight: '#FEE2E2',
     subcategories: [
       { id: 'wedding_catering', name_en: 'Wedding & Function Catering', name_te: 'వివాహ & ఫంక్షన్ క్యాటరింగ్' },
       { id: 'mess_tiffin_services', name_en: 'Tiffin Services & Daily Mess', name_te: 'టిఫిన్ సెంటర్లు & మెస్' },
@@ -657,6 +742,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Dairy & Milk Products',
     name_te: 'డెయిరీ & పాల ఉత్పత్తులు',
     icon: 'water',
+    color: '#0284C7',
+    bgLight: '#E0F2FE',
     subcategories: [
       { id: 'fresh_milk_centers', name_en: 'Fresh Milk & Curd Centers', name_te: 'తాజా పాలు & పెరుగు కేంద్రాలు' },
       { id: 'paneer_ghee_stores', name_en: 'Pure Ghee, Paneer & Butter', name_te: 'స్వచ్ఛమైన నెయ్యి & పనీర్' },
@@ -668,6 +755,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Gift & Toy Stores',
     name_te: 'గిఫ్ట్ & బొమ్మల దుకాణాలు',
     icon: 'gift',
+    color: '#EC4899',
+    bgLight: '#FCE7F3',
     subcategories: [
       { id: 'gift_articles', name_en: 'Gift Articles & Novelties', name_te: 'గిఫ్ట్ ఆర్టికల్స్' },
       { id: 'toy_shops', name_en: "Kids Toys & Games", name_te: 'పిల్లల బొమ్మల దుకాణాలు' },
@@ -679,6 +768,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Sports & Fitness Stores',
     name_te: 'స్పోర్ట్స్ & ఫిట్‌నెస్ స్టోర్లు',
     icon: 'football',
+    color: '#16A34A',
+    bgLight: '#DCFCE7',
     subcategories: [
       { id: 'sports_gear', name_en: 'Cricket, Badminton & Sports Gear', name_te: 'క్రీడా సామాగ్రి' },
       { id: 'fitness_equipment', name_en: 'Treadmills, Dumbbells & Gym Gear', name_te: 'ఫిట్‌నెస్ ఎక్విప్‌మెంట్' },
@@ -690,6 +781,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Pet Shops & Veterinary Services',
     name_te: 'పెట్ షాపులు & వెటర్నరీ క్లినిక్స్',
     icon: 'paw',
+    color: '#854D0E',
+    bgLight: '#FEF3C7',
     subcategories: [
       { id: 'pet_supplies', name_en: 'Dog & Cat Food, Accessories', name_te: 'పెట్ ఫుడ్ & ఉపకరణాలు' },
       { id: 'veterinary_doctors', name_en: 'Veterinary Clinics & Doctors', name_te: 'పశువైద్య శాలలు' },
@@ -701,6 +794,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'NGOs & Social Organizations',
     name_te: 'ఎన్జీఓలు & సేవా సంస్థలు',
     icon: 'people',
+    color: '#0D9488',
+    bgLight: '#CCFBF1',
     subcategories: [
       { id: 'charity_trusts', name_en: 'Charitable Trusts & Foundations', name_te: 'ఛారిటబుల్ ట్రస్ట్‌లు' },
       { id: 'blood_banks', name_en: 'Voluntary Blood Donation Societies', name_te: 'బ్లడ్ బ్యాంకులు' },
@@ -712,6 +807,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Coworking Spaces',
     name_te: 'కో-వర్కింగ్ స్పేసెస్',
     icon: 'desktop',
+    color: '#4F46E5',
+    bgLight: '#EEF2FF',
     subcategories: [
       { id: 'shared_desks', name_en: 'Hot Desks & Shared Workstations', name_te: 'వర్క్‌స్పేస్ డెస్క్‌లు' },
       { id: 'private_cabins', name_en: 'Private Offices & Team Cabins', name_te: 'ప్రైవేట్ క్యాబిన్లు' },
@@ -723,6 +820,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Shopping Malls & Commercial Complexes',
     name_te: 'షాపింగ్ మాల్స్ & కాంప్లెక్స్‌లు',
     icon: 'business',
+    color: '#9333EA',
+    bgLight: '#F3E8FF',
     subcategories: [
       { id: 'shopping_centers', name_en: 'Shopping Malls', name_te: 'షాపింగ్ మాల్స్' },
       { id: 'commercial_plazas', name_en: 'Commercial Shopping Plazas', name_te: 'వాణిజ్య సముదాయాలు' },
@@ -733,6 +832,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'E-commerce & Online Businesses',
     name_te: 'ఈ-కామర్స్ & ఆన్‌లైన్ వ్యాపారాలు',
     icon: 'globe',
+    color: '#2563EB',
+    bgLight: '#EFF6FF',
     subcategories: [
       { id: 'd2c_brands', name_en: 'Online D2C Retailers & Brands', name_te: 'ఆన్‌లైన్ బ్రాండ్లు' },
       { id: 'drop_shipping', name_en: 'E-commerce Fulfillment Centers', name_te: 'ఈ-కామర్స్ ఆర్డర్ డెలివరీ' },
@@ -744,6 +845,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Mobile & Computer Repair Services',
     name_te: 'మొబైల్ & కంప్యూటర్ రిపేరింగ్',
     icon: 'hardware-chip',
+    color: '#0891B2',
+    bgLight: '#CFFAFE',
     subcategories: [
       { id: 'mobile_repair', name_en: 'Mobile Screen & Motherboard Repair', name_te: 'మొబైల్ స్క్రీన్ రిపేర్' },
       { id: 'laptop_service', name_en: 'Laptop & Desktop Repair Centers', name_te: 'ల్యాప్‌టాప్ సర్వీసింగ్' },
@@ -755,6 +858,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Tailoring & Boutique Shops',
     name_te: 'టైలరింగ్ & బొటిక్ షాపులు',
     icon: 'cut',
+    color: '#E11D48',
+    bgLight: '#FFE4E6',
     subcategories: [
       { id: 'ladies_tailors', name_en: 'Blouse, Maggam Work & Salwar Tailors', name_te: 'మగ్గం వర్క్ & లేడీస్ టైలర్స్' },
       { id: 'designer_boutiques', name_en: 'Designer Bridal Boutiques', name_te: 'డిజైనర్ బొటిక్స్' },
@@ -766,6 +871,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Handicrafts & Local Products',
     name_te: 'హస్తకళలు & స్థానిక ఉత్పత్తులు',
     icon: 'color-palette',
+    color: '#B45309',
+    bgLight: '#FEF3C7',
     subcategories: [
       { id: 'handloom_cotton', name_en: 'Handloom Cotton & Traditional Weaves', name_te: 'చేనేత వస్త్రాలు' },
       { id: 'clay_metal_crafts', name_en: 'Terracotta, Brass & Clay Crafts', name_te: 'మట్టి & ఇత్తడి కళారూపాలు' },
@@ -777,6 +884,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Entertainment & Recreation Centers',
     name_te: 'వినోదం & ఆట స్థలాలు',
     icon: 'game-controller',
+    color: '#7C3AED',
+    bgLight: '#EDE9FE',
     subcategories: [
       { id: 'movie_theatres', name_en: 'Cinema Theatres & Multiplexes', name_te: 'సినిమా థియేటర్లు' },
       { id: 'gaming_zones', name_en: 'Bowling, VR & Gaming Arcades', name_te: 'గేమింగ్ జోన్లు' },
@@ -788,6 +897,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     name_en: 'Other Businesses',
     name_te: 'ఇతర వ్యాపారాలు',
     icon: 'apps',
+    color: '#64748B',
+    bgLight: '#F1F5F9',
     subcategories: [
       { id: 'general_enterprises', name_en: 'General Enterprises & Services', name_te: 'ఇతర వ్యాపార సంస్థలు' },
     ],
@@ -810,130 +921,9 @@ export const LEGACY_BUSINESS_CATEGORY_MAP: Record<string, string> = {
 
 // ─── INITIAL SEED DATA (KURNOOL ATTRACTIONS & HERITAGE) ─────────────────────
 
-export const SEED_PLACES: PlaceItem[] = [
-  {
-    id: 'konda_reddy_fort',
-    type: 'landmark',
-    name_en: 'Konda Reddy Fort (Buruju)',
-    name_te: 'కొండారెడ్డి బురుజు',
-    description_en: 'The most iconic historical symbol of Kurnool city, built in the 12th century by Vijayanagara rulers. Notable for its circular bastion and historic underground tunnels.',
-    description_te: 'కర్నూలు నగర చారిత్రక చిహ్నం, 12వ శతాబ్దంలో విజయనగర రాజులు నిర్మించారు. కొండారెడ్డి బురుజు కర్నూలు గుండెకాయ వంటిది.',
-    address: 'Near Old City, Kurnool, Andhra Pradesh 518001',
-    timings: '09:00 AM - 06:00 PM',
-    entryFee: 'Free',
-    bestTimeToVisit: 'Morning & Evening',
-    photos: ['https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?w=800'],
-    latitude: 15.8281,
-    longitude: 78.0373,
-    isPromoted: true,
-  },
-  {
-    id: 'orvakal_rock_garden',
-    type: 'tourist',
-    name_en: 'Orvakal Rock Garden',
-    name_te: 'ఓర్వకల్లు రాతి ఉద్యానవనం',
-    description_en: 'Magnificent 1000-acre natural park with rare quartz and silica rock formations carved over millions of years around natural water ponds. A major film shooting and picnic destination.',
-    description_te: 'ఓర్వకల్లు వద్ద సహజసిద్ధమైన అద్భుతమైన క్వార్ట్జ్ రాతి నిర్మాణాలు, సరస్సులు మరియు బోటింగ్ సౌకర్యాలు ఉన్నాయి.',
-    address: 'NH 40, Orvakal, Kurnool Dist (24 km from city)',
-    timings: '08:00 AM - 06:00 PM',
-    entryFee: '₹20 adults / ₹10 children',
-    bestTimeToVisit: 'October to February',
-    photos: ['https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800'],
-    latitude: 15.6886,
-    longitude: 78.2257,
-    isPromoted: true,
-  },
-  {
-    id: 'rollapadu_sanctuary',
-    type: 'tourist',
-    name_en: 'Rollapadu Wildlife Sanctuary',
-    name_te: 'రోళ్లపాడు వన్యప్రాణుల సంరక్షణ కేంద్రం',
-    description_en: 'Renowned grasslands sanctuary home to the endangered Great Indian Bustard, Blackbucks, and diverse migratory birds.',
-    description_te: 'రోళ్లపాడు గడ్డిభూములు మరియు అంతరించిపోతున్న గ్రేట్ ఇండియన్ బస్టర్డ్, జింకల సంరక్షణ కేంద్రం.',
-    address: 'Rollapadu Village, near Nandikotkur, Kurnool District',
-    timings: '07:00 AM - 05:30 PM',
-    entryFee: '₹30',
-    bestTimeToVisit: 'November to March',
-    photos: ['https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800'],
-    latitude: 15.7483,
-    longitude: 78.3752,
-    isPromoted: false,
-  },
-  {
-    id: 'tungabhadra_riverfront',
-    type: 'landmark',
-    name_en: 'Tungabhadra Riverfront & Ghats',
-    name_te: 'తుంగభద్ర నదీ తీరం & పుష్కర ఘాట్లు',
-    description_en: 'Scenic sacred riverfront where Kurnool residents gather for evening walks, cultural celebrations, and morning tranquility.',
-    description_te: 'కర్నూలు నగర తుంగభద్ర నదీ తీరం, సాయంత్రపు నడకలకు మరియు పుష్కర ఘాట్లకు ప్రసిద్ధి.',
-    address: 'River Road, Kurnool',
-    timings: 'Open 24 Hours',
-    entryFee: 'Free',
-    photos: ['https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800'],
-    latitude: 15.8344,
-    longitude: 78.0468,
-    isPromoted: false,
-  },
-];
+export const SEED_PLACES: PlaceItem[] = [];
 
-export const SEED_WORSHIP_PLACES: PlaceItem[] = [
-  {
-    id: 'mantralayam_raghavendra',
-    type: 'temple',
-    name_en: 'Mantralayam Sri Raghavendra Swamy Matha',
-    name_te: 'మంత్రాలయం శ్రీ రాఘవేంద్ర స్వామి మఠం',
-    description_en: 'World-renowned holy pilgrimage center on the banks of Tungabhadra where the saint Sri Raghavendra Swamy entered Jeeva Samadhi in 1671.',
-    description_te: 'తుంగభద్ర తీరంలో వెలసిన ప్రముఖ పుణ్యక్షేత్రం, శ్రీ రాఘవేంద్ర స్వామి సజీవ సమాధి చెందిన పవిత్ర స్థలం.',
-    address: 'Mantralayam, Kurnool District (70 km from Kurnool)',
-    timings: '06:00 AM - 02:00 PM, 04:00 PM - 09:00 PM',
-    photos: ['https://images.unsplash.com/photo-1544816155-12df9643f363?w=800'],
-    latitude: 15.9409,
-    longitude: 77.4304,
-    isPromoted: true,
-  },
-  {
-    id: 'kurnool_jumma_masjid',
-    type: 'masjid',
-    name_en: 'Historic Kurnool Jumma Masjid',
-    name_te: 'చారిత్రక కర్నూలు జుమ్మా మసీదు',
-    description_en: 'Historic and grand congregational mosque in the heart of Kurnool city, built during the era of the Nawabs of Kurnool.',
-    description_te: 'నవాబుల కాలంలో నిర్మించిన కర్నూలు నగర కేంద్రంలోని చారిత్రక మరియు అందమైన జుమ్మా మసీదు.',
-    address: 'Old City, near One Town, Kurnool, Andhra Pradesh 518001',
-    timings: 'Open for all 5 daily prayers',
-    photos: ['https://images.unsplash.com/photo-1542838132-92c53300491e?w=800'],
-    latitude: 15.8305,
-    longitude: 78.0388,
-    isPromoted: true,
-  },
-  {
-    id: 'st_anthonys_shrine',
-    type: 'church',
-    name_en: "St. Anthony's Shrine & Cathedral",
-    name_te: "సెయింట్ ఆంథోనీస్ కేథడ్రల్ చర్చి",
-    description_en: 'A peaceful and sacred Roman Catholic cathedral known for its serene prayer hall and community welfare services.',
-    description_te: 'కర్నూలులోని ప్రముఖ రోమన్ కాథలిక్ చర్చి మరియు ఆధ్యాత్మిక కేంద్రం.',
-    address: 'Budhawarapet, Kurnool, Andhra Pradesh 518002',
-    timings: '06:00 AM - 08:00 PM',
-    photos: ['https://images.unsplash.com/photo-1548625361-195feeed8230?w=800'],
-    latitude: 15.8234,
-    longitude: 78.0412,
-    isPromoted: true,
-  },
-  {
-    id: 'chennakesava_temple',
-    type: 'temple',
-    name_en: 'Sri Chennakesava Swamy Temple',
-    name_te: 'శ్రీ చెన్నకేశవ స్వామి దేవాలయం',
-    description_en: 'Ancient temple of Lord Vishnu dedicated to Sri Chennakesava with serene architecture and daily traditional rituals.',
-    description_te: 'కర్నూలులోని ప్రాచీన మరియు ప్రసిద్ధ శ్రీ చెన్నకేశవ స్వామి దేవాలయం.',
-    address: 'One Town, Kurnool',
-    timings: '06:30 AM - 12:00 PM, 05:00 PM - 08:30 PM',
-    photos: ['https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=800'],
-    latitude: 15.8291,
-    longitude: 78.0354,
-    isPromoted: false,
-  },
-];
+export const SEED_WORSHIP_PLACES: PlaceItem[] = [];
 
 export const SEED_PROFESSIONALS: ProfessionalItem[] = [
   {
@@ -1121,6 +1111,11 @@ export const SEED_OFFERS: OfferItem[] = [
     validUntil: 'Valid till 31 Oct 2026',
     category: 'clothing_fashion',
     phone: '+919848012345',
+    bannerUrl: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80',
+    ],
   },
   {
     id: 'offer_uggani_bajji_combo',
@@ -1133,6 +1128,10 @@ export const SEED_OFFERS: OfferItem[] = [
     validUntil: 'Valid this Month',
     category: 'restaurants_cafes',
     phone: '+919440054321',
+    bannerUrl: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=800&auto=format&fit=crop&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=800&auto=format&fit=crop&q=80',
+    ],
   },
 ];
 
@@ -1228,6 +1227,21 @@ export const fetchBusinessById = async (id: string): Promise<BusinessItem | null
   }
 };
 
+export const fetchProfessionalById = async (id: string): Promise<ProfessionalItem | null> => {
+  try {
+    const docRef = doc(db, 'professionals', id);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      return { id: snap.id, ...snap.data() } as ProfessionalItem;
+    }
+    const seed = SEED_PROFESSIONALS.find(p => p.id === id);
+    return seed || null;
+  } catch {
+    const seed = SEED_PROFESSIONALS.find(p => p.id === id);
+    return seed || null;
+  }
+};
+
 export const fetchProfessionals = async (category?: string, searchQuery?: string): Promise<ProfessionalItem[]> => {
   try {
     const coll = collection(db, 'professionals');
@@ -1319,15 +1333,24 @@ export const uploadBusinessImage = async (uri: string): Promise<string> => {
   return await getDownloadURL(task.ref);
 };
 
+export const uploadOfferImage = async (uri: string): Promise<string> => {
+  const filename = `offer_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+  const storageRef = ref(storage, `offers/${filename}`);
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  const task = await uploadBytesResumable(storageRef, blob);
+  return await getDownloadURL(task.ref);
+};
+
 export const registerBusiness = async (data: Partial<BusinessItem>): Promise<string> => {
   const user = auth.currentUser;
   const coll = collection(db, 'businesses');
   const docRef = await addDoc(coll, {
     ...data,
     ownerUid: data.ownerUid || user?.uid || '',
-    claimStatus: (data.ownerUid || user) ? 'verified' : 'unclaimed',
+    claimStatus: (data.ownerUid || user) ? 'claimed' : 'unclaimed',
     tier: data.tier || 'featured',
-    verificationBadge: data.verificationBadge || 'verified_business',
+    verificationBadge: 'none',
     ratingAvg: 5.0,
     ratingCount: 1,
     status: data.status || 'active',
@@ -1355,7 +1378,7 @@ export const registerProfessional = async (
     userId: data.userId || user?.uid || '',
     ratingAvg: 5.0,
     ratingCount: 1,
-    verifiedProfessional: data.verifiedProfessional ?? true,
+    verifiedProfessional: false,
     status: data.status || 'active',
     createdAt: serverTimestamp(),
   });
@@ -1764,5 +1787,84 @@ export const EVENT_PRICING_PLANS: PricingPlan[] = [
     ],
   },
 ];
+
+// ─── NEWS INTERFACE & SERVICES ──────────────────────────────────────────────
+
+export interface NewsItem {
+  id: string;
+  title_en: string;
+  title_te?: string;
+  content_en: string;
+  content_te?: string;
+  source?: string;
+  sourceUrl?: string;
+  imageUrl?: string;
+  publishedAt: string;
+  dateStr?: string;
+  category?: string;
+  createdAt?: any;
+}
+
+export const SEED_NEWS: NewsItem[] = [
+  {
+    id: 'news-1',
+    title_en: 'Kurnool City Development: New Bypass Road & Flyover Project Approved',
+    title_te: 'కర్నూలు నగర అభివృద్ధి: కొత్త బైపాస్ రోడ్డు మరియు ఫ్లైఓవర్ ప్రాజెక్టుకు ఆమోదం',
+    content_en: 'The Andhra Pradesh state administration has sanctioned new infrastructure upgrades for Kurnool city, easing traffic congestion between Bellary Chowrasta and Raj Vihar center. Work is slated to commence shortly.',
+    content_te: 'కర్నూలు నగరంలో ట్రాఫిక్ సమస్యలను పరిష్కరించేందుకు బళ్లారి చౌరస్తా మరియు రాజ్ విహార్ సెంటర్ మధ్య కొత్త ఫ్లైఓవర్ ప్రాజెక్టును ప్రభుత్వం మంజూరు చేసింది.',
+    source: 'Public Press Release / District Information',
+    publishedAt: '2025-02-15',
+    category: 'Development',
+    imageUrl: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'news-2',
+    title_en: 'Historic Konda Reddy Buruju Light & Sound Show Revamped for Visitors',
+    title_te: 'చారిత్రక కొండారెడ్డి బురుజు లైట్ అండ్ సౌండ్ షో ఆధునికీకరణ',
+    content_en: 'The prestigious Konda Reddy Buruju fort in Kurnool is now hosting an upgraded evening light and sound show narrating the glorious history of Rayalaseema and freedom fighters.',
+    content_te: 'కర్నూలులోని కొండారెడ్డి బురుజు వద్ద సాయంత్రం వేళల్లో నిర్వహించే లైట్ అండ్ సౌండ్ షోను సరికొత్త హంగులతో ఆధునీకరించారు.',
+    source: 'Tourism & Cultural Dept Updates',
+    publishedAt: '2025-02-10',
+    category: 'Culture & Tourism',
+    imageUrl: 'https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?w=800&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'news-3',
+    title_en: 'Solar & Renewable Energy Push Across Kurnool District',
+    title_te: 'కర్నూలు జిల్లాలో సౌర విద్యుత్ ప్రాజెక్టుల విస్తరణ',
+    content_en: 'With Kurnool remaining one of the largest renewable energy hubs in India, new rooftop solar incentives and mega park installations are generating sustainable local employment.',
+    content_te: 'భారతదేశంలో ప్రముఖ పునరుత్పాదక ఇంధన కేంద్రంగా ఉన్న కర్నూలు జిల్లాలో మరిన్ని సౌర విద్యుత్ ప్రాజెక్టులు అందుబాటులోకి వస్తున్నాయి.',
+    source: 'District Energy Updates',
+    publishedAt: '2025-02-05',
+    category: 'Energy',
+    imageUrl: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=800&auto=format&fit=crop&q=80',
+  },
+];
+
+export async function fetchNews(): Promise<NewsItem[]> {
+  try {
+    const q = query(collection(db, 'news'), orderBy('publishedAt', 'desc'), limit(50));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      return snap.docs.map(d => ({ id: d.id, ...d.data() } as NewsItem));
+    }
+  } catch (err) {
+    console.warn('fetchNews Firestore error, returning seed news:', err);
+  }
+  return SEED_NEWS;
+}
+
+export async function createNews(newsData: Omit<NewsItem, 'id'>): Promise<string> {
+  const colRef = collection(db, 'news');
+  const docRef = await addDoc(colRef, {
+    ...newsData,
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+export async function deleteNews(newsId: string): Promise<void> {
+  await deleteDoc(doc(db, 'news', newsId));
+}
 
 

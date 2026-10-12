@@ -1,17 +1,32 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, SafeAreaView, ScrollView, TouchableOpacity,
-  Linking, Share, StyleSheet, Image,
+  Linking, Share, StyleSheet, Image, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
-import { ProfessionalItem, recordCustomerLead } from '../services/directoryService';
+import { ProfessionalItem, recordCustomerLead, fetchProfessionalById } from '../services/directoryService';
 import { auth } from '../config/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ProfessionalDetailScreen({ route, navigation }: any) {
-  const { pro } = route.params as { pro: ProfessionalItem };
+  const { pro: initialPro, proId } = (route.params || {}) as { pro?: ProfessionalItem; proId?: string };
   const { language } = useLanguage();
+
+  const [pro, setPro] = useState<ProfessionalItem | null>(initialPro || null);
+  const [loading, setLoading] = useState<boolean>(!initialPro && !!proId);
+
+  useEffect(() => {
+    if (!pro && proId) {
+      setLoading(true);
+      fetchProfessionalById(proId).then(data => {
+        setPro(data);
+        setLoading(false);
+      }).catch(() => {
+        setLoading(false);
+      });
+    }
+  }, [proId]);
 
   const logProLead = async (actionType: 'view' | 'call' | 'whatsapp') => {
     try {
@@ -52,18 +67,20 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
   };
 
   useEffect(() => {
-    logProLead('view');
+    if (pro?.id) {
+      logProLead('view');
+    }
   }, [pro?.id]);
 
   const handleCall = () => {
-    if (pro.phone) {
+    if (pro?.phone) {
       logProLead('call');
       Linking.openURL(`tel:${pro.phone}`).catch(() => {});
     }
   };
 
   const handleWhatsApp = () => {
-    if (pro.whatsapp || pro.phone) {
+    if (pro && (pro.whatsapp || pro.phone)) {
       logProLead('whatsapp');
       const num = (pro.whatsapp || pro.phone).replace(/[^0-9]/g, '');
       const waNumber = num.startsWith('91') ? num : `91${num}`;
@@ -78,12 +95,51 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
   };
 
   const handleShare = async () => {
+    if (!pro) return;
     try {
+      const appUrl = 'https://play.google.com/store/apps/details?id=com.kurnoolone.app';
       await Share.share({
-        message: `Need a ${pro.category} in Kurnool? Check out ${pro.fullName} on Kurnool One!\nPhone: ${pro.phone}\nAreas: ${pro.serviceAreas.join(', ')}`,
+        message: `Need a ${pro.category} in Kurnool? Check out ${pro.fullName} on Kurnool One!\nPhone: ${pro.phone}\nAreas: ${pro.serviceAreas?.join(', ') || 'Kurnool'}\n\n👉 Download Kurnool One App:\n${appUrl}`,
       });
     } catch {}
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.navBar}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navBtn}>
+            <Ionicons name="arrow-back" size={24} color="#111827" />
+          </TouchableOpacity>
+          <Text style={styles.navTitle}>{language === 'en' ? 'Professional Details' : 'వివరాలు'}</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#2563EB" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!pro) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.navBar}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navBtn}>
+            <Ionicons name="arrow-back" size={24} color="#111827" />
+          </TouchableOpacity>
+          <Text style={styles.navTitle}>{language === 'en' ? 'Not Found' : 'కనిపించలేదు'}</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <Ionicons name="alert-circle-outline" size={48} color="#9CA3AF" />
+          <Text style={{ marginTop: 12, fontSize: 16, color: '#6B7280', textAlign: 'center' }}>
+            {language === 'en' ? 'Professional profile not found or has been removed.' : 'ప్రొఫైల్ వివరాలు అందుబాటులో లేవు.'}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -231,6 +287,14 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
             </Text>
           </View>
         </View>
+
+        {/* Third-Party Professional Disclaimer */}
+        <View style={styles.disclaimerBox}>
+          <Ionicons name="information-circle-outline" size={16} color="#64748B" style={{ marginTop: 2 }} />
+          <Text style={styles.disclaimerText}>
+            Disclaimer: Rates, credentials, and services are offered directly by this independent professional. Kurnool One is a discovery platform and does not employ or guarantee individual service quality. Users should verify credentials independently.
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -292,4 +356,10 @@ const styles = StyleSheet.create({
   },
   trustTitle: { fontSize: 13, fontWeight: '800', color: '#166534' },
   trustSub: { fontSize: 11, color: '#15803D', marginTop: 2, lineHeight: 16 },
+  disclaimerBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    backgroundColor: '#F8FAFC', borderRadius: 14, padding: 14,
+    marginTop: 10, marginBottom: 20, borderWidth: 1, borderColor: '#E2E8F0',
+  },
+  disclaimerText: { flex: 1, fontSize: 11, color: '#64748B', lineHeight: 16 },
 });

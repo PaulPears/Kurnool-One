@@ -1,5 +1,15 @@
 import React from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert, Linking, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  SafeAreaView,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  Linking,
+  StyleSheet,
+  StatusBar,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
@@ -10,266 +20,179 @@ export default function SettingsScreen({ navigation }: any) {
   const { language, toggleLanguage } = useLanguage();
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: async () => {
-        await auth.signOut();
-        await AsyncStorage.clear();
-        navigation.replace('MobileFirebaseLogin');
-      }},
-    ]);
+    Alert.alert(
+      language === 'en' ? 'Sign Out' : 'లాగ్ అవుట్',
+      language === 'en'
+        ? 'Are you sure you want to sign out of Kurnool One?'
+        : 'మీరు కర్నూలు వన్ నుండి లాగ్ అవుట్ అవ్వాలనుకుంటున్నారా?',
+      [
+        { text: language === 'en' ? 'Cancel' : 'రద్దు', style: 'cancel' },
+        {
+          text: language === 'en' ? 'Sign Out' : 'లాగ్ అవుట్',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await auth.signOut();
+              await AsyncStorage.multiRemove(['user', 'token', 'auth_role']);
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MobileFirebaseLogin' }],
+              });
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Failed to logout');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      'Delete Account & Data',
-      'Are you sure you want to permanently delete your account? This action cannot be undone and will permanently erase all your listings, posts, likes, reviews, and profile data from Kurnool One.',
+      language === 'en' ? '⚠️ Delete Account & Erase Data' : '⚠️ ఖాతా మరియు డేటా తొలగింపు',
+      language === 'en'
+        ? 'This will permanently erase your profile, saved listings, and all account data in compliance with the DPDP Act 2023 and Google Play Store policies. This action CANNOT be undone. Are you sure?'
+        : 'ఇది మీ ప్రొఫైల్, లిస్టింగులు మరియు మొత్తం డేటాను శాశ్వతంగా తొలగిస్తుంది. ఈ చర్యను రద్దు చేయలేము. మీరు ఖచ్చితంగా కొనసాగించాలనుకుంటున్నారా?',
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete Permanently', style: 'destructive', onPress: async () => {
-          try {
-            const user = auth.currentUser;
-            if (user) {
-              await deleteUserAccount(user.uid);
+        { text: language === 'en' ? 'Cancel' : 'రద్దు', style: 'cancel' },
+        {
+          text: language === 'en' ? 'Erase All Data' : 'మొత్తం డేటాను తొలగించండి',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const currentUid = auth.currentUser?.uid;
+              if (currentUid) {
+                await deleteUserAccount(currentUid);
+              }
+              await auth.signOut();
               await AsyncStorage.clear();
-              Alert.alert('Account Deleted', 'Your account and data have been permanently removed.');
-              navigation.replace('MobileFirebaseLogin');
+              Alert.alert(
+                language === 'en' ? 'Account Deleted' : 'ఖాతా తొలగించబడింది',
+                language === 'en'
+                  ? 'Your account and personal data have been completely erased.'
+                  : 'మీ ఖాతా మరియు డేటా పూర్తిగా తొలగించబడ్డాయి.'
+              );
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MobileFirebaseLogin' }],
+              });
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Could not complete deletion.');
             }
-          } catch (e) {
-            Alert.alert('Error', 'Failed to delete account. Please re-authenticate and try again.');
-          }
-        }},
+          },
+        },
       ]
-    );
-  };
-
-  const showAbout = () => {
-    Alert.alert(
-      'About Kurnool One (కర్నూలు వన్)',
-      'Kurnool One is the comprehensive digital city platform for Kurnool, connecting residents and visitors with local businesses, skilled service professionals, tourist places, places of worship, city events, and exclusive offers.\n\nKey Features:\n• Business & Shop Directory\n• Skilled Professionals & Repair Services (Near You)\n• Explore Kurnool (Tourism & Heritage)\n• Places of Worship (Temples, Churches, Masjids)\n• Verified City Events & Announcements\n• Exclusive Local Promotions & Deals\n\nDisclaimer:\nKurnool One is an independent private platform and is not affiliated with, endorsed by, or operated by the Kurnool Municipal Corporation or the Government of Andhra Pradesh.\n\nContact Us:\n📧 Email: support@kurnoolone.com\n📍 Kurnool, Andhra Pradesh, India',
-      [{ text: 'OK' }]
-    );
-  };
-
-  const showTermsAndConditions = () => {
-    Alert.alert(
-      'Terms and Conditions – Kurnool One',
-      'Welcome to Kurnool One. By using the app, you agree to our Terms of Service.\n\n1. Directory Information: Kurnool One connects users with independent local businesses and service professionals.\n2. Role Exclusivity: Business and Professional credentials are strictly separate.\n3. Content Standards: Fraudulent or deceptive listings are suspended immediately.\n\nFor support: support@kurnoolone.com',
-      [
-        { text: 'Read Online (Web)', onPress: () => Linking.openURL('https://kurnoolone.com/terms').catch(() => {}) },
-        { text: 'OK', style: 'cancel' }
-      ]
-    );
-  };
-
-  const showPrivacyPolicy = () => {
-    Alert.alert(
-      'Privacy Policy – Kurnool One',
-      'Information We Collect:\n• Mobile Phone Number for OTP authentication.\n• Zero SMS Permissions Needed (Play Store SMS Retriever API compliant).\n• Business / Professional listing details.\n\nWe strictly adhere to India\'s DPDP Act 2023. You can delete your account anytime via Settings or at kurnoolone.com/delete-account.',
-      [
-        { text: 'Read Full Policy (Web)', onPress: () => Linking.openURL('https://kurnoolone.com/privacy').catch(() => {}) },
-        { text: 'OK', style: 'cancel' }
-      ]
-    );
-  };
-
-  const showHelpAndSupport = () => {
-    Alert.alert(
-      'Help & Support – Kurnool One',
-      'Need assistance with your listing, account, or services?\n\nWe Can Help You With:\n• Registering or claiming your business listing\n• Service professional profile verification\n• Reporting inaccurate or closed businesses\n• Account assistance & technical issues\n• Promotional campaigns and banners\n\nContact Support:\n📧 Email: support@kurnoolone.com\n📍 Kurnool, Andhra Pradesh, India',
-      [{ text: 'OK' }]
-    );
-  };
-
-  const showPromotions = () => {
-    Alert.alert(
-      'Promotions & Advertisements – Kurnool One',
-      'Kurnool One offers premium visibility for local businesses, shops, and service providers.\n\nAdvertising Options:\n• Top Homepage Hero Banners\n• Featured Business Placement in Category\n• Exclusive Offers & Deals Section\n• Sponsored Event Highlights\n\nContact for Business Promotions:\n📧 support@kurnoolone.com',
-      [{ text: 'OK' }]
     );
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{language === 'en' ? 'Settings' : 'సెట్టింగ్లు'}</Text>
-          <View style={{ width: 24 }} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="arrow-back" size={24} color="#0F172A" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>
+          {language === 'en' ? 'Settings & Preferences' : 'సెట్టింగ్‌లు & ప్రాధాన్యతలు'}
+        </Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* App Preferences */}
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>
+            {language === 'en' ? 'App Experience' : 'యాప్ అనుభవం'}
+          </Text>
+
+          {/* Language Switcher */}
+          <View style={styles.settingCard}>
+            <View style={[styles.cardIconBox, { backgroundColor: '#F0FDF4' }]}>
+              <Ionicons name="language" size={22} color="#16A34A" />
+            </View>
+            <View style={styles.cardContent}>
+              <Text style={styles.cardTitle}>Language / భాష</Text>
+              <Text style={styles.cardSubtitle}>
+                {language === 'en' ? 'Currently: English' : 'ప్రస్తుతం: తెలుగు'}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.langToggleBtn} onPress={toggleLanguage}>
+              <Text style={styles.langToggleText}>
+                {language === 'en' ? 'తెలుగులోకి మార్చు' : 'Switch to English'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* General Section */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>{language === 'en' ? 'General' : 'సాధారణం'}</Text>
-          
-          <TouchableOpacity style={styles.settingsCard} onPress={toggleLanguage}>
-            <View style={[styles.iconContainer, { backgroundColor: '#EDE9FE' }]}>
-              <Ionicons name="language-outline" size={22} color="#6C3BFF" />
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>{language === 'en' ? 'Language' : 'భాష'}</Text>
-              <Text style={styles.cardSubtitle}>{language === 'en' ? 'English' : 'తెలుగు'}</Text>
-            </View>
-            <Text style={styles.rightText}>{language === 'en' ? 'English' : 'తెలుగు'}</Text>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-        </View>
+        {/* Legal & Privacy Section (DPDP Act 2023 Compliant) */}
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>
+            {language === 'en' ? 'Legal & Privacy (DPDP Act 2023)' : 'చట్టపరమైన & గోప్యతా విధానం'}
+          </Text>
 
-        {/* Account Section */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>{language === 'en' ? 'Account' : 'ఖాతా'}</Text>
-          
-          <TouchableOpacity style={styles.settingsCard} onPress={() => navigation.navigate('EditProfile')}>
-            <View style={[styles.iconContainer, { backgroundColor: '#DBEAFE' }]} >
-              <Ionicons name="person-outline" size={22} color="#3B82F6" />
+          <TouchableOpacity
+            style={styles.settingCard}
+            onPress={() => Linking.openURL('https://kurnool-kaburlu.web.app/terms').catch(() => {})}
+          >
+            <View style={[styles.cardIconBox, { backgroundColor: '#F8FAFC' }]}>
+              <Ionicons name="document-text-outline" size={22} color="#475569" />
             </View>
             <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>{language === 'en' ? 'Edit Profile' : 'ప్రొఫైల్ సవరించు'}</Text>
-              <Text style={styles.cardSubtitle}>{language === 'en' ? 'Manage your public profile' : 'మీ ప్రొఫైల్ నిర్వహించండి'}</Text>
+              <Text style={styles.cardTitle}>Terms & Conditions</Text>
+              <Text style={styles.cardSubtitle}>kurnoolone.com/terms</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            <Ionicons name="open-outline" size={18} color="#94A3B8" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingsCard} onPress={() => Alert.alert('Linked Account', `Your account is linked via Google Sign-In.\nEmail: ${auth.currentUser?.email || 'Unknown'}`, [{ text: 'OK' }])}>
-            <View style={[styles.iconContainer, { backgroundColor: '#F3E8FF' }]}>
-              <Ionicons name="logo-google" size={20} color="#9333EA" />
+          <TouchableOpacity
+            style={styles.settingCard}
+            onPress={() => Linking.openURL('https://kurnool-kaburlu.web.app/privacy').catch(() => {})}
+          >
+            <View style={[styles.cardIconBox, { backgroundColor: '#F0FDF4' }]}>
+              <Ionicons name="shield-checkmark-outline" size={22} color="#16A34A" />
             </View>
             <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>{language === 'en' ? 'Linked Account' : 'లింక్ చేయబడిన ఖాతా'}</Text>
-              <Text style={styles.cardSubtitle}>{auth.currentUser?.email || (language === 'en' ? 'Google Sign-In active' : 'గూగుల్ సైన్-ఇన్ యాక్టివ్')}</Text>
+              <Text style={styles.cardTitle}>Privacy Policy & Data Security</Text>
+              <Text style={styles.cardSubtitle}>DPDP Act 2023 Compliant</Text>
             </View>
+            <Ionicons name="open-outline" size={18} color="#94A3B8" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingsCard} onPress={handleDeleteAccount}>
-            <View style={[styles.iconContainer, { backgroundColor: '#FEE2E2' }]}>
-              <Ionicons name="trash-outline" size={20} color="#EF4444" />
+          {/* Delete Account */}
+          <TouchableOpacity style={styles.settingCard} onPress={handleDeleteAccount}>
+            <View style={[styles.cardIconBox, { backgroundColor: '#FEF2F2' }]}>
+              <Ionicons name="trash-outline" size={22} color="#DC2626" />
             </View>
             <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>{language === 'en' ? 'Delete Account' : 'ఖాతాను తొలగించండి'}</Text>
-              <Text style={styles.cardSubtitle}>{language === 'en' ? 'Permanently delete your data' : 'మీ డేటాను శాశ్వతంగా తొలగించండి'}</Text>
+              <Text style={[styles.cardTitle, { color: '#DC2626' }]}>Delete Account & Erase All Data</Text>
+              <Text style={styles.cardSubtitle}>Permanent one-click data deletion</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Privacy & Security Section */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>{language === 'en' ? 'Privacy & Security' : 'గోప్యత మరియు భద్రత'}</Text>
-          
-          <TouchableOpacity style={styles.settingsCard} onPress={showPrivacyPolicy}>
-            <View style={[styles.iconContainer, { backgroundColor: '#DBEAFE' }]}>
-              <Ionicons name="shield-checkmark-outline" size={22} color="#3B82F6" />
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>{language === 'en' ? 'Privacy & Security' : 'గోప్యత మరియు భద్రత'}</Text>
-              <Text style={styles.cardSubtitle}>{language === 'en' ? 'Manage privacy and security' : 'గోప్యత మరియు భద్రతను నిర్వహించండి'}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.settingsCard} onPress={() => Alert.alert('Data & Privacy', 'You have full control over your data. To request data deletion, please email support@kurnoolone.com', [{ text: 'OK' }])}>
-            <View style={[styles.iconContainer, { backgroundColor: '#FCE7F3' }]}>
-              <Ionicons name="lock-closed-outline" size={22} color="#EC4899" />
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>{language === 'en' ? 'Data & Privacy' : 'డేటా మరియు గోప్యత'}</Text>
-              <Text style={styles.cardSubtitle}>{language === 'en' ? 'Manage your personal data' : 'మీ వ్యక్తిగత డేటాను నిర్వహించండి'}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Notifications Section */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>{language === 'en' ? 'Notifications' : 'నోటిఫికేషన్లు'}</Text>
-          
-          <TouchableOpacity style={styles.settingsCard} onPress={() => navigation.navigate('Notifications')}>
-            <View style={[styles.iconContainer, { backgroundColor: '#EDE9FE' }]}>
-              <Ionicons name="notifications-outline" size={22} color="#6C3BFF" />
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>{language === 'en' ? 'Notifications' : 'నోటిఫికేషన్లు'}</Text>
-              <Text style={styles.cardSubtitle}>{language === 'en' ? 'Manage your notifications' : 'మీ నోటిఫికేషన్లను నిర్వహించండి'}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            <Ionicons name="chevron-forward" size={18} color="#DC2626" />
           </TouchableOpacity>
         </View>
 
-        {/* More Section */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>{language === 'en' ? 'More' : 'మరిన్ని'}</Text>
-          
-          <TouchableOpacity style={styles.settingsCard} onPress={showPromotions}>
-            <View style={[styles.iconContainer, { backgroundColor: '#D1FAE5' }]}>
-              <Ionicons name="megaphone-outline" size={22} color="#10B981" />
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>{language === 'en' ? 'Promotions & Advertisements' : 'ప్రమోషన్లు మరియు ప్రకటనలు'}</Text>
-              <Text style={styles.cardSubtitle}>{language === 'en' ? 'Manage promotions and ads' : 'ప్రమోషన్లు మరియు ప్రకటనలను నిర్వహించండి'}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
+        {/* Sign Out Button */}
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={20} color="#DC2626" />
+          <Text style={styles.logoutButtonText}>
+            {language === 'en' ? 'Log Out from Kurnool One' : 'లాగ్ అవుట్'}
+          </Text>
+        </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingsCard} onPress={showHelpAndSupport}>
-            <View style={[styles.iconContainer, { backgroundColor: '#DBEAFE' }]}>
-              <Ionicons name="headset-outline" size={22} color="#3B82F6" />
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>{language === 'en' ? 'Help & Support' : 'సహాయం మరియు మద్దతు'}</Text>
-              <Text style={styles.cardSubtitle}>{language === 'en' ? 'Get help and support' : 'సహాయం మరియు మద్దతు పొందండి'}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.settingsCard} onPress={showAbout}>
-            <View style={[styles.iconContainer, { backgroundColor: '#EDE9FE' }]}>
-              <Ionicons name="information-circle-outline" size={22} color="#6C3BFF" />
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>{language === 'en' ? 'About Kurnool One' : 'కర్నూలు వన్ గురించి'}</Text>
-              <Text style={styles.cardSubtitle}>{language === 'en' ? 'Learn more about us' : 'మమ్మల్ని గురించి మరింత తెలుసుకోండి'}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.settingsCard} onPress={showTermsAndConditions}>
-            <View style={[styles.iconContainer, { backgroundColor: '#FED7AA' }]}>
-              <Ionicons name="document-text-outline" size={22} color="#F97316" />
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>{language === 'en' ? 'Terms & Conditions' : 'నిబంధనలు మరియు షరతులు'}</Text>
-              <Text style={styles.cardSubtitle}>{language === 'en' ? 'Read our terms and conditions' : 'మా నిబంధనలు మరియు షరతులను చదవండి'}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.settingsCard} onPress={showPrivacyPolicy}>
-            <View style={[styles.iconContainer, { backgroundColor: '#D1FAE5' }]}>
-              <Ionicons name="shield-checkmark-outline" size={22} color="#10B981" />
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>{language === 'en' ? 'Privacy Policy' : 'గోప్యతా విధానం'}</Text>
-              <Text style={styles.cardSubtitle}>{language === 'en' ? 'Read our privacy policy' : 'మా గోప్యతా విధానాన్ని చదవండి'}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Logout Button */}
-        <View style={styles.logoutContainer}>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={22} color="#EF4444" />
-            <Text style={styles.logoutButtonText}>{language === 'en' ? 'Logout' : 'లాగ్అవుట్'}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Kurnool One v1.0.0</Text>
-          <Text style={styles.footerText}>© 2026 Kurnool One</Text>
+        {/* Build & App Version Footer */}
+        <View style={styles.footerContainer}>
+          <View style={styles.footerBadge}>
+            <Text style={styles.footerBadgeText}>K1</Text>
+          </View>
+          <Text style={styles.footerAppName}>KURNOOL ONE • కర్నూలు వన్</Text>
+          <Text style={styles.footerVersion}>Version 2.4.0 (Official Build)</Text>
+          <Text style={styles.footerSub}>Proudly Made for the Citizens of Historic Kurnool</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -279,111 +202,140 @@ export default function SettingsScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  scrollView: {
-    flex: 1,
-    paddingBottom: 80,
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  backButton: {
+    padding: 6,
+    borderRadius: 8,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: '800',
-    color: '#1F2937',
+    color: '#0F172A',
   },
-  sectionContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 24,
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
   },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#6B7280',
+  section: {
+    marginBottom: 20,
+  },
+  sectionHeader: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#64748B',
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 12,
+    letterSpacing: 0.6,
+    marginBottom: 10,
     marginLeft: 4,
   },
-  settingsCard: {
+  settingCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  iconContainer: {
-    width: 44,
-    height: 44,
+  cardIconBox: {
+    width: 42,
+    height: 42,
     borderRadius: 12,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    justifyContent: 'center',
+    marginRight: 12,
   },
   cardContent: {
     flex: 1,
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#0F172A',
     marginBottom: 2,
   },
   cardSubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
+    fontSize: 12,
+    color: '#64748B',
   },
-  rightText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6C3BFF',
-    marginRight: 8,
+  langToggleBtn: {
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
   },
-  logoutContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 24,
+  langToggleText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: '#EF4444',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#EF4444',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1.5,
+    borderColor: '#FEE2E2',
+    paddingVertical: 14,
+    borderRadius: 14,
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 28,
   },
   logoutButtonText: {
-    color: '#EF4444',
-    fontSize: 16,
-    fontWeight: '700',
-    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#DC2626',
   },
-  footer: {
+  footerContainer: {
     alignItems: 'center',
-    paddingVertical: 24,
-    marginBottom: 20,
+    paddingVertical: 12,
   },
-  footerText: {
+  footerBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  footerBadgeText: {
     fontSize: 12,
-    color: '#9CA3AF',
-    marginBottom: 4,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  footerAppName: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: 0.5,
+  },
+  footerVersion: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  footerSub: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginTop: 4,
   },
 });

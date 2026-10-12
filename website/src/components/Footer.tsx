@@ -72,22 +72,24 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/register-professional" className="text-teal-600 hover:text-teal-800 font-semibold transition">
-                  + Register Professional Profile
+                <Link href="/register-professional" className="text-blue-600 hover:text-blue-800 font-semibold transition">
+                  + Register as a Professional
                 </Link>
               </li>
               <li>
-                <Link href="/business/login" className="text-slate-700 hover:text-blue-600 transition">
+                <Link href="/my-business" className="text-slate-700 hover:text-blue-600 transition">
                   Business Owner Dashboard
                 </Link>
               </li>
               <li>
-                <Link href="/professional/login" className="text-slate-700 hover:text-teal-600 transition">
-                  Professional Portal Login
+                <Link href="/professional/dashboard" className="text-slate-700 hover:text-blue-600 transition">
+                  Professional Portal Dashboard
                 </Link>
               </li>
               <li>
-                <span className="text-slate-500">Verified Blue Tick Badges</span>
+                <Link href="/directory" className="text-slate-700 hover:text-blue-600 transition">
+                  Browse All Categories
+                </Link>
               </li>
             </ul>
           </div>
