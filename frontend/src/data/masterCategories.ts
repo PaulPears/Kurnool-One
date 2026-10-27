@@ -53,6 +53,21 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     ],
   },
   {
+    id: 'chicken_mutton_center',
+    name_en: 'Chicken and Mutton Center',
+    name_te: 'చికెన్ మరియు మటన్ సెంటర్',
+    icon: 'nutrition',
+    color: '#DC2626',
+    bgLight: '#FEF2F2',
+    subcategories: [
+      { id: 'fresh_raw_chicken', name_en: 'Fresh Raw Chicken', name_te: 'తాజా చికెన్' },
+      { id: 'fresh_mutton', name_en: 'Fresh Mutton', name_te: 'తాజా మటన్' },
+      { id: 'natu_kodi', name_en: 'Country Chicken / Natu Kodi', name_te: 'నాటు కోడి' },
+      { id: 'sea_food_fish', name_en: 'Sea Food & Fish', name_te: 'చేపలు & సీ ఫుడ్' },
+      { id: 'eggs_poultry', name_en: 'Eggs & Poultry', name_te: 'గుడ్లు & పౌల్ట్రీ' },
+    ],
+  },
+  {
     id: 'automobile',
     name_en: 'Automobile & Vehicles',
     name_te: 'ఆటోమొబైల్ & వాహనాలు',

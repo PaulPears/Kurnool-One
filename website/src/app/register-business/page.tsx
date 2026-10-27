@@ -405,7 +405,7 @@ export default function RegisterBusinessPage() {
       }
 
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_kurnool_one',
+        key: orderData.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_Tj21FRIRtpaQcO',
         amount: orderData.amount,
         currency: 'INR',
         name: 'Kurnool One',

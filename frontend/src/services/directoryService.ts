@@ -269,6 +269,21 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     ],
   },
   {
+    id: 'chicken_mutton_center',
+    name_en: 'Chicken and Mutton Center',
+    name_te: 'చికెన్ మరియు మటన్ సెంటర్',
+    icon: 'nutrition',
+    color: '#DC2626',
+    bgLight: '#FEF2F2',
+    subcategories: [
+      { id: 'fresh_raw_chicken', name_en: 'Fresh Raw Chicken', name_te: 'తాజా చికెన్' },
+      { id: 'fresh_mutton', name_en: 'Fresh Mutton', name_te: 'తాజా మటన్' },
+      { id: 'natu_kodi', name_en: 'Country Chicken / Natu Kodi', name_te: 'నాటు కోడి' },
+      { id: 'sea_food_fish', name_en: 'Sea Food & Fish', name_te: 'చేపలు & సీ ఫుడ్' },
+      { id: 'eggs_poultry', name_en: 'Eggs & Poultry', name_te: 'గుడ్లు & పౌల్ట్రీ' },
+    ],
+  },
+  {
     id: 'hotels_lodges',
     name_en: 'Hotels & Lodges',
     name_te: 'హోటళ్ళు & లాడ్జీలు',
@@ -1866,5 +1881,379 @@ export async function createNews(newsData: Omit<NewsItem, 'id'>): Promise<string
 export async function deleteNews(newsId: string): Promise<void> {
   await deleteDoc(doc(db, 'news', newsId));
 }
+
+// ─── MARKETPLACE ITEMS (BUY & SELL) ──────────────────────────────────────────
+
+export interface MarketplaceItem {
+  id: string;
+  title_en: string;
+  title_te?: string;
+  price: string;
+  category: string;
+  sellerName: string;
+  sellerPhone: string;
+  sellerWhatsapp?: string;
+  sellerUid?: string;
+  area: string;
+  condition: string;
+  postedDate?: string;
+  imageUrl?: string;
+  images?: string[];
+  description: string;
+  status: 'active' | 'sold' | 'suspended';
+  createdAt?: any;
+}
+
+export async function fetchMarketplaceItems(): Promise<MarketplaceItem[]> {
+  try {
+    const q = query(
+      collection(db, 'marketplace'),
+      where('status', '==', 'active'),
+      limit(50)
+    );
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      return snap.docs.map(d => ({ id: d.id, ...d.data() } as MarketplaceItem));
+    }
+  } catch (err) {
+    console.warn('fetchMarketplaceItems non-fatal:', err);
+  }
+  return [];
+}
+
+export async function createMarketplaceItem(item: Omit<MarketplaceItem, 'id' | 'createdAt'>): Promise<string> {
+  const colRef = collection(db, 'marketplace');
+  const docRef = await addDoc(colRef, {
+    ...item,
+    status: item.status || 'active',
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+export async function updateMarketplaceItem(id: string, updates: Partial<MarketplaceItem>): Promise<void> {
+  await updateDoc(doc(db, 'marketplace', id), {
+    ...updates,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function deleteMarketplaceItem(id: string): Promise<void> {
+  await deleteDoc(doc(db, 'marketplace', id));
+}
+
+// ─── BLOOD DONORS DIRECTORY ──────────────────────────────────────────────────
+
+export interface BloodDonorItem {
+  id: string;
+  userId: string;
+  displayName: string;
+  bloodGroup: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
+  phone: string;
+  showPhonePublicly: boolean;
+  area: string;
+  availability: 'available' | 'donated_recently' | 'unavailable';
+  notes?: string;
+  status: 'active' | 'suspended';
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export async function fetchBloodDonors(bloodGroup?: string): Promise<BloodDonorItem[]> {
+  try {
+    const coll = collection(db, 'blood_donors');
+    let q;
+    if (bloodGroup && bloodGroup !== 'all' && bloodGroup !== 'All') {
+      q = query(coll, where('status', '==', 'active'), where('bloodGroup', '==', bloodGroup), limit(50));
+    } else {
+      q = query(coll, where('status', '==', 'active'), limit(50));
+    }
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as BloodDonorItem));
+  } catch (err) {
+    console.warn('fetchBloodDonors error:', err);
+    return [];
+  }
+}
+
+export async function registerBloodDonor(donor: Omit<BloodDonorItem, 'id' | 'createdAt'>): Promise<string> {
+  const colRef = collection(db, 'blood_donors');
+  const docRef = await addDoc(colRef, {
+    ...donor,
+    status: 'active',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+export async function updateBloodDonor(id: string, updates: Partial<BloodDonorItem>): Promise<void> {
+  await updateDoc(doc(db, 'blood_donors', id), {
+    ...updates,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function deleteBloodDonor(id: string): Promise<void> {
+  await deleteDoc(doc(db, 'blood_donors', id));
+}
+
+export async function fetchMyBloodDonorProfile(userId: string): Promise<BloodDonorItem | null> {
+  try {
+    const q = query(collection(db, 'blood_donors'), where('userId', '==', userId), limit(1));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      return { id: snap.docs[0].id, ...snap.docs[0].data() } as BloodDonorItem;
+    }
+  } catch (err) {
+    console.warn('fetchMyBloodDonorProfile non-fatal:', err);
+  }
+  return null;
+}
+
+// ─── HOUSE RENTALS & TO-LET (CITIZEN RENTALS) ────────────────────────────────
+
+export interface HouseRentalItem {
+  id: string;
+  ownerUid?: string;
+  ownerName: string;
+  ownerPhone: string;
+  ownerWhatsapp?: string;
+  title_en: string;
+  title_te?: string;
+  bhk: '1 RK' | '1 BHK' | '2 BHK' | '3 BHK' | '4+ BHK' | 'Commercial';
+  propertyType: string;
+  monthlyRent: number;
+  depositAmount?: number;
+  tenantPreference: 'Family Only' | 'Bachelors' | 'Any / All';
+  furnishing: 'Unfurnished' | 'Semi-Furnished' | 'Fully Furnished';
+  area: string;
+  addressDetails?: string;
+  waterFacility?: string;
+  parking?: string;
+  description: string;
+  images: string[];
+  status: 'available' | 'rented';
+  postedDate?: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export const SEED_HOUSE_RENTALS: HouseRentalItem[] = [
+  {
+    id: 'hr_seed_1',
+    ownerUid: 'seed_owner_1',
+    ownerName: 'Venkateswarlu G.',
+    ownerPhone: '9848011223',
+    ownerWhatsapp: '9848011223',
+    title_en: '2 BHK Spacious Flat (1st Floor, East Facing)',
+    title_te: '2 BHK విశాలమైన ఫ్లాట్ (మొదటి అంతస్తు, తూర్పు ముఖం)',
+    bhk: '2 BHK',
+    propertyType: 'Apartment / Flat',
+    monthlyRent: 9500,
+    depositAmount: 25000,
+    tenantPreference: 'Family Only',
+    furnishing: 'Semi-Furnished',
+    area: 'Gayatri Estate, Kurnool',
+    addressDetails: 'Near Venkateswara Swamy Temple, 2nd Cross Road',
+    waterFacility: '24/7 Borewell + Municipal Drinking Tap',
+    parking: 'Car & Bike Parking Available',
+    description: 'Neat & clean 2 BHK flat with modular kitchen, fans, lights, geyser, and separate utility balcony. Strictly vegetarian families preferred.',
+    images: [
+      'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&auto=format&fit=crop&q=80',
+    ],
+    status: 'available',
+    postedDate: 'Today',
+  },
+  {
+    id: 'hr_seed_2',
+    ownerUid: 'seed_owner_2',
+    ownerName: 'Shaik Abdul Rahim',
+    ownerPhone: '9440198765',
+    ownerWhatsapp: '9440198765',
+    title_en: '1 BHK Independent House Ground Floor',
+    title_te: '1 BHK ఇండిపెండెంట్ ఇల్లు గ్రౌండ్ ఫ్లోర్',
+    bhk: '1 BHK',
+    propertyType: 'Independent House',
+    monthlyRent: 5500,
+    depositAmount: 12000,
+    tenantPreference: 'Any / All',
+    furnishing: 'Unfurnished',
+    area: 'Joharapuram Road, Kurnool',
+    addressDetails: 'Opposite Community Hall, 30ft Road',
+    waterFacility: '24/7 Borewell water',
+    parking: 'Bike Parking Inside Gate',
+    description: 'Peaceful residential locality with peaceful surroundings. 1 Hall, 1 Bedroom with attached bath, Kitchen, and utility wash area.',
+    images: [
+      'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&auto=format&fit=crop&q=80',
+    ],
+    status: 'available',
+    postedDate: 'Yesterday',
+  },
+  {
+    id: 'hr_seed_3',
+    ownerUid: 'seed_owner_3',
+    ownerName: 'M. Suresh Reddy',
+    ownerPhone: '9849200001',
+    ownerWhatsapp: '9849200001',
+    title_en: '3 BHK Deluxe Flat with Lift & Generator',
+    title_te: '3 BHK డీలక్స్ ఫ్లాట్ (లిఫ్ట్ & జనరేటర్)',
+    bhk: '3 BHK',
+    propertyType: 'Apartment / Flat',
+    monthlyRent: 16000,
+    depositAmount: 40000,
+    tenantPreference: 'Family Only',
+    furnishing: 'Fully Furnished',
+    area: 'B Camp, Kurnool',
+    addressDetails: 'Prime Location, Near Silver Jubilee College',
+    waterFacility: 'Borewell & Manjeera connection',
+    parking: 'Dedicated Covered Car Parking',
+    description: 'Fully furnished 3 BHK with 3 ACs, sofa set, dining table, 2 double beds with mattresses, and modular kitchen chimney. 24/7 security guard.',
+    images: [
+      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?w=800&auto=format&fit=crop&q=80',
+    ],
+    status: 'available',
+    postedDate: '2 days ago',
+  },
+  {
+    id: 'hr_seed_4',
+    ownerUid: 'seed_owner_4',
+    ownerName: 'K. Srinivasa Rao',
+    ownerPhone: '9123456780',
+    ownerWhatsapp: '9123456780',
+    title_en: '2 BHK Independent House (Near Checkpost)',
+    title_te: '2 BHK ఇండిపెండెంట్ ఇల్లు (చెక్ పోస్ట్ దగ్గర)',
+    bhk: '2 BHK',
+    propertyType: 'Independent House',
+    monthlyRent: 8000,
+    depositAmount: 20000,
+    tenantPreference: 'Family Only',
+    furnishing: 'Semi-Furnished',
+    area: 'Nandyal Checkpost, Kurnool',
+    addressDetails: 'Behind Reliance Trends, Krishna Nagar',
+    waterFacility: 'Continuous supply borewell water',
+    parking: 'Bike & Small Car Parking',
+    description: 'Very close to main road, bus stop, schools, and hospitals. 100% Vastu compliant, east facing with marble flooring.',
+    images: [
+      'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&auto=format&fit=crop&q=80',
+    ],
+    status: 'available',
+    postedDate: '3 days ago',
+  },
+  {
+    id: 'hr_seed_5',
+    ownerUid: 'seed_owner_5',
+    ownerName: 'Ravi Teja',
+    ownerPhone: '9848055667',
+    ownerWhatsapp: '9848055667',
+    title_en: 'Main Road Commercial Shop / Office Space',
+    title_te: 'మెయిన్ రోడ్ కమర్షియల్ షాప్ / ఆఫీస్ స్పేస్',
+    bhk: 'Commercial',
+    propertyType: 'Commercial Space',
+    monthlyRent: 12000,
+    depositAmount: 50000,
+    tenantPreference: 'Any / All',
+    furnishing: 'Unfurnished',
+    area: 'Abbas Nagar, Kurnool',
+    addressDetails: 'Ground Floor, High Footfall Main Junction',
+    waterFacility: 'Commercial water connection',
+    parking: 'Customer Parking on Frontage',
+    description: '280 sq.ft prime commercial space with rolling shutter, glass partition, tile flooring, and separate electrical meter. Ideal for clinic, pharmacy, or office.',
+    images: [
+      'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&auto=format&fit=crop&q=80',
+    ],
+    status: 'available',
+    postedDate: '4 days ago',
+  },
+  {
+    id: 'hr_seed_6',
+    ownerUid: 'seed_owner_6',
+    ownerName: 'Prasad Babu',
+    ownerPhone: '9989012345',
+    ownerWhatsapp: '9989012345',
+    title_en: '1 RK Single Room for Students / Employees',
+    title_te: '1 RK సింగిల్ రూమ్ (ఉద్యోగులు / విద్యార్థులకు)',
+    bhk: '1 RK',
+    propertyType: 'Single Room / RK',
+    monthlyRent: 3800,
+    depositAmount: 8000,
+    tenantPreference: 'Bachelors',
+    furnishing: 'Unfurnished',
+    area: 'Birla Compound, Kurnool',
+    addressDetails: 'Near Medical College & G. Pulla Reddy Engineering College route',
+    waterFacility: '24/7 Water supply',
+    parking: 'Two-Wheeler Covered Parking',
+    description: 'Single large room with attached western bathroom and separate kitchen shelf. Ideal for single working male/female or medical/engineering students.',
+    images: [
+      'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=800&auto=format&fit=crop&q=80',
+    ],
+    status: 'available',
+    postedDate: '5 days ago',
+  },
+];
+
+export async function fetchHouseRentals(bhkFilter?: string): Promise<HouseRentalItem[]> {
+  try {
+    const coll = collection(db, 'house_rentals');
+    let q;
+    if (bhkFilter && bhkFilter !== 'all' && bhkFilter !== 'All') {
+      q = query(coll, where('status', '==', 'available'), where('bhk', '==', bhkFilter), limit(50));
+    } else {
+      q = query(coll, where('status', '==', 'available'), limit(50));
+    }
+    const snap = await getDocs(q);
+    const liveItems = snap.docs.map(d => ({ id: d.id, ...d.data() } as HouseRentalItem));
+    if (liveItems.length > 0) {
+      const liveIds = new Set(liveItems.map(i => i.id));
+      const filteredSeeds = SEED_HOUSE_RENTALS.filter(s => {
+        if (liveIds.has(s.id)) return false;
+        if (bhkFilter && bhkFilter !== 'all' && bhkFilter !== 'All') return s.bhk === bhkFilter;
+        return true;
+      });
+      return [...liveItems, ...filteredSeeds];
+    }
+  } catch (err) {
+    console.warn('fetchHouseRentals fallback to seeds:', err);
+  }
+  if (bhkFilter && bhkFilter !== 'all' && bhkFilter !== 'All') {
+    return SEED_HOUSE_RENTALS.filter(s => s.bhk === bhkFilter);
+  }
+  return SEED_HOUSE_RENTALS;
+}
+
+export async function createHouseRental(rental: Omit<HouseRentalItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  const colRef = collection(db, 'house_rentals');
+  const docRef = await addDoc(colRef, {
+    ...rental,
+    status: 'available',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+export async function updateHouseRental(id: string, updates: Partial<HouseRentalItem>): Promise<void> {
+  await updateDoc(doc(db, 'house_rentals', id), {
+    ...updates,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function deleteHouseRental(id: string): Promise<void> {
+  await deleteDoc(doc(db, 'house_rentals', id));
+}
+
+export const uploadRentalImage = async (uri: string): Promise<string> => {
+  const filename = `rental_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+  const storageRef = ref(storage, `rentals/${filename}`);
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  const task = await uploadBytesResumable(storageRef, blob);
+  return await getDownloadURL(task.ref);
+};
 
 

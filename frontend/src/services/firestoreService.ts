@@ -125,18 +125,9 @@ export const checkPhoneRoleExclusivity = async (
 
     if (snap.exists()) {
       const data = snap.data();
-      const existingRole = data.role as 'business' | 'professional';
-      if (existingRole && existingRole !== requestedRole) {
-        const opposingName = existingRole === 'business' ? 'Business Account' : 'Professional Account';
-        const requestedName = requestedRole === 'business' ? 'Business Account' : 'Professional Account';
-        return {
-          allowed: false,
-          existingRole,
-          phoneDoc: data,
-          message: `This mobile number (${formattedPhone}) is already registered as a ${opposingName}. Separate credentials are strictly required for Business and Professional accounts. You cannot use this phone number for a ${requestedName}.`,
-        };
-      }
-      return { allowed: true, phoneDoc: data, existingRole };
+      // Allow dual-role registration: a citizen/merchant can own both a business listing and a professional profile
+      const roles = Array.isArray(data.roles) ? data.roles : [data.role].filter(Boolean);
+      return { allowed: true, phoneDoc: data, existingRole: data.role };
     }
     return { allowed: true };
   } catch (error) {
@@ -154,19 +145,45 @@ export const registerPhoneRole = async (
   const formattedPhone = sanitizePhone(phone);
   try {
     const phoneRef = doc(db, 'registered_phones', formattedPhone);
+    const phoneSnap = await getDoc(phoneRef);
+    let existingRoles: string[] = [];
+    if (phoneSnap.exists()) {
+      const pData = phoneSnap.data();
+      existingRoles = Array.isArray(pData.roles) ? pData.roles : [pData.role].filter(Boolean);
+    }
+    if (!existingRoles.includes(role)) {
+      existingRoles.push(role);
+    }
+
     await setDoc(phoneRef, {
       phone: formattedPhone,
       role,
+      roles: existingRoles,
       uid,
       name: extra?.name || '',
       businessName: extra?.businessName || '',
+      hasBusiness: existingRoles.includes('business'),
+      hasProfessional: existingRoles.includes('professional'),
       updatedAt: serverTimestamp(),
     }, { merge: true });
 
     const userRef = doc(db, 'users', uid);
+    const userSnap = await getDoc(userRef);
+    let userRoles: string[] = [];
+    if (userSnap.exists()) {
+      const uData = userSnap.data();
+      userRoles = Array.isArray(uData.roles) ? uData.roles : [uData.role].filter(Boolean);
+    }
+    if (!userRoles.includes(role)) {
+      userRoles.push(role);
+    }
+
     await setDoc(userRef, {
       phone: formattedPhone,
       role,
+      roles: userRoles,
+      hasBusiness: userRoles.includes('business'),
+      hasProfessional: userRoles.includes('professional'),
       updatedAt: serverTimestamp(),
     }, { merge: true });
   } catch (err) {
@@ -522,6 +539,47 @@ export const markNotificationsRead = async (uid: string) => {
   snap.forEach(d => batch.update(d.ref, { isRead: true }));
   await batch.commit();
 };
+
+export const getBroadcastNotifications = async (limitCount = 30) => {
+  try {
+    const q = query(
+      collection(db, 'broadcast_notifications'),
+      orderBy('createdAt', 'desc'),
+      limit(limitCount),
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      isBroadcast: true,
+      created_at: (d.data() as any).createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+    }));
+  } catch (err) {
+    console.warn('getBroadcastNotifications error:', err);
+    return [];
+  }
+};
+
+export const sendBroadcastNotification = async (notif: {
+  title: string;
+  body: string;
+  category?: string;
+  targetAudience?: string;
+  actionUrl?: string;
+  imageUrl?: string;
+}) => {
+  const colRef = collection(db, 'broadcast_notifications');
+  const docRef = await addDoc(colRef, {
+    ...notif,
+    category: notif.category || 'general',
+    targetAudience: notif.targetAudience || 'all',
+    status: 'sent',
+    senderName: 'Kurnool One Admin',
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+};
+
 
 // ─── ADMIN ───────────────────────────────────────────────────────────────────
 

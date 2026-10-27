@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, SafeAreaView, ScrollView, TouchableOpacity,
   Image, TextInput, ActivityIndicator, StatusBar, Linking, StyleSheet, Modal,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { auth } from '../config/firebase';
 import { useLanguage } from '../context/LanguageContext';
 import {
   MASTER_CATEGORIES, SEED_BUSINESSES, SEED_PROFESSIONALS,
@@ -105,7 +107,7 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         </TouchableOpacity>
 
-        {/* Quick Highlights Row (News, Deals, Explore, Emergency) */}
+        {/* Quick Highlights Row (News, Deals, Tourism, Emergency Blood) */}
         <View style={styles.quickHighlightsRow}>
           <TouchableOpacity
             style={[styles.highlightPill, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
@@ -124,6 +126,16 @@ export default function HomeScreen({ navigation }: any) {
             <Ionicons name="flame" size={15} color="#DC2626" />
             <Text style={[styles.highlightPillText, { color: '#B91C1C' }]}>
               {language === 'en' ? 'Hot Deals' : 'ఆఫర్లు'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.highlightPill, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
+            onPress={() => navigation.navigate('HouseRent')}
+          >
+            <Ionicons name="home" size={15} color="#2563EB" />
+            <Text style={[styles.highlightPillText, { color: '#1D4ED8' }]}>
+              {language === 'en' ? 'Rent Houses' : 'ఇళ్లు అద్దెకు'}
             </Text>
           </TouchableOpacity>
 
@@ -340,6 +352,46 @@ export default function HomeScreen({ navigation }: any) {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {/* Emergency Blood Donors Network CTA Card (After Tourism) */}
+        <TouchableOpacity
+          activeOpacity={0.92}
+          onPress={() => navigation.navigate('BloodDonors')}
+          style={styles.bloodCtaCard}
+        >
+          <View style={styles.bloodCtaHeader}>
+            <View style={styles.bloodCtaIconCircle}>
+              <Ionicons name="water" size={24} color="#DC2626" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.bloodCtaTitle}>
+                  {language === 'en' ? 'Emergency Blood Donors' : 'అత్యవసర రక్తదాతలు'}
+                </Text>
+                <View style={styles.bloodLivePill}>
+                  <Text style={styles.bloodLiveText}>KURNOOL</Text>
+                </View>
+              </View>
+              <Text style={styles.bloodCtaSub}>
+                {language === 'en'
+                  ? 'Urgent blood need? Connect with volunteer donors by blood group in Kurnool.'
+                  : 'రక్తం అత్యవసరంగా కావాలా? కర్నూలు స్వచ్ఛంద రక్తదాతలతో మాట్లాడండి.'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.bloodCtaFooter}>
+            <View style={styles.bloodGroupMiniRow}>
+              <Text style={styles.bloodGroupMiniText}>O+ • A+ • B+ • AB+ • O- • A- • B-</Text>
+            </View>
+            <View style={styles.bloodCtaBtn}>
+              <Text style={styles.bloodCtaBtnText}>
+                {language === 'en' ? 'Find Donors' : 'రక్తదాతల జాబితా'}
+              </Text>
+              <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+            </View>
+          </View>
+        </TouchableOpacity>
 
         {/* Places of Worship */}
         <View style={styles.sectionHeader}>
@@ -788,5 +840,160 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#64748B',
+  },
+
+  /* Blood Section Styles */
+  bloodSectionWrap: {
+    marginHorizontal: 16, marginTop: 14, marginBottom: 8, padding: 14,
+    backgroundColor: '#FFF5F5', borderRadius: 20, borderWidth: 1, borderColor: '#FED7D7',
+  },
+  bloodHeaderRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12,
+  },
+  bloodDropIconCircle: {
+    width: 34, height: 34, borderRadius: 17, backgroundColor: '#FEE2E2',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  bloodSectionTitle: { fontSize: 15, fontWeight: '900', color: '#991B1B' },
+  bloodSectionSub: { fontSize: 11, color: '#B91C1C', marginTop: 1 },
+  registerDonorBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#DC2626',
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10,
+  },
+  registerDonorBtnText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
+  bloodFilterScroll: { gap: 6, paddingBottom: 10 },
+  bloodChip: {
+    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 16,
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#FECACA',
+  },
+  bloodChipActive: { backgroundColor: '#DC2626', borderColor: '#DC2626' },
+  bloodChipText: { fontSize: 12, fontWeight: '700', color: '#991B1B' },
+  bloodChipTextActive: { color: '#FFFFFF' },
+  donorsScroll: { gap: 10, paddingBottom: 10 },
+  donorCard: {
+    width: 170, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12,
+    borderWidth: 1, borderColor: '#FEE2E2', shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+  },
+  donorCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  bloodGroupBadge: {
+    backgroundColor: '#DC2626', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+  },
+  bloodGroupBadgeText: { color: '#FFFFFF', fontWeight: '900', fontSize: 12 },
+  availabilityBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
+  },
+  availDot: { width: 6, height: 6, borderRadius: 3 },
+  availText: { fontSize: 9, fontWeight: '700' },
+  donorName: { fontSize: 13, fontWeight: '800', color: '#1F2937', marginBottom: 2 },
+  donorAreaRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 4 },
+  donorAreaText: { fontSize: 11, color: '#6B7280', flex: 1 },
+  donorNotes: { fontSize: 10, color: '#9CA3AF', fontStyle: 'italic', marginBottom: 8 },
+  donorCallBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+    backgroundColor: '#DC2626', paddingVertical: 6, borderRadius: 8, marginTop: 4,
+  },
+  donorCallText: { color: '#FFFFFF', fontWeight: '800', fontSize: 11 },
+  donorCallBtnDisabled: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+    backgroundColor: '#F3F4F6', paddingVertical: 6, borderRadius: 8, marginTop: 4,
+  },
+  donorCallTextDisabled: { color: '#6B7280', fontWeight: '700', fontSize: 10 },
+  bloodDisclaimerBox: {
+    flexDirection: 'row', gap: 6, backgroundColor: '#FEF2F2', padding: 8,
+    borderRadius: 8, borderWidth: 1, borderColor: '#FECACA', marginTop: 4,
+  },
+  bloodDisclaimerText: { flex: 1, fontSize: 10, color: '#991B1B', lineHeight: 14 },
+
+  /* Donor Modal Styles */
+  donorModalContainer: { flex: 1, backgroundColor: '#FFFFFF' },
+  bloodCtaCard: {
+    marginHorizontal: 16,
+    marginTop: 20,
+    marginBottom: 8,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1.5,
+    borderColor: '#FECACA',
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  bloodCtaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  bloodCtaIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FECACA',
+  },
+  bloodCtaTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#991B1B',
+  },
+  bloodLivePill: {
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  bloodLiveText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  bloodCtaSub: {
+    fontSize: 11,
+    color: '#7F1D1D',
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  bloodCtaFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#FEE2E2',
+  },
+  bloodGroupMiniRow: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  bloodGroupMiniText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#DC2626',
+  },
+  bloodCtaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  bloodCtaBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
   },
 });

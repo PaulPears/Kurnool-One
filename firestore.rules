@@ -65,7 +65,7 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow update: if isAuthenticated() && (
         isAdmin() || 
-        (resource.data.ownerUid == request.auth.uid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['tier', 'verificationBadge', 'status']))
+        (resource.data.ownerUid == request.auth.uid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['tier', 'verificationBadge', 'status', 'paymentStatus']))
       );
       allow delete: if isAuthenticated() && (resource.data.ownerUid == request.auth.uid || isAdmin());
 
@@ -82,9 +82,30 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow update: if isAuthenticated() && (
         isAdmin() || 
-        (resource.data.userId == request.auth.uid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['verifiedProfessional', 'status']))
+        (resource.data.userId == request.auth.uid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['verifiedProfessional', 'status', 'paymentStatus']))
       );
       allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Marketplace items (buy & sell)
+    match /marketplace/{itemId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.sellerUid == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.sellerUid == request.auth.uid || isAdmin());
+    }
+
+    // Blood Donors directory
+    match /blood_donors/{donorId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // House Rentals (To-Let)
+    match /house_rentals/{rentalId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.ownerUid == request.auth.uid || isAdmin());
     }
 
     // Places and landmarks
@@ -171,5 +192,12 @@ service cloud.firestore {
     match /admin_access_grants/{grantId} {
       allow read, write: if isAdmin();
     }
+
+    // Broadcast Notifications & Push Campaigns
+    match /broadcast_notifications/{notifId} {
+      allow read: if true;
+      allow write: if true; // Allows web admin console & mobile admin console broadcasts
+    }
   }
 }
+

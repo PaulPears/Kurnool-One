@@ -38,13 +38,13 @@ export async function POST(req: NextRequest) {
     }
 
     const plan = PLAN_PRICES[planId];
-    const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_kurnool_one';
-    const keySecret = process.env.RAZORPAY_KEY_SECRET || 'test_secret_kurnool_one';
+    const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_Tj21FRIRtpaQcO';
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || 'Pdnh16bOuzcNxdufHJjE6NcD';
 
     let orderId = '';
 
     // If live/test credentials exist, call Razorpay API
-    if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+    if (keyId && keySecret && !keyId.includes('kurnool_one')) {
       const razorpay = new Razorpay({
         key_id: keyId,
         key_secret: keySecret,

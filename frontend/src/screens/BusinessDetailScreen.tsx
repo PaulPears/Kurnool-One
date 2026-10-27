@@ -27,9 +27,29 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
 
+  const [currentUserUid, setCurrentUserUid] = useState<string | null>(auth.currentUser?.uid || null);
+  const [currentUserPhone, setCurrentUserPhone] = useState<string>('');
+
   useEffect(() => {
     loadBusiness();
+    AsyncStorage.getItem('user').then(stored => {
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed.uid || parsed.id) setCurrentUserUid(parsed.uid || parsed.id);
+          if (parsed.phone) setCurrentUserPhone(parsed.phone);
+        } catch {}
+      }
+    });
   }, [businessId]);
+
+  const isOwner = Boolean(
+    business && (
+      (auth.currentUser?.uid && business.ownerUid === auth.currentUser.uid) ||
+      (currentUserUid && business.ownerUid === currentUserUid) ||
+      (currentUserPhone && business.phone && currentUserPhone.replace(/[^0-9]/g, '').slice(-10) === business.phone.replace(/[^0-9]/g, '').slice(-10))
+    )
+  );
 
   const logLead = async (b: BusinessItem | null, actionType: 'view' | 'call' | 'whatsapp') => {
     try {
@@ -258,6 +278,29 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
             <Text style={styles.ratingScore}>{business.ratingAvg.toFixed(1)}</Text>
             <Text style={styles.ratingCount}>({business.ratingCount} reviews)</Text>
           </View>
+
+          {/* Owner Manage Banner */}
+          {isOwner && (
+            <TouchableOpacity
+              style={styles.ownerManageBanner}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('ManageBusiness', { businessId: business.id })}
+            >
+              <View style={styles.ownerManageLeft}>
+                <View style={styles.ownerManageIconWrap}>
+                  <Ionicons name="settings" size={20} color="#1D4ED8" />
+                </View>
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.ownerManageTitle}>You own this business</Text>
+                  <Text style={styles.ownerManageSubtitle}>Tap to edit details, photos, timings & view customer leads</Text>
+                </View>
+              </View>
+              <View style={styles.ownerManageBtn}>
+                <Text style={styles.ownerManageBtnText}>Manage</Text>
+                <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* Big Action Buttons */}
           <View style={styles.actionButtonsGrid}>
@@ -576,4 +619,54 @@ const styles = StyleSheet.create({
     marginTop: 10, marginBottom: 20, borderWidth: 1, borderColor: '#E2E8F0',
   },
   disclaimerText: { flex: 1, fontSize: 11, color: '#64748B', lineHeight: 16 },
+  ownerManageBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#EFF6FF',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1.5,
+    borderColor: '#BFDBFE',
+    marginVertical: 12,
+  },
+  ownerManageLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  ownerManageIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ownerManageTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#1E40AF',
+  },
+  ownerManageSubtitle: {
+    fontSize: 11,
+    color: '#3B82F6',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  ownerManageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  ownerManageBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
 });

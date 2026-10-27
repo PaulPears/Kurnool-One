@@ -382,6 +382,21 @@ export default function MobileFirebaseLogin({ navigation, route }: any) {
             Kurnool One is an independent private digital city directory platform. It is not affiliated with or endorsed by the Government of Andhra Pradesh or the Kurnool Municipal Corporation.
           </Text>
         </View>
+
+        {/* Legal Policies Links (Google Play Compliant) */}
+        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 14, marginTop: 12, marginBottom: 20 }}>
+          <TouchableOpacity onPress={() => navigation.navigate('Terms')}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#2563EB', textDecorationLine: 'underline' }}>
+              Terms of Service
+            </Text>
+          </TouchableOpacity>
+          <Text style={{ color: '#94A3B8', fontSize: 12 }}>•</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('PrivacyPolicy')}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#2563EB', textDecorationLine: 'underline' }}>
+              Privacy Policy
+            </Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {/* Google Play Reviewer Login Modal (Hidden: 3-tap or long-press on logo) */}

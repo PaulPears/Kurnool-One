@@ -42,6 +42,10 @@ import {
   Mail,
   Key,
   ListOrdered,
+  Bell,
+  Send,
+  Megaphone,
+  Radio,
 } from 'lucide-react';
 import { db, auth } from '@/config/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -64,6 +68,10 @@ import {
   syncMasterCategoriesToFirestore,
   saveCategoryToFirestore,
   deleteCategoryFromFirestore,
+  sendBroadcastNotification,
+  fetchBroadcastNotifications,
+  deleteBroadcastNotification,
+  BroadcastNotificationItem,
   LeadItem,
   CategoryItem,
   BusinessItem,
@@ -80,9 +88,11 @@ type AdminTab =
   | 'worship'
   | 'events'
   | 'leads'
-  | 'categories';
+  | 'categories'
+  | 'notifications';
 
 const ADMIN_PASSCODE = 'Kurnool@Admin2026'; // Master management passkey
+
 
 export default function DedicatedAdminConsole() {
   // ─── AUTHENTICATION STATE ──────────────────────────────────────────────────
@@ -106,7 +116,18 @@ export default function DedicatedAdminConsole() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [leads, setLeads] = useState<LeadItem[]>([]);
   const [categoriesList, setCategoriesList] = useState<CategoryItem[]>(MASTER_CATEGORIES);
+  const [notificationsList, setNotificationsList] = useState<BroadcastNotificationItem[]>([]);
+  const [sendingNotification, setSendingNotification] = useState(false);
+  const [notificationForm, setNotificationForm] = useState({
+    title: '',
+    body: '',
+    category: 'general' as BroadcastNotificationItem['category'],
+    targetAudience: 'all' as BroadcastNotificationItem['targetAudience'],
+    actionUrl: '/offers',
+    imageUrl: '',
+  });
   const [adminEmail, setAdminEmail] = useState('');
+
   const [adminPassword, setAdminPassword] = useState('');
   const [loginMode, setLoginMode] = useState<'email' | 'passcode'>('email');
   const [showAdminHelpModal, setShowAdminHelpModal] = useState(false);
@@ -289,6 +310,12 @@ export default function DedicatedAdminConsole() {
           setCategoriesList(items);
         }
       } catch (e) { console.warn('Could not load categories:', e); }
+
+      // 8. Broadcast Notifications
+      try {
+        const notifData = await fetchBroadcastNotifications();
+        setNotificationsList(notifData);
+      } catch (e) { console.warn('Could not load notifications:', e); }
     } catch (err) {
       console.error('Failed to load admin data:', err);
     } finally {
@@ -567,6 +594,55 @@ export default function DedicatedAdminConsole() {
       alert('Failed to save event: ' + err);
     }
   };
+
+  // ─── ACTIONS: BROADCAST NOTIFICATIONS ──────────────────────────────────────
+  const handleSendBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!notificationForm.title.trim() || !notificationForm.body.trim()) {
+      alert('Please enter notification title and message body.');
+      return;
+    }
+    setSendingNotification(true);
+    try {
+      await sendBroadcastNotification({
+        title: notificationForm.title.trim(),
+        body: notificationForm.body.trim(),
+        category: notificationForm.category,
+        targetAudience: notificationForm.targetAudience,
+        actionUrl: notificationForm.actionUrl.trim() || '/offers',
+        imageUrl: notificationForm.imageUrl.trim() || '',
+        senderName: 'Kurnool One Admin',
+        status: 'sent',
+      });
+      setToast('Broadcast Notification published successfully!');
+      setNotificationForm({
+        title: '',
+        body: '',
+        category: 'general',
+        targetAudience: 'all',
+        actionUrl: '/offers',
+        imageUrl: '',
+      });
+      const updated = await fetchBroadcastNotifications();
+      setNotificationsList(updated);
+    } catch (err: any) {
+      alert('Failed to send notification: ' + (err?.message || err));
+    } finally {
+      setSendingNotification(false);
+    }
+  };
+
+  const handleDeleteNotification = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this broadcast notification?')) return;
+    try {
+      await deleteBroadcastNotification(id);
+      setNotificationsList(prev => prev.filter(n => n.id !== id));
+      setToast('Notification removed from broadcast history.');
+    } catch (err: any) {
+      alert('Failed to delete notification: ' + (err?.message || err));
+    }
+  };
+
 
   // ─── FILTERED BUSINESSES ───────────────────────────────────────────────────
   const filteredBusinesses = useMemo(() => {
@@ -928,7 +1004,31 @@ export default function DedicatedAdminConsole() {
               <span>Dynamic Categories ({categoriesList.length})</span>
             </div>
           </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('notifications');
+              setSearchQuery('');
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
+              activeTab === 'notifications'
+                ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-md shadow-orange-600/30'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Bell className="w-4 h-4 text-amber-400" />
+              <div className="text-left">
+                <span className="block">Push Notifications</span>
+                <span className="block text-[10px] text-amber-300 font-normal">Broadcast to all apps</span>
+              </div>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold">
+              {notificationsList.length}
+            </span>
+          </button>
         </nav>
+
 
         {/* Footer info in sidebar */}
         <div className="p-4 border-t border-slate-800/80 text-[11px] text-slate-400 space-y-2">
@@ -967,9 +1067,12 @@ export default function DedicatedAdminConsole() {
               {activeTab === 'worship' && 'Places of Worship (Temples, Masjids, Churches)'}
               {activeTab === 'events' && 'Kurnool City Events & Festivals'}
               {activeTab === 'categories' && 'Master Categories (36 Business & 30 Pro)'}
+              {activeTab === 'notifications' && 'Manual Push Notifications & Broadcast Campaigns'}
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Enterprise management portal for Kurnool One database and real-time app content.
+              {activeTab === 'notifications'
+                ? 'Send instant push broadcasts to all Kurnool mobile apps, businesses, and website visitors.'
+                : 'Enterprise management portal for Kurnool One database and real-time app content.'}
             </p>
           </div>
 
@@ -2006,8 +2109,285 @@ export default function DedicatedAdminConsole() {
               </div>
             </div>
           )}
+
+          {/* ─── TAB 8: MANUAL PUSH NOTIFICATIONS & BROADCASTS ─────────────── */}
+          {activeTab === 'notifications' && (
+            <div className="space-y-6">
+              {/* Firebase Console FCM Guide Banner */}
+              <div className="p-6 rounded-3xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-red-500/10 border border-amber-500/30 flex flex-col md:flex-row md:items-center justify-between gap-5 shadow-xl">
+                <div className="space-y-2 max-w-2xl">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+                      <Megaphone className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-black text-amber-300 uppercase tracking-wider">
+                      FCM Push Notifications & Lock Screen Alerts
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-white">
+                    Looking for Push Notifications in Firebase Console?
+                  </h3>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    In your Firebase Console (see your screenshot), look at the left sidebar under{' '}
+                    <strong className="text-white">Product categories</strong> &rarr; click to expand{' '}
+                    <span className="text-amber-300 font-bold underline">DevOps &amp; Engagement</span> &rarr; select{' '}
+                    <strong className="text-white">Messaging</strong>. You can trigger lock-screen device push campaigns to Android phones anytime!
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row md:flex-col gap-2.5 shrink-0">
+                  <a
+                    href="https://console.firebase.google.com/project/kurnool-kaburlu/notification"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/30 transition flex items-center justify-center gap-2"
+                  >
+                    <span>Open Firebase Messaging</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                  <span className="text-[10px] text-slate-400 text-center font-mono">
+                    Project: kurnool-kaburlu
+                  </span>
+                </div>
+              </div>
+
+              {/* Compose New Broadcast Card */}
+              <div className="p-6 sm:p-8 rounded-3xl bg-slate-900 border border-slate-800 space-y-6 shadow-xl">
+                <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-600/20 text-blue-400 flex items-center justify-center">
+                      <Bell className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-white">
+                        Compose Manual Broadcast Push
+                      </h3>
+                      <p className="text-xs text-slate-400">
+                        Instantly sends notifications to all citizen apps, business feeds, and live website visitors.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-bold">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    Real-time Firestore Push
+                  </span>
+                </div>
+
+                <form onSubmit={handleSendBroadcast} className="space-y-4 text-xs">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-slate-300 font-bold mb-1.5">
+                        Notification Title *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={notificationForm.title}
+                        onChange={(e) => setNotificationForm({ ...notificationForm, title: e.target.value })}
+                        placeholder="e.g. Mega Ugadi Festive Offers Live in Kurnool!"
+                        className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-slate-300 font-bold mb-1.5">
+                          Category / Tag
+                        </label>
+                        <select
+                          value={notificationForm.category}
+                          onChange={(e) => setNotificationForm({ ...notificationForm, category: e.target.value as any })}
+                          className="w-full px-3.5 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white outline-none focus:border-blue-500"
+                        >
+                          <option value="general">📢 General Announcement</option>
+                          <option value="deal">🏷️ Deal / Offer Alert</option>
+                          <option value="breaking">⚡ Breaking City News</option>
+                          <option value="event">🎉 Festival / Event</option>
+                          <option value="alert">⚠️ Emergency / Public Alert</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-300 font-bold mb-1.5">
+                          Target Audience
+                        </label>
+                        <select
+                          value={notificationForm.targetAudience}
+                          onChange={(e) => setNotificationForm({ ...notificationForm, targetAudience: e.target.value as any })}
+                          className="w-full px-3.5 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white outline-none focus:border-blue-500"
+                        >
+                          <option value="all">👥 All Kurnool Users (100%)</option>
+                          <option value="citizens">👤 Citizens Only</option>
+                          <option value="businesses">🏬 Registered Businesses</option>
+                          <option value="professionals">🔧 Service Professionals</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 font-bold mb-1.5">
+                      Message Content (English or Telugu) *
+                    </label>
+                    <textarea
+                      rows={3}
+                      required
+                      value={notificationForm.body}
+                      onChange={(e) => setNotificationForm({ ...notificationForm, body: e.target.value })}
+                      placeholder="e.g. Top stores in Kurnool are offering up to 40% discount today on gold, clothing, and electronics. Open Kurnool One to discover deals near you!"
+                      className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-slate-300 font-bold mb-1.5">
+                        Deep Link / Action Route
+                      </label>
+                      <input
+                        type="text"
+                        value={notificationForm.actionUrl}
+                        onChange={(e) => setNotificationForm({ ...notificationForm, actionUrl: e.target.value })}
+                        placeholder="e.g. /offers or /news or /events or https://..."
+                        className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono outline-none focus:border-blue-500 text-[11px]"
+                      />
+                      <span className="text-[10px] text-slate-500 mt-1 block">
+                        App will navigate to this tab when user taps the notification.
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 font-bold mb-1.5">
+                        Banner Image URL (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={notificationForm.imageUrl}
+                        onChange={(e) => setNotificationForm({ ...notificationForm, imageUrl: e.target.value })}
+                        placeholder="https://..."
+                        className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono outline-none focus:border-blue-500 text-[11px]"
+                      />
+                      <span className="text-[10px] text-slate-500 mt-1 block">
+                        Will be displayed as a rich thumbnail inside notification cards.
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+                    <span className="text-slate-400 text-xs">
+                      Sender: <strong className="text-white">Kurnool One Admin Console</strong>
+                    </span>
+                    <button
+                      type="submit"
+                      disabled={sendingNotification}
+                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:opacity-50 text-white font-black text-xs shadow-lg shadow-blue-600/30 transition flex items-center gap-2 cursor-pointer"
+                    >
+                      <Send className={`w-4 h-4 ${sendingNotification ? 'animate-bounce' : ''}`} />
+                      <span>{sendingNotification ? 'Broadcasting...' : 'Broadcast Push Notification Now'}</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Sent Notifications History */}
+              <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-black text-white">
+                      Sent Broadcast History ({notificationsList.length})
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      All manual push notifications broadcasted through Kurnool One.
+                    </p>
+                  </div>
+                  <button
+                    onClick={loadData}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white text-xs font-bold transition flex items-center gap-1.5"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+
+                {notificationsList.length === 0 ? (
+                  <div className="p-12 text-center text-slate-500 space-y-2">
+                    <Bell className="w-8 h-8 mx-auto text-slate-600" />
+                    <p className="text-sm font-bold text-slate-400">No broadcast notifications sent yet</p>
+                    <p className="text-xs">Use the composer above to broadcast news, offers, or alerts to all app users.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-800 text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                          <th className="py-3 px-4">Notification</th>
+                          <th className="py-3 px-4">Category</th>
+                          <th className="py-3 px-4">Audience</th>
+                          <th className="py-3 px-4">Deep Link</th>
+                          <th className="py-3 px-4">Sent At</th>
+                          <th className="py-3 px-4 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60">
+                        {notificationsList.map((notif) => (
+                          <tr key={notif.id} className="hover:bg-slate-800/40 transition">
+                            <td className="py-3.5 px-4 max-w-xs">
+                              <span className="font-bold text-white block text-xs">
+                                {notif.title}
+                              </span>
+                              <span className="text-[11px] text-slate-300 line-clamp-2 mt-0.5">
+                                {notif.body}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                notif.category === 'deal'
+                                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                  : notif.category === 'breaking'
+                                  ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                  : notif.category === 'alert'
+                                  ? 'bg-rose-500/10 text-rose-300 border border-rose-500/20'
+                                  : notif.category === 'event'
+                                  ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                                  : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                              }`}>
+                                {notif.category}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 whitespace-nowrap">
+                              <span className="text-[11px] text-slate-300 capitalize font-medium">
+                                {notif.targetAudience === 'all' ? '👥 All Users' : notif.targetAudience}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 whitespace-nowrap">
+                              <span className="text-[10px] font-mono text-blue-400">
+                                {notif.actionUrl || '/'}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 whitespace-nowrap text-slate-400 text-[11px] font-mono">
+                              {notif.sentAt || 'Recently'}
+                            </td>
+                            <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => notif.id && handleDeleteNotification(notif.id)}
+                                className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition"
+                                title="Delete Notification"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </main>
+
 
 
       {/* ─── MODAL: HOW TO CREATE ADMIN EMAIL & PASSWORD ─────────────────── */}

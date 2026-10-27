@@ -2,10 +2,24 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, SafeAreaView, FlatList, TouchableOpacity,
   Image, Linking, ActivityIndicator, StatusBar, StyleSheet, Modal, Share,
+  TextInput, Alert, RefreshControl, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { auth } from '../config/firebase';
 import { useLanguage } from '../context/LanguageContext';
-import { fetchOffers, fetchEvents, OfferItem, EventItem } from '../services/directoryService';
+import {
+  fetchOffers,
+  fetchEvents,
+  fetchMarketplaceItems,
+  createMarketplaceItem,
+  deleteMarketplaceItem,
+  uploadOfferImage,
+  OfferItem,
+  EventItem,
+  MarketplaceItem,
+} from '../services/directoryService';
 
 export interface MarketItem {
   id: string;
@@ -16,12 +30,14 @@ export interface MarketItem {
   sellerName: string;
   sellerPhone: string;
   sellerWhatsapp?: string;
+  sellerUid?: string;
   area: string;
   condition: string;
-  postedDate: string;
+  postedDate?: string;
   imageUrl?: string;
   images?: string[];
   description: string;
+  status?: string;
 }
 
 const SEED_MARKET_ITEMS: MarketItem[] = [
@@ -134,6 +150,18 @@ export default function OffersScreen({ route, navigation }: any) {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Marketplace Post State
+  const [postModalVisible, setPostModalVisible] = useState(false);
+  const [postTitle, setPostTitle] = useState('');
+  const [postCategory, setPostCategory] = useState('Two-Wheelers');
+  const [postPrice, setPostPrice] = useState('');
+  const [postCondition, setPostCondition] = useState('');
+  const [postArea, setPostArea] = useState('');
+  const [postPhone, setPostPhone] = useState('');
+  const [postDesc, setPostDesc] = useState('');
+  const [postImages, setPostImages] = useState<string[]>([]);
+  const [posting, setPosting] = useState(false);
+
   // Image Viewer State
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerImages, setViewerImages] = useState<string[]>([]);
@@ -192,7 +220,15 @@ export default function OffersScreen({ route, navigation }: any) {
         });
         setOffers(activeOffers);
       } else if (activeTab === 'marketplace') {
-        setMarketItems(SEED_MARKET_ITEMS);
+        const liveItems = await fetchMarketplaceItems();
+        if (liveItems && liveItems.length > 0) {
+          // Combine live with seeds if needed or show live items
+          const liveIds = new Set(liveItems.map(i => i.id));
+          const filteredSeeds = SEED_MARKET_ITEMS.filter(s => !liveIds.has(s.id));
+          setMarketItems([...liveItems, ...filteredSeeds]);
+        } else {
+          setMarketItems(SEED_MARKET_ITEMS);
+        }
       } else {
         const data = await fetchEvents();
         setEvents(data);
@@ -219,18 +255,140 @@ export default function OffersScreen({ route, navigation }: any) {
     }
   };
 
+  const handleOpenPostModal = async () => {
+    if (!auth.currentUser) {
+      Alert.alert(
+        language === 'en' ? 'Sign In Required' : 'లాగిన్ అవసరం',
+        language === 'en'
+          ? 'Please sign in to post and sell items on Kurnool Marketplace.'
+          : 'కర్నూలు మార్కెట్‌ప్లేస్‌లో వస్తువులను పోస్ట్ చేయడానికి దయచేసి లాగిన్ అవ్వండి.',
+        [
+          { text: language === 'en' ? 'Cancel' : 'రద్దు', style: 'cancel' },
+          { text: language === 'en' ? 'Sign In' : 'లాగిన్', onPress: () => navigation.navigate('MobileFirebaseLogin') },
+        ]
+      );
+      return;
+    }
+    const stored = await AsyncStorage.getItem('user');
+    if (stored) {
+      try {
+        const u = JSON.parse(stored);
+        if (u.phone && !postPhone) setPostPhone(u.phone);
+      } catch {}
+    }
+    if (!postPhone && auth.currentUser.phoneNumber) {
+      setPostPhone(auth.currentUser.phoneNumber.replace(/\D/g, '').slice(-10));
+    }
+    setPostModalVisible(true);
+  };
+
+  const handlePickPostImage = async () => {
+    if (postImages.length >= 2) {
+      Alert.alert('Limit Reached', 'You can attach up to 2 photos per listing.');
+      return;
+    }
+    try {
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.75,
+      });
+      if (!res.canceled && res.assets?.[0]?.uri) {
+        setPostImages(prev => [...prev, res.assets[0].uri]);
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Could not pick image');
+    }
+  };
+
+  const handleSubmitPost = async () => {
+    if (!postTitle.trim() || !postPrice.trim() || !postPhone.trim()) {
+      Alert.alert('Required Fields', 'Please enter Title, Price, and Phone number.');
+      return;
+    }
+    setPosting(true);
+    try {
+      let uploaded: string[] = [];
+      for (const uri of postImages) {
+        const u = await uploadOfferImage(uri);
+        uploaded.push(u);
+      }
+      await createMarketplaceItem({
+        title_en: postTitle.trim(),
+        price: postPrice.trim().startsWith('₹') ? postPrice.trim() : `₹${postPrice.trim()}`,
+        category: postCategory,
+        condition: postCondition.trim() || 'Pre-owned',
+        area: postArea.trim() || 'Kurnool City',
+        sellerName: auth.currentUser?.displayName || 'Citizen Seller',
+        sellerPhone: postPhone.trim(),
+        sellerWhatsapp: postPhone.trim(),
+        sellerUid: auth.currentUser?.uid,
+        description: postDesc.trim() || postTitle.trim(),
+        images: uploaded.length > 0 ? uploaded : undefined,
+        imageUrl: uploaded[0] || undefined,
+        status: 'active',
+      });
+      Alert.alert('Success', 'Your listing is now live on Kurnool Marketplace!');
+      setPostModalVisible(false);
+      setPostTitle('');
+      setPostPrice('');
+      setPostCondition('');
+      setPostArea('');
+      setPostDesc('');
+      setPostImages([]);
+      loadData();
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to submit post');
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  const handleDeleteMyItem = async (itemId: string) => {
+    Alert.alert(
+      'Remove Listing',
+      'Are you sure you want to delete this listing from Kurnool Marketplace?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteMarketplaceItem(itemId);
+              setMarketItems(prev => prev.filter(i => i.id !== itemId));
+              Alert.alert('Deleted', 'Listing removed.');
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Failed to delete listing');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Header */}
+      {/* Header with Back Navigation */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>
-          {language === 'en' ? 'Deals, Offers & Market' : 'ఆఫర్లు, డీల్స్ & మార్కెట్'}
-        </Text>
-        <Text style={styles.headerSub}>
-          {language === 'en' ? 'Local merchant discounts, citizen buy & sell, and city events' : 'స్థానిక తగ్గింపులు, మార్కెట్‌ప్లేస్ మరియు నగర కార్యక్రమాలు'}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          {navigation?.canGoBack && navigation.canGoBack() && (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4, marginRight: 2 }}>
+              <Ionicons name="arrow-back" size={24} color="#0F172A" />
+            </TouchableOpacity>
+          )}
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle}>
+              {language === 'en' ? 'Deals, Offers & Market' : 'ఆఫర్లు, డీల్స్ & మార్కెట్'}
+            </Text>
+            <Text style={styles.headerSub}>
+              {language === 'en' ? 'Local merchant discounts, citizen buy & sell, and city events' : 'స్థానిక తగ్గింపులు, మార్కెట్‌ప్లేస్ మరియు నగర కార్యక్రమాలు'}
+            </Text>
+          </View>
+        </View>
       </View>
 
       {/* Mode Tabs (Deals & Offers, Marketplace, City Events) */}
@@ -368,6 +526,28 @@ export default function OffersScreen({ route, navigation }: any) {
           keyExtractor={item => item.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} colors={['#059669']} />}
+          ListHeaderComponent={
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, backgroundColor: '#ECFDF5', borderRadius: 16, marginBottom: 14, borderWidth: 1, borderColor: '#A7F3D0' }}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#065F46' }}>
+                  {language === 'en' ? 'Citizen Classifieds' : 'కర్నూలు మార్కెట్‌ప్లేస్'}
+                </Text>
+                <Text style={{ fontSize: 11, color: '#047857', marginTop: 1 }}>
+                  {language === 'en' ? 'Direct buy & sell with zero commission' : 'ఎలాంటి కమీషన్ లేకుండా కొనండి & అమ్మండి'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={handleOpenPostModal}
+                style={{ backgroundColor: '#059669', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+              >
+                <Ionicons name="add-circle" size={16} color="#FFFFFF" />
+                <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 12 }}>
+                  {language === 'en' ? '+ Post Item' : '+ అమ్మండి'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <View style={[styles.emptyIconCircle, { backgroundColor: '#ECFDF5' }]}>
@@ -385,6 +565,7 @@ export default function OffersScreen({ route, navigation }: any) {
           }
           renderItem={({ item }) => {
             const itemImages = item.images && item.images.length > 0 ? item.images : item.imageUrl ? [item.imageUrl] : [];
+            const isMyItem = item.sellerUid && auth.currentUser?.uid && item.sellerUid === auth.currentUser.uid;
             return (
               <View style={styles.marketCard}>
                 {itemImages.length > 0 && (
@@ -407,8 +588,15 @@ export default function OffersScreen({ route, navigation }: any) {
                     <View style={styles.priceBadge}>
                       <Text style={styles.priceBadgeText}>{item.price}</Text>
                     </View>
-                    <View style={styles.marketCatPill}>
-                      <Text style={styles.marketCatText}>{item.category}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      {isMyItem && (
+                        <View style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#BFDBFE' }}>
+                          <Text style={{ fontSize: 9, fontWeight: '900', color: '#2563EB' }}>MY ITEM</Text>
+                        </View>
+                      )}
+                      <View style={styles.marketCatPill}>
+                        <Text style={styles.marketCatText}>{item.category}</Text>
+                      </View>
                     </View>
                   </View>
 
@@ -433,7 +621,7 @@ export default function OffersScreen({ route, navigation }: any) {
                       <Text style={styles.sellerName} numberOfLines={1}>{item.sellerName}</Text>
                     </View>
 
-                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                    <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
                       <TouchableOpacity
                         onPress={() => handleCall(item.sellerPhone)}
                         style={styles.actionBtnCallSmall}
@@ -456,6 +644,15 @@ export default function OffersScreen({ route, navigation }: any) {
                       >
                         <Ionicons name="share-social-outline" size={13} color="#374151" />
                       </TouchableOpacity>
+
+                      {isMyItem && (
+                        <TouchableOpacity
+                          onPress={() => handleDeleteMyItem(item.id)}
+                          style={{ padding: 6, backgroundColor: '#FEE2E2', borderRadius: 8 }}
+                        >
+                          <Ionicons name="trash-outline" size={13} color="#DC2626" />
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </View>
                 </View>
@@ -469,6 +666,7 @@ export default function OffersScreen({ route, navigation }: any) {
           keyExtractor={item => item.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} colors={['#2563EB']} />}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconCircle}>
@@ -596,6 +794,204 @@ export default function OffersScreen({ route, navigation }: any) {
               </View>
             )}
           </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Post Marketplace Item Modal */}
+      <Modal
+        visible={postModalVisible}
+        animationType="slide"
+        onRequestClose={() => setPostModalVisible(false)}
+      >
+        <SafeAreaView style={styles.postModalContainer}>
+          <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+          <View style={styles.postModalHeader}>
+            <View>
+              <Text style={styles.postModalTitle}>
+                {language === 'en' ? 'Post Classified Item' : 'వస్తువును అమ్మండి'}
+              </Text>
+              <Text style={styles.postModalSub}>
+                {language === 'en' ? 'Direct buy & sell in Kurnool' : 'కర్నూలు మార్కెట్‌ప్లేస్‌లో పోస్ట్ చేయండి'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setPostModalVisible(false)}
+              style={styles.postModalCloseBtn}
+            >
+              <Ionicons name="close" size={24} color="#1E293B" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            style={styles.postModalScroll}
+            contentContainerStyle={styles.postModalScrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Category Selector */}
+            <Text style={styles.inputLabel}>
+              {language === 'en' ? 'Category' : 'వర్గం'}
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+              <View style={styles.categoryChipRow}>
+                {['Two-Wheelers', 'Mobiles & Tablets', 'Home Appliances', 'Furniture', 'Properties & Plots', 'Others'].map(cat => {
+                  const isSelected = postCategory === cat;
+                  return (
+                    <TouchableOpacity
+                      key={cat}
+                      onPress={() => setPostCategory(cat)}
+                      style={[styles.catChip, isSelected && styles.catChipActive]}
+                    >
+                      <Text style={[styles.catChipText, isSelected && styles.catChipTextActive]}>
+                        {cat}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+
+            {/* Title */}
+            <Text style={styles.inputLabel}>
+              {language === 'en' ? 'Item Title *' : 'వస్తువు పేరు *'}
+            </Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder={language === 'en' ? 'e.g., Honda Activa 5G (2020)' : 'ఉదాహరణ: హోండా యాక్టివా 5G'}
+              value={postTitle}
+              onChangeText={setPostTitle}
+              placeholderTextColor="#9CA3AF"
+            />
+
+            {/* Price & Condition */}
+            <View style={styles.inputRow}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={styles.inputLabel}>
+                  {language === 'en' ? 'Price (₹) *' : 'ధర (₹) *'}
+                </Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="₹35,000"
+                  value={postPrice}
+                  onChangeText={setPostPrice}
+                  keyboardType="numeric"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+              <View style={{ flex: 1, marginLeft: 8 }}>
+                <Text style={styles.inputLabel}>
+                  {language === 'en' ? 'Condition / Specs' : 'పరిస్థితి / వివరాలు'}
+                </Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder={language === 'en' ? 'e.g. Mint • 1 Yr' : 'ఉదా: కొత్తగా ఉంది'}
+                  value={postCondition}
+                  onChangeText={setPostCondition}
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+            </View>
+
+            {/* Area & Phone */}
+            <View style={styles.inputRow}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={styles.inputLabel}>
+                  {language === 'en' ? 'Locality / Area' : 'ప్రాంతం'}
+                </Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="e.g. Gandhi Nagar"
+                  value={postArea}
+                  onChangeText={setPostArea}
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+              <View style={{ flex: 1, marginLeft: 8 }}>
+                <Text style={styles.inputLabel}>
+                  {language === 'en' ? 'Phone Number *' : 'ఫోన్ నెంబర్ *'}
+                </Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="10-digit mobile"
+                  value={postPhone}
+                  onChangeText={setPostPhone}
+                  keyboardType="phone-pad"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+            </View>
+
+            {/* Description */}
+            <Text style={styles.inputLabel}>
+              {language === 'en' ? 'Description' : 'వివరాలు'}
+            </Text>
+            <TextInput
+              style={[styles.textInput, { height: 75, textAlignVertical: 'top', paddingTop: 10 }]}
+              placeholder={language === 'en' ? 'Mention condition, bill/box status, reason for selling...' : 'వస్తువు వివరాలు రాయండి...'}
+              value={postDesc}
+              onChangeText={setPostDesc}
+              multiline
+              numberOfLines={3}
+              placeholderTextColor="#9CA3AF"
+            />
+
+            {/* Photos */}
+            <Text style={styles.inputLabel}>
+              {language === 'en' ? 'Photos (Up to 2)' : 'ఫోటోలు (గరిష్టంగా 2)'}
+            </Text>
+            <View style={styles.photoPickerRow}>
+              {postImages.map((uri, idx) => (
+                <View key={idx} style={styles.photoThumbWrap}>
+                  <Image source={{ uri }} style={styles.photoThumb} />
+                  <TouchableOpacity
+                    onPress={() => setPostImages(prev => prev.filter((_, i) => i !== idx))}
+                    style={styles.photoThumbRemove}
+                  >
+                    <Ionicons name="close" size={14} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {postImages.length < 2 && (
+                <TouchableOpacity
+                  onPress={handlePickPostImage}
+                  style={styles.photoAddBtn}
+                >
+                  <Ionicons name="camera-outline" size={24} color="#059669" />
+                  <Text style={styles.photoAddText}>
+                    {language === 'en' ? 'Add Photo' : 'ఫోటో జోడించండి'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Civic safety banner */}
+            <View style={styles.postSafetyNote}>
+              <Ionicons name="shield-checkmark" size={16} color="#059669" style={{ marginTop: 2 }} />
+              <Text style={styles.postSafetyText}>
+                {language === 'en'
+                  ? 'Citizens trade directly. Meet in public places and inspect items in person before making any payment.'
+                  : 'పౌరులు నేరుగా లావాదేవీలు చేస్తారు. బహిరంగ ప్రదేశాలలో కలవండి మరియు చెల్లింపు చేసే ముందు వస్తువును పరిశీలించండి.'}
+              </Text>
+            </View>
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              onPress={handleSubmitPost}
+              disabled={posting}
+              style={[styles.submitPostBtn, posting && { opacity: 0.7 }]}
+            >
+              {posting ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                  <Text style={styles.submitPostBtnText}>
+                    {language === 'en' ? 'Publish Item' : 'ఐటెమ్‌ను పబ్లిష్ చేయండి'}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
@@ -858,4 +1254,52 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  postModalContainer: { flex: 1, backgroundColor: '#FFFFFF' },
+  postModalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
+  },
+  postModalTitle: { fontSize: 18, fontWeight: '800', color: '#111827' },
+  postModalSub: { fontSize: 11, color: '#6B7280', marginTop: 2 },
+  postModalCloseBtn: { padding: 4 },
+  postModalScroll: { flex: 1 },
+  postModalScrollContent: { padding: 16, paddingBottom: 40 },
+  inputLabel: { fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 6, marginTop: 4 },
+  categoryChipRow: { flexDirection: 'row', gap: 8 },
+  catChip: {
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+    backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB',
+  },
+  catChipActive: { backgroundColor: '#ECFDF5', borderColor: '#059669' },
+  catChipText: { fontSize: 12, fontWeight: '600', color: '#4B5563' },
+  catChipTextActive: { color: '#059669', fontWeight: '800' },
+  inputRow: { flexDirection: 'row', marginBottom: 12 },
+  textInput: {
+    backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB',
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13,
+    color: '#111827', marginBottom: 12,
+  },
+  photoPickerRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+  photoThumbWrap: { width: 80, height: 80, borderRadius: 10, overflow: 'hidden', position: 'relative' },
+  photoThumb: { width: '100%', height: '100%' },
+  photoThumbRemove: {
+    position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.6)',
+    width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+  },
+  photoAddBtn: {
+    width: 80, height: 80, borderRadius: 10, borderWidth: 1.5,
+    borderStyle: 'dashed', borderColor: '#059669', backgroundColor: '#ECFDF5',
+    alignItems: 'center', justifyContent: 'center', gap: 4,
+  },
+  photoAddText: { fontSize: 9, fontWeight: '700', color: '#059669', textAlign: 'center' },
+  postSafetyNote: {
+    flexDirection: 'row', gap: 8, backgroundColor: '#F0FDF4', padding: 12,
+    borderRadius: 12, borderWidth: 1, borderColor: '#BBF7D0', marginBottom: 16,
+  },
+  postSafetyText: { flex: 1, fontSize: 11, color: '#166534', lineHeight: 16 },
+  submitPostBtn: {
+    backgroundColor: '#059669', paddingVertical: 14, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center', marginTop: 8,
+  },
+  submitPostBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
 });

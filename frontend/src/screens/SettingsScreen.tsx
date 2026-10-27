@@ -138,30 +138,30 @@ export default function SettingsScreen({ navigation }: any) {
 
           <TouchableOpacity
             style={styles.settingCard}
-            onPress={() => Linking.openURL('https://kurnool-kaburlu.web.app/terms').catch(() => {})}
+            onPress={() => navigation.navigate('Terms')}
           >
-            <View style={[styles.cardIconBox, { backgroundColor: '#F8FAFC' }]}>
-              <Ionicons name="document-text-outline" size={22} color="#475569" />
+            <View style={[styles.cardIconBox, { backgroundColor: '#EFF6FF' }]}>
+              <Ionicons name="document-text-outline" size={22} color="#2563EB" />
             </View>
             <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>Terms & Conditions</Text>
-              <Text style={styles.cardSubtitle}>kurnoolone.com/terms</Text>
+              <Text style={styles.cardTitle}>{language === 'en' ? 'Terms & Conditions' : 'నిబంధనలు & షరతులు'}</Text>
+              <Text style={styles.cardSubtitle}>{language === 'en' ? 'In-App User Agreement' : 'యూజర్ అగ్రిమెంట్'}</Text>
             </View>
-            <Ionicons name="open-outline" size={18} color="#94A3B8" />
+            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.settingCard}
-            onPress={() => Linking.openURL('https://kurnool-kaburlu.web.app/privacy').catch(() => {})}
+            onPress={() => navigation.navigate('PrivacyPolicy')}
           >
             <View style={[styles.cardIconBox, { backgroundColor: '#F0FDF4' }]}>
               <Ionicons name="shield-checkmark-outline" size={22} color="#16A34A" />
             </View>
             <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>Privacy Policy & Data Security</Text>
-              <Text style={styles.cardSubtitle}>DPDP Act 2023 Compliant</Text>
+              <Text style={styles.cardTitle}>{language === 'en' ? 'Privacy Policy & Data Security' : 'గోప్యతా విధానం & డేటా రక్షణ'}</Text>
+              <Text style={styles.cardSubtitle}>{language === 'en' ? 'DPDP Act 2023 & Play Store Compliant' : 'డిజిటల్ డేటా రక్షణ చట్టం 2023'}</Text>
             </View>
-            <Ionicons name="open-outline" size={18} color="#94A3B8" />
+            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
           </TouchableOpacity>
 
           {/* Delete Account */}

@@ -13,9 +13,9 @@ import {
 } from '../services/firestoreService';
 import { fetchNews, createNews, deleteNews, NewsItem } from '../services/directoryService';
 import { auth, db } from '../config/firebase';
-import { collection, query, where, getDocs, updateDoc, doc, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc, doc, orderBy, limit, deleteDoc } from 'firebase/firestore';
 
-type Tab = 'overview' | 'businesses' | 'promotions' | 'posts' | 'reports' | 'banners' | 'users' | 'news' | 'grants';
+type Tab = 'overview' | 'businesses' | 'promotions' | 'posts' | 'reports' | 'banners' | 'users' | 'news' | 'blood_donors' | 'marketplace' | 'grants';
 
 export default function AdminDashboardScreen({ navigation }: any) {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -60,6 +60,12 @@ export default function AdminDashboardScreen({ navigation }: any) {
       } else if (activeTab === 'news') {
         const res = await fetchNews();
         setData(res);
+      } else if (activeTab === 'blood_donors') {
+        const snap = await getDocs(query(collection(db, 'blood_donors'), limit(50)));
+        setData(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      } else if (activeTab === 'marketplace') {
+        const snap = await getDocs(query(collection(db, 'marketplace'), limit(50)));
+        setData(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       } else if (activeTab === 'grants') {
         const snap = await getDocs(query(collection(db, 'admin_access_grants'), orderBy('createdAt', 'desc'), limit(50)));
         setData(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -620,6 +626,149 @@ export default function AdminDashboardScreen({ navigation }: any) {
     />
   );
 
+  const handleToggleBloodDonorStatus = async (id: string, currentStatus: string) => {
+    try {
+      const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
+      await updateDoc(doc(db, 'blood_donors', id), { status: newStatus });
+      Alert.alert('Success', `Donor status set to ${newStatus}`);
+      fetchData();
+    } catch {
+      Alert.alert('Error', 'Failed to update donor status');
+    }
+  };
+
+  const handleDeleteBloodDonor = async (id: string) => {
+    Alert.alert('Delete Donor', 'Remove this donor listing completely?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteDoc(doc(db, 'blood_donors', id));
+            Alert.alert('Deleted', 'Donor record removed');
+            fetchData();
+          } catch {
+            Alert.alert('Error', 'Failed to delete');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleToggleMarketStatus = async (id: string, currentStatus: string) => {
+    try {
+      const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
+      await updateDoc(doc(db, 'marketplace', id), { status: newStatus });
+      Alert.alert('Success', `Listing set to ${newStatus}`);
+      fetchData();
+    } catch {
+      Alert.alert('Error', 'Failed to update marketplace item status');
+    }
+  };
+
+  const handleDeleteMarketItem = async (id: string) => {
+    Alert.alert('Delete Listing', 'Remove this marketplace listing?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteDoc(doc(db, 'marketplace', id));
+            Alert.alert('Deleted', 'Marketplace listing removed');
+            fetchData();
+          } catch {
+            Alert.alert('Error', 'Failed to delete');
+          }
+        },
+      },
+    ]);
+  };
+
+  const renderBloodDonors = () => (
+    <FlatList
+      data={data}
+      keyExtractor={(item) => item.id.toString()}
+      className="p-4"
+      renderItem={({ item }) => (
+        <View className="bg-white p-4 rounded-3xl mb-4 shadow-sm border border-gray-100">
+          <View className="flex-row justify-between items-center mb-2">
+            <View className="flex-row items-center gap-2">
+              <View style={{ backgroundColor: '#DC2626', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
+                <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13 }}>{item.bloodGroup}</Text>
+              </View>
+              <Text className="font-bold text-base text-gray-900">{item.displayName}</Text>
+            </View>
+            <View className={`px-2.5 py-0.5 rounded-full ${item.status === 'active' ? 'bg-green-100' : 'bg-red-100'}`}>
+              <Text className={`text-[10px] font-black uppercase ${item.status === 'active' ? 'text-green-700' : 'text-red-700'}`}>
+                {item.status || 'active'}
+              </Text>
+            </View>
+          </View>
+          <Text className="text-gray-600 text-xs mb-1">📍 {item.area || 'Kurnool'}</Text>
+          <Text className="text-gray-600 text-xs mb-3">📞 {item.phone}</Text>
+          <View className="flex-row gap-2">
+            <TouchableOpacity
+              onPress={() => handleToggleBloodDonorStatus(item.id, item.status || 'active')}
+              className={`flex-1 py-2.5 rounded-xl items-center ${item.status === 'active' ? 'bg-amber-500' : 'bg-green-600'}`}
+            >
+              <Text className="text-white font-bold text-xs">
+                {item.status === 'active' ? 'Suspend' : 'Activate'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleDeleteBloodDonor(item.id)}
+              className="flex-1 py-2.5 bg-red-50 border border-red-100 rounded-xl items-center"
+            >
+              <Text className="text-red-600 font-bold text-xs">Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+      ListEmptyComponent={<Text className="text-center mt-20 text-gray-400">No blood donors registered</Text>}
+    />
+  );
+
+  const renderMarketplace = () => (
+    <FlatList
+      data={data}
+      keyExtractor={(item) => item.id.toString()}
+      className="p-4"
+      renderItem={({ item }) => (
+        <View className="bg-white p-4 rounded-3xl mb-4 shadow-sm border border-gray-100">
+          <View className="flex-row justify-between items-center mb-2">
+            <Text className="font-bold text-base text-gray-900 flex-1 mr-2" numberOfLines={1}>
+              {item.title_en}
+            </Text>
+            <View className="bg-blue-100 px-2 py-0.5 rounded-md">
+              <Text className="text-blue-700 font-black text-xs">{item.price}</Text>
+            </View>
+          </View>
+          <Text className="text-gray-500 text-xs mb-1">🏷️ {item.category} • {item.condition}</Text>
+          <Text className="text-gray-600 text-xs mb-1">📍 {item.area} | Seller: {item.sellerName} (📞 {item.sellerPhone})</Text>
+          <View className="flex-row gap-2 mt-3">
+            <TouchableOpacity
+              onPress={() => handleToggleMarketStatus(item.id, item.status || 'active')}
+              className={`flex-1 py-2.5 rounded-xl items-center ${item.status === 'active' ? 'bg-amber-500' : 'bg-green-600'}`}
+            >
+              <Text className="text-white font-bold text-xs">
+                {item.status === 'active' ? 'Suspend' : 'Activate'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleDeleteMarketItem(item.id)}
+              className="flex-1 py-2.5 bg-red-50 border border-red-100 rounded-xl items-center"
+            >
+              <Text className="text-red-600 font-bold text-xs">Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+      ListEmptyComponent={<Text className="text-center mt-20 text-gray-400">No marketplace listings</Text>}
+    />
+  );
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <View className="px-6 py-6 border-b border-gray-100 flex-row items-center justify-between">
@@ -638,13 +787,13 @@ export default function AdminDashboardScreen({ navigation }: any) {
 
       <View className="flex-row px-4 py-4 space-x-2">
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {(['overview', 'businesses', 'promotions', 'posts', 'reports', 'banners', 'users', 'news', 'grants'] as Tab[]).map((t) => (
+          {(['overview', 'businesses', 'promotions', 'posts', 'reports', 'banners', 'users', 'news', 'blood_donors', 'marketplace', 'grants'] as Tab[]).map((t) => (
             <TouchableOpacity
               key={t}
               onPress={() => setActiveTab(t)}
               className={`px-4 py-2 rounded-full border mr-2 ${activeTab === t ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-100'}`}
             >
-              <Text className={`font-bold text-xs uppercase ${activeTab === t ? 'text-white' : 'text-gray-400'}`}>{t}</Text>
+              <Text className={`font-bold text-xs uppercase ${activeTab === t ? 'text-white' : 'text-gray-400'}`}>{t.replace('_', ' ')}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -656,12 +805,12 @@ export default function AdminDashboardScreen({ navigation }: any) {
         </View>
       ) : (
         <View className="flex-1">
-          {activeTab === 'overview'    && renderOverview()}
-          {activeTab === 'businesses'  && renderBusinesses()}
-          {activeTab === 'promotions'  && renderPromotions()}
-          {activeTab === 'posts'       && renderModeration()}
-          {activeTab === 'reports'     && renderReports()}
-          {activeTab === 'banners'     && (
+          {activeTab === 'overview'     && renderOverview()}
+          {activeTab === 'businesses'   && renderBusinesses()}
+          {activeTab === 'promotions'   && renderPromotions()}
+          {activeTab === 'posts'        && renderModeration()}
+          {activeTab === 'reports'      && renderReports()}
+          {activeTab === 'banners'      && (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
               <Text style={{ color: '#6B7280', marginBottom: 16 }}>Manage promotion banners</Text>
               <TouchableOpacity
@@ -672,9 +821,11 @@ export default function AdminDashboardScreen({ navigation }: any) {
               </TouchableOpacity>
             </View>
           )}
-          {activeTab === 'users'       && renderUsers()}
-          {activeTab === 'news'        && renderNews()}
-          {activeTab === 'grants'      && renderGrants()}
+          {activeTab === 'users'        && renderUsers()}
+          {activeTab === 'news'         && renderNews()}
+          {activeTab === 'blood_donors' && renderBloodDonors()}
+          {activeTab === 'marketplace'  && renderMarketplace()}
+          {activeTab === 'grants'       && renderGrants()}
         </View>
       )}
 

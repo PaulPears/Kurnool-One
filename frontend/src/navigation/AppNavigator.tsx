@@ -26,6 +26,10 @@ import RegisterProfessionalScreen from '../screens/RegisterProfessionalScreen';
 import ManageProfessionalScreen from '../screens/ManageProfessionalScreen';
 import SplashScreen from '../screens/SplashScreen';
 import NewsScreen from '../screens/NewsScreen';
+import TermsScreen from '../screens/TermsScreen';
+import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
+import HouseRentScreen from '../screens/HouseRentScreen';
+import BloodDonorsScreen from '../screens/BloodDonorsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -107,6 +111,10 @@ export default function AppNavigator() {
         <Stack.Screen name="RegisterProfessional" component={RegisterProfessionalScreen} />
         <Stack.Screen name="ManageProfessional" component={ManageProfessionalScreen} />
         <Stack.Screen name="News" component={NewsScreen} />
+        <Stack.Screen name="Terms" component={TermsScreen} />
+        <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+        <Stack.Screen name="HouseRent" component={HouseRentScreen} />
+        <Stack.Screen name="BloodDonors" component={BloodDonorsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

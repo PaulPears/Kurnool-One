@@ -11,7 +11,9 @@ import {
   BUSINESS_PRICING_PLANS,
   registerBusiness,
   uploadBusinessLogo,
-  uploadBusinessCover
+  uploadBusinessCover,
+  fetchMyBusinesses,
+  BusinessItem,
 } from '../services/directoryService';
 import RazorpayModal from '../components/RazorpayModal';
 import BusinessHoursSelector from '../components/BusinessHoursSelector';
@@ -32,6 +34,10 @@ export default function RegisterBusinessScreen({ navigation }: any) {
   const [localUser, setLocalUser] = useState<any>(null);
   const [demoLoading, setDemoLoading] = useState(false);
 
+  // Existing listing detection state
+  const [existingBusinesses, setExistingBusinesses] = useState<BusinessItem[]>([]);
+  const [showExistingModal, setShowExistingModal] = useState(false);
+
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((u) => {
       setCurrentUser(u);
@@ -44,13 +50,30 @@ export default function RegisterBusinessScreen({ navigation }: any) {
       if (auth.currentUser) {
         setCurrentUser(auth.currentUser);
       }
-      AsyncStorage.getItem('user').then((val) => {
+      AsyncStorage.getItem('user').then(async (val) => {
+        let p = phone;
         if (val) {
           try {
             const parsed = JSON.parse(val);
             setLocalUser(parsed);
-            if (parsed.phone && !phone) setPhone(parsed.phone);
+            if (parsed.phone && !phone) {
+              setPhone(parsed.phone);
+              p = parsed.phone;
+            }
           } catch {}
+        }
+
+        const uid = auth.currentUser?.uid;
+        if (uid || p) {
+          try {
+            const list = await fetchMyBusinesses(uid, p);
+            if (list && list.length > 0) {
+              setExistingBusinesses(list);
+              setShowExistingModal(true);
+            }
+          } catch (e) {
+            console.warn('Listing check error:', e);
+          }
         }
       });
     }
@@ -741,6 +764,49 @@ export default function RegisterBusinessScreen({ navigation }: any) {
                   );
                 })}
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Existing Listing Detected Modal */}
+      <Modal visible={showExistingModal} transparent animationType="fade" onRequestClose={() => setShowExistingModal(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ width: '100%', maxWidth: 380, backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 25 }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16 }}>
+              <Ionicons name="storefront" size={32} color="#2563EB" />
+            </View>
+
+            <Text style={{ fontSize: 18, fontWeight: '900', color: '#0F172A', textAlign: 'center', marginBottom: 6 }}>
+              {language === 'en' ? 'Existing Listing Found' : 'మునుపటి లిస్టింగ్ కనుగొనబడింది'}
+            </Text>
+            <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center', lineHeight: 18, marginBottom: 16 }}>
+              {language === 'en'
+                ? `You already have "${existingBusinesses[0]?.name_en || 'a registered business'}" linked to your account. Would you like to manage your existing listing or register an additional branch?`
+                : `మీ ఖాతాకు ఇప్పటికే "${existingBusinesses[0]?.name_en || 'ఒక వ్యాపారం'}" నమోదు చేయబడి ఉంది. మీరు మీ పాత దుకాణాన్ని నిర్వహించాలనుకుంటున్నారా లేదా కొత్త బ్రాంచ్‌ను నమోదు చేయాలనుకుంటున్నారా?`}
+            </Text>
+
+            {/* Manage Existing Button */}
+            <TouchableOpacity
+              onPress={() => {
+                setShowExistingModal(false);
+                navigation.navigate('ManageBusiness', { businessId: existingBusinesses[0]?.id });
+              }}
+              style={{ backgroundColor: '#2563EB', paddingVertical: 14, borderRadius: 14, alignItems: 'center', marginBottom: 10 }}
+            >
+              <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>
+                {language === 'en' ? 'Manage Existing Listing' : 'పాత లిస్టింగ్ నిర్వహించండి'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Register Another Branch */}
+            <TouchableOpacity
+              onPress={() => setShowExistingModal(false)}
+              style={{ paddingVertical: 12, borderRadius: 14, alignItems: 'center', borderWidth: 1, borderColor: '#CBD5E1' }}
+            >
+              <Text style={{ color: '#475569', fontWeight: '700', fontSize: 13 }}>
+                {language === 'en' ? 'Register Another Listing / Branch' : 'మరొక దుకాణాన్ని నమోదు చేయండి'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>

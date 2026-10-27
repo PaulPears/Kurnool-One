@@ -20,6 +20,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { auth, db } from '../config/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { getUser } from '../services/firestoreService';
+import {
+  fetchMyBusinesses,
+  fetchMyProfessionalProfile,
+  BusinessItem,
+  ProfessionalItem,
+} from '../services/directoryService';
 
 export default function ProfileScreen({ route, navigation }: any) {
   const { userId: paramUserId } = route.params || {};
@@ -28,6 +34,10 @@ export default function ProfileScreen({ route, navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [isSelf, setIsSelf] = useState(true);
   const { language } = useLanguage();
+
+  // Owned listings state
+  const [myBusinesses, setMyBusinesses] = useState<BusinessItem[]>([]);
+  const [myProfessional, setMyProfessional] = useState<ProfessionalItem | null>(null);
 
   // Dynamic real counts from Firestore
   const [bizCount, setBizCount] = useState<number>(0);
@@ -58,6 +68,18 @@ export default function ProfileScreen({ route, navigation }: any) {
           const updatedLocalUser = { ...cUser, ...userInfo };
           await AsyncStorage.setItem('user', JSON.stringify(updatedLocalUser));
           setCurrentUser(updatedLocalUser);
+        }
+
+        // Query user's owned listings directly
+        try {
+          const [bizList, proProf] = await Promise.all([
+            fetchMyBusinesses(targetUid, cUser?.phone || auth.currentUser?.phoneNumber || ''),
+            fetchMyProfessionalProfile(targetUid, cUser?.phone || auth.currentUser?.phoneNumber || ''),
+          ]);
+          setMyBusinesses(bizList);
+          setMyProfessional(proProf);
+        } catch (fetchListingsErr) {
+          console.warn('Listing fetch non-fatal:', fetchListingsErr);
         }
       }
 
@@ -110,8 +132,14 @@ export default function ProfileScreen({ route, navigation }: any) {
     auth.currentUser?.email ||
     '';
 
-  const isMerchant = currentUser?.role === 'business' || user?.role === 'business';
-  const isProfessional = currentUser?.role === 'professional' || user?.role === 'professional';
+  const isMerchant =
+    currentUser?.role === 'business' ||
+    user?.role === 'business' ||
+    myBusinesses.length > 0;
+  const isProfessional =
+    currentUser?.role === 'professional' ||
+    user?.role === 'professional' ||
+    !!myProfessional;
 
   if (loading && !user && !currentUser) {
     return (
@@ -150,11 +178,6 @@ export default function ProfileScreen({ route, navigation }: any) {
                 <View style={styles.profileImagePlaceholder}>
                   <Ionicons name="person" size={42} color="#2563EB" />
                 </View>
-              )}
-              {isSelf && (
-                <TouchableOpacity style={styles.cameraIcon} onPress={() => navigation.navigate('EditProfile')}>
-                  <Ionicons name="camera" size={16} color="#fff" />
-                </TouchableOpacity>
               )}
             </View>
 

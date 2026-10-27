@@ -91,3 +91,6 @@ frontend/*.png
 # OS files
 .DS_Store
 Thumbs.db
+
+# Temporary user archives
+DELETE LATER/

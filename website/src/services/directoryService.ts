@@ -253,6 +253,21 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     ],
   },
   {
+    id: 'chicken_mutton_center',
+    name_en: 'Chicken and Mutton Center',
+    name_te: 'చికెన్ మరియు మటన్ సెంటర్',
+    icon: 'UtensilsCrossed',
+    color: '#DC2626',
+    bgLight: '#FEF2F2',
+    subcategories: [
+      { id: 'fresh_raw_chicken', name_en: 'Fresh Raw Chicken', name_te: 'తాజా చికెన్' },
+      { id: 'fresh_mutton', name_en: 'Fresh Mutton', name_te: 'తాజా మటన్' },
+      { id: 'natu_kodi', name_en: 'Country Chicken / Natu Kodi', name_te: 'నాటు కోడి' },
+      { id: 'sea_food_fish', name_en: 'Sea Food & Fish', name_te: 'చేపలు & సీ ఫుడ్' },
+      { id: 'eggs_poultry', name_en: 'Eggs & Poultry', name_te: 'గుడ్లు & పౌల్ట్రీ' },
+    ],
+  },
+  {
     id: 'hotels_lodges',
     name_en: 'Hotels & Lodges',
     name_te: 'హోటళ్ళు & లాడ్జీలు',
@@ -962,18 +977,8 @@ export const checkPhoneRoleExclusivity = async (
 
     if (snap.exists()) {
       const data = snap.data();
-      const existingRole = data.role as 'business' | 'professional';
-      if (existingRole && existingRole !== requestedRole) {
-        const opposingName = existingRole === 'business' ? 'Business Account' : 'Professional Account';
-        const requestedName = requestedRole === 'business' ? 'Business Account' : 'Professional Account';
-        return {
-          allowed: false,
-          existingRole,
-          phoneDoc: data,
-          message: `This mobile number (${formattedPhone}) is already registered as a ${opposingName}. Separate credentials are strictly required for Business and Professional accounts. You cannot use this phone number for a ${requestedName}.`,
-        };
-      }
-      return { allowed: true, phoneDoc: data, existingRole };
+      // Allow dual-role registration: a citizen/merchant can own both a business listing and a professional profile
+      return { allowed: true, phoneDoc: data, existingRole: data.role };
     }
     return { allowed: true };
   } catch (error) {
@@ -989,22 +994,52 @@ export const registerPhoneRole = async (
   extra?: { name?: string; businessName?: string }
 ): Promise<void> => {
   const formattedPhone = sanitizePhone(phone);
-  const phoneRef = doc(db, 'registered_phones', formattedPhone);
-  await setDoc(phoneRef, {
-    phone: formattedPhone,
-    role,
-    uid,
-    name: extra?.name || '',
-    businessName: extra?.businessName || '',
-    updatedAt: serverTimestamp(),
-  }, { merge: true });
+  try {
+    const phoneRef = doc(db, 'registered_phones', formattedPhone);
+    const phoneSnap = await getDoc(phoneRef);
+    let existingRoles: string[] = [];
+    if (phoneSnap.exists()) {
+      const pData = phoneSnap.data();
+      existingRoles = Array.isArray(pData.roles) ? pData.roles : [pData.role].filter(Boolean);
+    }
+    if (!existingRoles.includes(role)) {
+      existingRoles.push(role);
+    }
 
-  const userRef = doc(db, 'users', uid);
-  await setDoc(userRef, {
-    phone: formattedPhone,
-    role,
-    updatedAt: serverTimestamp(),
-  }, { merge: true });
+    await setDoc(phoneRef, {
+      phone: formattedPhone,
+      role,
+      roles: existingRoles,
+      uid,
+      name: extra?.name || '',
+      businessName: extra?.businessName || '',
+      hasBusiness: existingRoles.includes('business'),
+      hasProfessional: existingRoles.includes('professional'),
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+
+    const userRef = doc(db, 'users', uid);
+    const userSnap = await getDoc(userRef);
+    let userRoles: string[] = [];
+    if (userSnap.exists()) {
+      const uData = userSnap.data();
+      userRoles = Array.isArray(uData.roles) ? uData.roles : [uData.role].filter(Boolean);
+    }
+    if (!userRoles.includes(role)) {
+      userRoles.push(role);
+    }
+
+    await setDoc(userRef, {
+      phone: formattedPhone,
+      role,
+      roles: userRoles,
+      hasBusiness: userRoles.includes('business'),
+      hasProfessional: userRoles.includes('professional'),
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  } catch (err) {
+    console.warn('registerPhoneRole non-fatal warning:', err);
+  }
 };
 
 export const trackBusinessInteraction = async (
@@ -1389,3 +1424,189 @@ export const deleteCategoryFromFirestore = async (categoryId: string): Promise<v
     console.error('deleteCategoryFromFirestore error:', err);
   }
 };
+
+// ─── MARKETPLACE ITEMS (BUY & SELL) ──────────────────────────────────────────
+
+export interface MarketplaceItem {
+  id: string;
+  title_en: string;
+  title_te?: string;
+  price: string;
+  category: string;
+  sellerName: string;
+  sellerPhone: string;
+  sellerWhatsapp?: string;
+  sellerUid?: string;
+  area: string;
+  condition: string;
+  postedDate?: string;
+  imageUrl?: string;
+  images?: string[];
+  description: string;
+  status: 'active' | 'sold' | 'suspended';
+  createdAt?: any;
+}
+
+export async function fetchMarketplaceItems(): Promise<MarketplaceItem[]> {
+  try {
+    const q = query(
+      collection(db, 'marketplace'),
+      where('status', '==', 'active'),
+      limit(50)
+    );
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      return snap.docs.map(d => ({ id: d.id, ...d.data() } as MarketplaceItem));
+    }
+  } catch (err) {
+    console.warn('fetchMarketplaceItems non-fatal:', err);
+  }
+  return [];
+}
+
+export async function createMarketplaceItem(item: Omit<MarketplaceItem, 'id' | 'createdAt'>): Promise<string> {
+  const colRef = collection(db, 'marketplace');
+  const docRef = await addDoc(colRef, {
+    ...item,
+    status: item.status || 'active',
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+export async function updateMarketplaceItem(id: string, updates: Partial<MarketplaceItem>): Promise<void> {
+  await updateDoc(doc(db, 'marketplace', id), {
+    ...updates,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function deleteMarketplaceItem(id: string): Promise<void> {
+  await deleteDoc(doc(db, 'marketplace', id));
+}
+
+// ─── BLOOD DONORS DIRECTORY ──────────────────────────────────────────────────
+
+export interface BloodDonorItem {
+  id: string;
+  userId: string;
+  displayName: string;
+  bloodGroup: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
+  phone: string;
+  showPhonePublicly: boolean;
+  area: string;
+  availability: 'available' | 'donated_recently' | 'unavailable';
+  notes?: string;
+  status: 'active' | 'suspended';
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export async function fetchBloodDonors(bloodGroup?: string): Promise<BloodDonorItem[]> {
+  try {
+    const coll = collection(db, 'blood_donors');
+    let q;
+    if (bloodGroup && bloodGroup !== 'all' && bloodGroup !== 'All') {
+      q = query(coll, where('status', '==', 'active'), where('bloodGroup', '==', bloodGroup), limit(50));
+    } else {
+      q = query(coll, where('status', '==', 'active'), limit(50));
+    }
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as BloodDonorItem));
+  } catch (err) {
+    console.warn('fetchBloodDonors error:', err);
+    return [];
+  }
+}
+
+export async function registerBloodDonor(donor: Omit<BloodDonorItem, 'id' | 'createdAt'>): Promise<string> {
+  const colRef = collection(db, 'blood_donors');
+  const docRef = await addDoc(colRef, {
+    ...donor,
+    status: 'active',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+export async function updateBloodDonor(id: string, updates: Partial<BloodDonorItem>): Promise<void> {
+  await updateDoc(doc(db, 'blood_donors', id), {
+    ...updates,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function deleteBloodDonor(id: string): Promise<void> {
+  await deleteDoc(doc(db, 'blood_donors', id));
+}
+
+export async function fetchMyBloodDonorProfile(userId: string): Promise<BloodDonorItem | null> {
+  try {
+    const q = query(collection(db, 'blood_donors'), where('userId', '==', userId), limit(1));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      return { id: snap.docs[0].id, ...snap.docs[0].data() } as BloodDonorItem;
+    }
+  } catch (err) {
+    console.warn('fetchMyBloodDonorProfile non-fatal:', err);
+  }
+  return null;
+}
+
+// ─── PUSH NOTIFICATIONS & BROADCASTS ─────────────────────────────────────────
+
+export interface BroadcastNotificationItem {
+  id?: string;
+  title: string;
+  body: string;
+  category: 'general' | 'deal' | 'breaking' | 'event' | 'alert';
+  targetAudience: 'all' | 'citizens' | 'businesses' | 'professionals';
+  actionUrl?: string;
+  imageUrl?: string;
+  senderName?: string;
+  createdAt?: any;
+  sentAt?: string;
+  status: 'sent' | 'draft';
+}
+
+export async function sendBroadcastNotification(
+  item: Omit<BroadcastNotificationItem, 'id' | 'createdAt'>
+): Promise<string> {
+  const colRef = collection(db, 'broadcast_notifications');
+  const docRef = await addDoc(colRef, {
+    ...item,
+    status: 'sent',
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+export async function fetchBroadcastNotifications(): Promise<BroadcastNotificationItem[]> {
+  try {
+    const q = query(collection(db, 'broadcast_notifications'), orderBy('createdAt', 'desc'), limit(50));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => {
+      const data = d.data();
+      let sentAt = 'Just now';
+      if (data.createdAt?.toDate) {
+        sentAt = data.createdAt.toDate().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+      } else if (data.createdAt?.seconds) {
+        sentAt = new Date(data.createdAt.seconds * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+      }
+      return {
+        id: d.id,
+        ...data,
+        sentAt,
+      } as BroadcastNotificationItem;
+    });
+  } catch (err) {
+    console.warn('fetchBroadcastNotifications error:', err);
+    return [];
+  }
+}
+
+export async function deleteBroadcastNotification(id: string): Promise<void> {
+  await deleteDoc(doc(db, 'broadcast_notifications', id));
+}
+

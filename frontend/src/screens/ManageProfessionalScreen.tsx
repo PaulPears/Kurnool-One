@@ -18,12 +18,14 @@ import {
 import { auth, db } from '../config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import RazorpayModal from '../components/RazorpayModal';
 
 export default function ManageProfessionalScreen({ navigation, route }: any) {
   const { language } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfessionalItem | null>(null);
   const [leads, setLeads] = useState<LeadItem[]>([]);
+  const [showRazorpayModal, setShowRazorpayModal] = useState(false);
 
   // Edit fields
   const [fullName, setFullName] = useState('');
@@ -350,6 +352,49 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
             </View>
           </View>
         </View>
+
+        {/* Payment Verification Wall */}
+        {profile.paymentStatus === 'unpaid' && (
+          <View
+            style={{
+              backgroundColor: '#FEF2F2',
+              borderWidth: 1,
+              borderColor: '#FECACA',
+              borderRadius: 16,
+              padding: 16,
+              marginBottom: 16,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <Ionicons name="card" size={20} color="#DC2626" />
+              <Text style={{ fontSize: 15, fontWeight: '900', color: '#991B1B' }}>
+                {language === 'en' ? 'Professional Subscription Pending' : 'సభ్యత్వ చెల్లింపు పెండింగ్‌లో ఉంది'}
+              </Text>
+            </View>
+            <Text style={{ fontSize: 12.5, color: '#7F1D1D', lineHeight: 18, marginBottom: 12 }}>
+              {language === 'en'
+                ? 'Your professional profile is currently unpaid. Complete subscription payment via Razorpay to activate your profile across Kurnool and receive direct client phone calls.'
+                : 'మీ ప్రొఫైల్ ఇంకా చెల్లింపు పూర్తి కాలేదు. రేజర్‌పే ద్వారా చెల్లింపు పూర్తి చేసి మీ ప్రొఫైల్‌ను యాక్టివేట్ చేయండి.'}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowRazorpayModal(true)}
+              style={{
+                backgroundColor: '#0D9488',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                paddingVertical: 12,
+                borderRadius: 12,
+              }}
+            >
+              <Ionicons name="shield-checkmark" size={16} color="#FFFFFF" />
+              <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>
+                {language === 'en' ? 'Complete Subscription via Razorpay' : 'రేజర్‌పే ద్వారా చెల్లించండి'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ─── LIVE CUSTOMER LEADS SECTION (JUSTDIAL-STYLE) ─────────────── */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -747,6 +792,35 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
           </View>
         </View>
       </Modal>
+
+      {/* ─── RAZORPAY SUBSCRIPTION MODAL ─────────────────────────────────── */}
+      <RazorpayModal
+        visible={showRazorpayModal}
+        onClose={() => setShowRazorpayModal(false)}
+        planName={`${profile?.fullName || 'Professional'} Subscription`}
+        amount={profile?.planId === 'yearly' ? 900 : profile?.planId === 'monthly' ? 99 : 500}
+        entityName={profile?.fullName || 'Professional'}
+        customerPhone={profile?.phone}
+        onSuccess={async (paymentData) => {
+          setShowRazorpayModal(false);
+          const paymentId = paymentData.razorpay_payment_id;
+          const orderId = paymentData.razorpay_order_id;
+          if (profile) {
+            try {
+              await updateProfessionalProfile(profile.id, {
+                paymentStatus: 'paid',
+                paymentId,
+                orderId,
+                status: 'active',
+              });
+              setProfile((prev) => (prev ? { ...prev, paymentStatus: 'paid', status: 'active' } : null));
+              Alert.alert('Payment Successful', 'Your professional profile is now verified and active across Kurnool One!');
+            } catch (updErr) {
+              console.warn('Pro update post-payment error:', updErr);
+            }
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }

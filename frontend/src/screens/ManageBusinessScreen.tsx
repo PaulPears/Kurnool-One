@@ -20,12 +20,16 @@ import {
 import { auth, db } from '../config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import RazorpayModal from '../components/RazorpayModal';
 
 export default function ManageBusinessScreen({ navigation, route }: any) {
   const { language } = useLanguage();
 
   const [loading, setLoading] = useState(true);
   const [business, setBusiness] = useState<BusinessItem | null>(null);
+  const [allBusinesses, setAllBusinesses] = useState<BusinessItem[]>([]);
+  const [showShopPicker, setShowShopPicker] = useState(false);
+  const [showRazorpayModal, setShowRazorpayModal] = useState(false);
   const [leads, setLeads] = useState<LeadItem[]>([]);
 
   // Edit fields
@@ -87,39 +91,43 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
         }
       }
 
-      if (!b) {
-        const list = await fetchMyBusinesses(uid, userPhone);
-        if (list && list.length > 0) {
-          b = list[0];
-        }
+      const list = await fetchMyBusinesses(uid, userPhone);
+      setAllBusinesses(list);
+
+      if (!b && list && list.length > 0) {
+        b = list[0];
       }
 
       if (b) {
-        setBusiness(b);
-        setPhone(b.phone || '');
-        setWhatsapp(b.whatsapp || '');
-        setTiming(b.timing || '');
-        setAddress(b.address || '');
-        setLandmark(b.landmark || '');
-        setWebsite(b.website || '');
-        setGoogleMapsUrl(b.googleMapsUrl || '');
-        setFacebook(b.socialLinks?.facebook || '');
-        setInstagram(b.socialLinks?.instagram || '');
-        setTwitter(b.socialLinks?.twitter || '');
-        setYoutube(b.socialLinks?.youtube || '');
-        setLinkedin(b.socialLinks?.linkedin || '');
-        setDescription(b.description_en || '');
-        setLogoUrl(b.logoUrl || '');
-        setCoverImageUrl(b.coverImage || b.bannerUrl || (b.images && b.images[0]) || '');
-
-        const leadsList = await fetchMyLeads(b.ownerUid || uid, b.id);
-        setLeads(leadsList);
+        populateBusinessFields(b, uid);
       }
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
+  };
+
+  const populateBusinessFields = async (b: BusinessItem, uid?: string) => {
+    setBusiness(b);
+    setPhone(b.phone || '');
+    setWhatsapp(b.whatsapp || '');
+    setTiming(b.timing || '');
+    setAddress(b.address || '');
+    setLandmark(b.landmark || '');
+    setWebsite(b.website || '');
+    setGoogleMapsUrl(b.googleMapsUrl || '');
+    setFacebook(b.socialLinks?.facebook || '');
+    setInstagram(b.socialLinks?.instagram || '');
+    setTwitter(b.socialLinks?.twitter || '');
+    setYoutube(b.socialLinks?.youtube || '');
+    setLinkedin(b.socialLinks?.linkedin || '');
+    setDescription(b.description_en || '');
+    setLogoUrl(b.logoUrl || '');
+    setCoverImageUrl(b.coverImage || b.bannerUrl || (b.images && b.images[0]) || '');
+
+    const leadsList = await fetchMyLeads(b.ownerUid || uid, b.id);
+    setLeads(leadsList);
   };
 
   const pickAndUploadLogo = async () => {
@@ -396,6 +404,78 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
           <Text style={styles.heroTitle}>{business.name_en}</Text>
           <Text style={styles.heroSub}>{business.address}</Text>
         </View>
+
+        {/* Multi-Store Switcher */}
+        {allBusinesses.length > 1 && (
+          <TouchableOpacity
+            onPress={() => setShowShopPicker(true)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: '#EFF6FF',
+              borderWidth: 1,
+              borderColor: '#BFDBFE',
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+              borderRadius: 12,
+              marginBottom: 16,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Ionicons name="swap-horizontal" size={18} color="#2563EB" />
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#1E40AF' }}>
+                {language === 'en' ? `Managing: ${business.name_en}` : `నిర్వహణ: ${business.name_en}`}
+              </Text>
+            </View>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: '#2563EB' }}>
+              {language === 'en' ? 'Switch Shop ▼' : 'మార్చు ▼'}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Payment Verification Wall */}
+        {business.paymentStatus === 'unpaid' && (
+          <View
+            style={{
+              backgroundColor: '#FEF2F2',
+              borderWidth: 1,
+              borderColor: '#FECACA',
+              borderRadius: 16,
+              padding: 16,
+              marginBottom: 16,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <Ionicons name="card" size={20} color="#DC2626" />
+              <Text style={{ fontSize: 15, fontWeight: '900', color: '#991B1B' }}>
+                {language === 'en' ? 'Subscription Payment Pending' : 'సభ్యత్వ చెల్లింపు పెండింగ్‌లో ఉంది'}
+              </Text>
+            </View>
+            <Text style={{ fontSize: 12.5, color: '#7F1D1D', lineHeight: 18, marginBottom: 12 }}>
+              {language === 'en'
+                ? 'Your storefront listing is currently unpaid. Complete payment via Razorpay to activate your public verified listing across Kurnool and unlock direct customer inquiries.'
+                : 'మీ దుకాణం ఇంకా చెల్లింపు పూర్తి కాలేదు. రేజర్‌పే ద్వారా చెల్లింపు పూర్తి చేసి మీ లిస్టింగ్‌ను యాక్టివేట్ చేయండి.'}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowRazorpayModal(true)}
+              style={{
+                backgroundColor: '#DC2626',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                paddingVertical: 12,
+                borderRadius: 12,
+              }}
+            >
+              <Ionicons name="shield-checkmark" size={16} color="#FFFFFF" />
+              <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>
+                {language === 'en' ? 'Complete Subscription via Razorpay' : 'రేజర్‌పే ద్వారా చెల్లించండి'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ─── LEAD ANALYTICS CARDS ─────────────────────────────────────── */}
         <Text style={styles.sectionHeader}>Customer Leads & Engagement</Text>
@@ -772,6 +852,86 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
           </View>
         </View>
       </Modal>
+
+      {/* ─── MULTI-STORE PICKER MODAL ────────────────────────────────────── */}
+      <Modal visible={showShopPicker} transparent animationType="fade" onRequestClose={() => setShowShopPicker(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ width: '100%', maxWidth: 380, backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <Text style={{ fontSize: 16, fontWeight: '900', color: '#0F172A' }}>
+                {language === 'en' ? 'Select Store to Manage' : 'నిర్వహించాల్సిన దుకాణాన్ని ఎంచుకోండి'}
+              </Text>
+              <TouchableOpacity onPress={() => setShowShopPicker(false)}>
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 320 }}>
+              {allBusinesses.map((b) => {
+                const isCurrent = b.id === business?.id;
+                return (
+                  <TouchableOpacity
+                    key={b.id}
+                    onPress={() => {
+                      setShowShopPicker(false);
+                      populateBusinessFields(b);
+                    }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: 14,
+                      borderRadius: 14,
+                      backgroundColor: isCurrent ? '#EFF6FF' : '#F8FAFC',
+                      borderWidth: 1,
+                      borderColor: isCurrent ? '#3B82F6' : '#E2E8F0',
+                      marginBottom: 8,
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: isCurrent ? '#1D4ED8' : '#0F172A' }}>
+                        {b.name_en}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>
+                        {b.address || 'Kurnool'}
+                      </Text>
+                    </View>
+                    {isCurrent && <Ionicons name="checkmark-circle" size={20} color="#2563EB" />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── RAZORPAY SUBSCRIPTION MODAL ─────────────────────────────────── */}
+      <RazorpayModal
+        visible={showRazorpayModal}
+        onClose={() => setShowRazorpayModal(false)}
+        planName={`${business?.name_en || 'Business'} Subscription`}
+        amount={business?.planId === 'yearly' ? 2000 : business?.planId === 'monthly' ? 199 : 999}
+        entityName={business?.name_en || 'Business'}
+        customerPhone={business?.phone}
+        onSuccess={async (paymentData) => {
+          setShowRazorpayModal(false);
+          const paymentId = paymentData.razorpay_payment_id;
+          const orderId = paymentData.razorpay_order_id;
+          if (business) {
+            try {
+              await updateBusinessProfile(business.id, {
+                paymentStatus: 'paid',
+                paymentId,
+                orderId,
+                status: 'published',
+              });
+              setBusiness((prev) => (prev ? { ...prev, paymentStatus: 'paid', status: 'published' } : null));
+              Alert.alert('Payment Successful', 'Your business listing is now active and verified on Kurnool One!');
+            } catch (updErr) {
+              console.warn('Update post-payment error:', updErr);
+            }
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }

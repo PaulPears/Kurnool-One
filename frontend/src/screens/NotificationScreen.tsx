@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getNotifications, markNotificationsRead } from '../services/firestoreService';
+import { getNotifications, getBroadcastNotifications, markNotificationsRead } from '../services/firestoreService';
 
 export default function NotificationScreen({ navigation }: any) {
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -17,14 +17,28 @@ export default function NotificationScreen({ navigation }: any) {
     try {
       setLoading(true);
       const stored = await AsyncStorage.getItem('user');
-      if (!stored) return;
-      const user = JSON.parse(stored);
-      const uid  = user?.uid || user?.id;
-      if (!uid) return;
+      let personalData: any[] = [];
+      let uid = '';
+      if (stored) {
+        const user = JSON.parse(stored);
+        uid = user?.uid || user?.id;
+        if (uid) {
+          personalData = await getNotifications(uid);
+          await markNotificationsRead(uid);
+        }
+      }
 
-      const data = await getNotifications(uid);
-      setNotifications(data);
-      await markNotificationsRead(uid);
+      // Always fetch public broadcast announcements
+      const broadcasts = await getBroadcastNotifications(20);
+
+      // Merge and sort newest first
+      const combined = [...broadcasts, ...personalData].sort((a, b) => {
+        const timeA = new Date(a.created_at || 0).getTime();
+        const timeB = new Date(b.created_at || 0).getTime();
+        return timeB - timeA;
+      });
+
+      setNotifications(combined);
     } catch (error) {
       console.error(error);
     } finally {
@@ -33,6 +47,21 @@ export default function NotificationScreen({ navigation }: any) {
   };
 
   const handleNotificationPress = (item: any) => {
+    if (item.isBroadcast) {
+      if (item.actionUrl?.includes('offer') || item.category === 'deal') {
+        navigation.navigate('Main', { screen: 'Offers' });
+      } else if (item.actionUrl?.includes('news') || item.category === 'breaking') {
+        navigation.navigate('News');
+      } else if (item.actionUrl?.includes('event') || item.category === 'event') {
+        navigation.navigate('Main', { screen: 'Explore' });
+      } else if (item.actionUrl?.includes('blood')) {
+        navigation.navigate('BloodDonors');
+      } else {
+        navigation.navigate('Main', { screen: 'Explore' });
+      }
+      return;
+    }
+
     if (item.type === 'deal' || item.type === 'offer') {
       navigation.navigate('Main', { screen: 'Offers' });
     } else if (item.type === 'news') {
@@ -45,6 +74,32 @@ export default function NotificationScreen({ navigation }: any) {
   };
 
   const renderNotification = ({ item }: any) => {
+    if (item.isBroadcast) {
+      return (
+        <TouchableOpacity
+          onPress={() => handleNotificationPress(item)}
+          activeOpacity={0.8}
+          className="px-4 py-4 border-b border-gray-100 flex-row items-start bg-amber-50/40"
+        >
+          <View className="w-11 h-11 rounded-2xl bg-amber-500/20 items-center justify-center mr-3 mt-0.5">
+            <Ionicons name="megaphone" size={20} color="#D97706" />
+          </View>
+          <View className="flex-1">
+            <View className="flex-row items-center gap-1.5 mb-1">
+              <Text className="text-[10px] font-black uppercase tracking-wider text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                {item.category === 'deal' ? '🏷️ Deal' : item.category === 'breaking' ? '⚡ Breaking' : item.category === 'alert' ? '⚠️ Alert' : '📢 Broadcast'}
+              </Text>
+              <Text className="text-gray-400 text-xs">
+                {new Date(item.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
+              </Text>
+            </View>
+            <Text className="font-bold text-gray-900 text-sm leading-snug">{item.title}</Text>
+            <Text className="text-gray-600 text-xs mt-1 leading-relaxed">{item.body}</Text>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
     const isLike   = item.type === 'like';
     const isReport = item.type === 'report';
     return (
@@ -74,6 +129,7 @@ export default function NotificationScreen({ navigation }: any) {
       </TouchableOpacity>
     );
   };
+
 
   return (
     <SafeAreaView className="flex-1 bg-white">

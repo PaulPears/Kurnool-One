@@ -11,6 +11,8 @@ import {
   PROFESSIONAL_PRICING_PLANS,
   registerProfessional,
   uploadProfessionalAvatar,
+  fetchMyProfessionalProfile,
+  ProfessionalItem,
 } from '../services/directoryService';
 import RazorpayModal from '../components/RazorpayModal';
 import BusinessHoursSelector from '../components/BusinessHoursSelector';
@@ -33,6 +35,10 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
   const [demoLoading, setDemoLoading] = useState(false);
   const [showRazorpayModal, setShowRazorpayModal] = useState(false);
 
+  // Existing profile detection state
+  const [existingProfile, setExistingProfile] = useState<ProfessionalItem | null>(null);
+  const [showExistingModal, setShowExistingModal] = useState(false);
+
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((u) => {
       setCurrentUser(u);
@@ -45,13 +51,30 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
       if (auth.currentUser) {
         setCurrentUser(auth.currentUser);
       }
-      AsyncStorage.getItem('user').then((val) => {
+      AsyncStorage.getItem('user').then(async (val) => {
+        let p = phone;
         if (val) {
           try {
             const parsed = JSON.parse(val);
             setLocalUser(parsed);
-            if (parsed.phone && !phone) setPhone(parsed.phone);
+            if (parsed.phone && !phone) {
+              setPhone(parsed.phone);
+              p = parsed.phone;
+            }
           } catch {}
+        }
+
+        const uid = auth.currentUser?.uid;
+        if (uid || p) {
+          try {
+            const prof = await fetchMyProfessionalProfile(uid, p);
+            if (prof) {
+              setExistingProfile(prof);
+              setShowExistingModal(true);
+            }
+          } catch (e) {
+            console.warn('Pro profile check error:', e);
+          }
         }
       });
     }
@@ -767,6 +790,49 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
                   );
                 })}
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Existing Profile Detected Modal */}
+      <Modal visible={showExistingModal} transparent animationType="fade" onRequestClose={() => setShowExistingModal(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ width: '100%', maxWidth: 380, backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 25 }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#F0FDFA', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16 }}>
+              <Ionicons name="briefcase" size={32} color="#0D9488" />
+            </View>
+
+            <Text style={{ fontSize: 18, fontWeight: '900', color: '#0F172A', textAlign: 'center', marginBottom: 6 }}>
+              {language === 'en' ? 'Existing Profile Found' : 'మునుపటి ప్రొఫైల్ కనుగొనబడింది'}
+            </Text>
+            <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center', lineHeight: 18, marginBottom: 16 }}>
+              {language === 'en'
+                ? `You already have an active professional profile as "${existingProfile?.fullName || 'Service Professional'}" (${existingProfile?.category || 'Specialist'}). Would you like to manage your profile or edit your existing details?`
+                : `మీరు ఇప్పటికే "${existingProfile?.fullName || 'సర్వీస్ ప్రొఫెషనల్'}" గా నమోదు చేయబడి ఉన్నారు. మీరు మీ వివరాలు నిర్వహించాలనుకుంటున్నారా?`}
+            </Text>
+
+            {/* Manage Existing Button */}
+            <TouchableOpacity
+              onPress={() => {
+                setShowExistingModal(false);
+                navigation.navigate('ManageProfessional', { proId: existingProfile?.id });
+              }}
+              style={{ backgroundColor: '#0D9488', paddingVertical: 14, borderRadius: 14, alignItems: 'center', marginBottom: 10 }}
+            >
+              <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>
+                {language === 'en' ? 'Manage Existing Profile' : 'పాత ప్రొఫైల్ నిర్వహించండి'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Continue Editing */}
+            <TouchableOpacity
+              onPress={() => setShowExistingModal(false)}
+              style={{ paddingVertical: 12, borderRadius: 14, alignItems: 'center', borderWidth: 1, borderColor: '#CBD5E1' }}
+            >
+              <Text style={{ color: '#475569', fontWeight: '700', fontSize: 13 }}>
+                {language === 'en' ? 'Continue & Update Details' : 'వివరాలు నవీకరించండి'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
