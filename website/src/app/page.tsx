@@ -34,6 +34,8 @@ import {
   Briefcase,
   ChevronRight,
   Percent,
+  Home,
+  Newspaper,
 } from 'lucide-react';
 import {
   MASTER_CATEGORIES,
@@ -41,6 +43,7 @@ import {
   fetchBusinesses,
   fetchProfessionals,
   fetchPlaces,
+  fetchWorshipPlaces,
   fetchOffers,
   fetchEvents,
 } from '@/services/directoryService';
@@ -49,10 +52,11 @@ import AppDownloadBanner from '@/components/AppDownloadBanner';
 export const revalidate = 60; // ISR cache for 60 seconds
 
 export default async function HomePage() {
-  const [businesses, professionals, places, offers, events] = await Promise.all([
+  const [businesses, professionals, places, worshipPlaces, offers, events] = await Promise.all([
     fetchBusinesses(),
     fetchProfessionals(),
     fetchPlaces(),
+    fetchWorshipPlaces(),
     fetchOffers(),
     fetchEvents(),
   ]);
@@ -155,6 +159,63 @@ export default async function HomePage() {
               <div className="text-[11px] text-blue-200 font-semibold mt-0.5">{stat.label}</div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ─── CIVIC HIGHLIGHTS ROW (NEWS, TO-LET, BLOOD DONORS, OFFERS) ─── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-8 -mt-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          <Link
+            href="/blood-donors"
+            className="p-4 rounded-2xl bg-gradient-to-br from-rose-50 to-red-100 border border-rose-200/80 hover:shadow-lg transition flex items-center gap-3.5 group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition">
+              <HeartPulse className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-[11px] font-bold text-rose-700 uppercase tracking-wider block">Urgent Help</span>
+              <span className="text-sm font-extrabold text-slate-900 block leading-tight">Blood Donors</span>
+            </div>
+          </Link>
+
+          <Link
+            href="/rent"
+            className="p-4 rounded-2xl bg-gradient-to-br from-teal-50 to-emerald-100 border border-teal-200/80 hover:shadow-lg transition flex items-center gap-3.5 group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-teal-700 text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition">
+              <Home className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-[11px] font-bold text-teal-700 uppercase tracking-wider block">No Brokerage</span>
+              <span className="text-sm font-extrabold text-slate-900 block leading-tight">Rent Houses</span>
+            </div>
+          </Link>
+
+          <Link
+            href="/news"
+            className="p-4 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-100 border border-blue-200/80 hover:shadow-lg transition flex items-center gap-3.5 group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-blue-700 text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition">
+              <Newspaper className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider block">Verified</span>
+              <span className="text-sm font-extrabold text-slate-900 block leading-tight">City News</span>
+            </div>
+          </Link>
+
+          <Link
+            href="/offers"
+            className="p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-100 border border-amber-200/80 hover:shadow-lg transition flex items-center gap-3.5 group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition">
+              <Tag className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider block">Savings</span>
+              <span className="text-sm font-extrabold text-slate-900 block leading-tight">Deals & Classifieds</span>
+            </div>
+          </Link>
         </div>
       </section>
 
@@ -333,6 +394,28 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ─── EMERGENCY BLOOD DONORS NETWORK BANNER ────────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-8">
+        <div className="bg-gradient-to-r from-rose-900 via-red-800 to-rose-950 text-white rounded-3xl p-8 sm:p-10 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-2 max-w-xl">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-xs font-bold uppercase">
+              <HeartPulse className="w-4 h-4 text-rose-200" />
+              <span>Emergency Life Savers</span>
+            </div>
+            <h3 className="text-2xl sm:text-3xl font-black">Urgent Blood Need in Kurnool?</h3>
+            <p className="text-rose-100 text-xs sm:text-sm leading-relaxed">
+              Find verified volunteer blood donors across Kurnool City by blood group (O+, A+, B+, AB+, O-). Connect directly with zero middlemen.
+            </p>
+          </div>
+          <Link
+            href="/blood-donors"
+            className="px-6 py-3.5 rounded-2xl bg-white text-rose-800 hover:bg-rose-50 font-black text-sm shadow-lg transition shrink-0"
+          >
+            Find Blood Donors Now →
+          </Link>
+        </div>
+      </section>
+
       {/* ─── 4. SKILLED PROFESSIONALS & CREATORS ───────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-8">
         <div className="bg-gradient-to-br from-teal-50/80 via-slate-50 to-emerald-50/80 border border-teal-200/70 text-slate-900 rounded-3xl p-6 sm:p-10 shadow-xs">
@@ -421,6 +504,28 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ─── KURNOOL CITY NEWS BULLETIN BANNER ───────────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-8">
+        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white rounded-3xl p-8 sm:p-10 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-2 max-w-xl">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-xs font-bold uppercase">
+              <Newspaper className="w-4 h-4 text-blue-200" />
+              <span>Local News & Announcements</span>
+            </div>
+            <h3 className="text-2xl sm:text-3xl font-black">Stay Updated with Kurnool News</h3>
+            <p className="text-blue-100 text-xs sm:text-sm leading-relaxed">
+              Read verified city development reports, traffic diversions, civic projects, and local citizen journalism stories.
+            </p>
+          </div>
+          <Link
+            href="/news"
+            className="px-6 py-3.5 rounded-2xl bg-white text-blue-900 hover:bg-blue-50 font-black text-sm shadow-lg transition shrink-0"
+          >
+            Read City News Bulletin →
+          </Link>
+        </div>
+      </section>
+
       {/* ─── 5. EXCLUSIVE CITY DEALS & OFFERS ─────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-8">
         <div className="flex items-center justify-between mb-8">
@@ -482,7 +587,61 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ─── 6. HERITAGE & TOURISM ────────────────────────────────────────── */}
+      {/* ─── 6. SACRED TEMPLES & PLACES OF WORSHIP ─────────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-8">
+        <div className="bg-white border border-slate-200 shadow-sm text-slate-900 rounded-3xl p-6 sm:p-10 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
+                Spiritual Rayalaseema
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 mt-2">
+                Temples, Masjids & Sacred Shrines
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                Historic Dravidian shrines, natural cave temples, and sacred river mutts across Kurnool and Nallamala.
+              </p>
+            </div>
+            <Link
+              href="/explore?tab=worship"
+              className="py-2.5 px-4 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold transition shrink-0 border border-amber-200"
+            >
+              View All Temples & Shrines →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {worshipPlaces.slice(0, 4).map((place) => (
+              <Link
+                key={place.id}
+                href="/explore?tab=worship"
+                className="group bg-slate-50 rounded-2xl overflow-hidden border border-slate-200 hover:border-amber-400 hover:shadow-md transition space-y-3 pb-4 block"
+              >
+                <div className="relative h-40 w-full bg-slate-200">
+                  <Image
+                    src={place.photos?.[0] || 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=800'}
+                    alt={place.name_en}
+                    fill
+                    className="object-cover group-hover:scale-105 transition duration-300"
+                  />
+                  <div className="absolute top-2.5 right-2.5 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase">
+                    {place.type}
+                  </div>
+                </div>
+                <div className="px-4">
+                  <h4 className="font-bold text-sm text-slate-900 line-clamp-1 group-hover:text-amber-800 transition">
+                    {place.name_en}
+                  </h4>
+                  <p className="text-[11px] font-medium text-emerald-700">{place.name_te}</p>
+                  <p className="text-xs text-slate-500 font-medium mt-1 line-clamp-1">{place.timings}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── 7. HERITAGE & TOURISM LANDMARKS ──────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-8">
         <div className="bg-white border border-slate-200 shadow-sm text-slate-900 rounded-3xl p-6 sm:p-10 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -493,9 +652,12 @@ export default async function HomePage() {
               <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 mt-2">
                 Explore Kurnool Landmarks
               </h2>
+              <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                Monuments, pre-historic quartz rock formations, and subterranean natural caves.
+              </p>
             </div>
             <Link
-              href="/explore"
+              href="/explore?tab=tourist"
               className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition shrink-0 border border-slate-200"
             >
               Discover All Places →
@@ -504,23 +666,30 @@ export default async function HomePage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {places.slice(0, 4).map((place) => (
-              <div
+              <Link
                 key={place.id}
-                className="bg-slate-50 rounded-2xl overflow-hidden border border-slate-200 hover:border-blue-300 hover:shadow-md transition space-y-3 pb-4"
+                href="/explore?tab=tourist"
+                className="group bg-slate-50 rounded-2xl overflow-hidden border border-slate-200 hover:border-blue-300 hover:shadow-md transition space-y-3 pb-4 block"
               >
-                <div className="relative h-36 w-full bg-slate-200">
+                <div className="relative h-40 w-full bg-slate-200">
                   <Image
                     src={place.photos?.[0] || 'https://images.unsplash.com/photo-1590077428593-a55bb07c4665?w=800'}
                     alt={place.name_en}
                     fill
-                    className="object-cover"
+                    className="object-cover group-hover:scale-105 transition duration-300"
                   />
+                  <div className="absolute top-2.5 right-2.5 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase">
+                    {place.type}
+                  </div>
                 </div>
                 <div className="px-4">
-                  <h4 className="font-bold text-sm text-slate-900 line-clamp-1">{place.name_en}</h4>
-                  <p className="text-xs text-amber-700 font-semibold mt-0.5">{place.timings || place.address}</p>
+                  <h4 className="font-bold text-sm text-slate-900 line-clamp-1 group-hover:text-blue-800 transition">
+                    {place.name_en}
+                  </h4>
+                  <p className="text-[11px] font-medium text-emerald-700">{place.name_te}</p>
+                  <p className="text-xs text-slate-500 font-medium mt-1 line-clamp-1">{place.timings || place.address}</p>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>

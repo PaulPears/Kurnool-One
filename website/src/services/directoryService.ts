@@ -201,6 +201,7 @@ export interface LeadItem {
   targetType?: 'business' | 'professional' | string;
   actionType?: 'call' | 'whatsapp' | 'inquiry' | 'quote' | 'view';
   notes?: string;
+  metadata?: any;
   createdAt?: any;
 }
 
@@ -828,9 +829,177 @@ export const SEED_BUSINESSES: BusinessItem[] = [];
 
 export const SEED_PROFESSIONALS: ProfessionalItem[] = [];
 
-export const SEED_PLACES: PlaceItem[] = [];
+export const SEED_PLACES: PlaceItem[] = [
+  {
+    id: 'konda_reddy_buruju',
+    type: 'landmark',
+    name_en: 'Konda Reddy Buruju (Kurnool Fort)',
+    name_te: 'కొండారెడ్డి బురుజు (కర్నూలు కోట)',
+    description_en: 'Iconic 12th-century bastion fort of the Vijayanagara Empire standing tall in the heart of Kurnool city with subterranean tunnels and panoramic heritage bastions.',
+    description_te: 'కర్నూలు నడిబొడ్డున ఉన్న చారిత్రాత్మక విజయనగర సామ్రాజ్య కోట మరియు కొండారెడ్డి బురుజు.',
+    address: 'Old Bus Stand Road, Kurnool, Andhra Pradesh 518001',
+    timings: '09:00 AM - 06:00 PM',
+    entryFee: 'Free Entry',
+    bestTimeToVisit: 'October to March (Evenings)',
+    photos: ['https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?w=800&auto=format&fit=crop&q=80'],
+    latitude: 15.8281,
+    longitude: 78.0373,
+    isPromoted: true,
+  },
+  {
+    id: 'orvakal_rock_garden',
+    type: 'park',
+    name_en: 'Orvakal Rock Garden',
+    name_te: 'ఓర్వకల్లు రాతి తోటలు',
+    description_en: 'Ancient natural quartz and silica rock formations sprawling across 1,000 acres with serene water bodies, hiking trails, boating, and AP Tourism haritha resort.',
+    description_te: 'ఓర్వకల్లు సహజసిద్ధ రాతి కొండలు, సరస్సు, బోటింగ్ మరియు హరిత రిసార్ట్స్.',
+    address: 'NH 40, Orvakal, Kurnool District, Andhra Pradesh 518010',
+    timings: '08:00 AM - 06:00 PM',
+    entryFee: '₹20 per Adult',
+    bestTimeToVisit: 'Post-Monsoon & Winter',
+    photos: ['https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&auto=format&fit=crop&q=80'],
+    latitude: 15.6833,
+    longitude: 78.2167,
+    isPromoted: true,
+  },
+  {
+    id: 'belum_caves',
+    type: 'tourist',
+    name_en: 'Belum Caves',
+    name_te: 'బెలూం గుహలు',
+    description_en: 'The second largest subterranean natural caves in the Indian subcontinent featuring stalactites, stalagmites, freshwater chambers, and Buddhist relics.',
+    description_te: 'భారతదేశంలోనే రెండవ అతిపెద్ద సహజసిద్ధ గుహలు. అద్భుతమైన సున్నపురాతి ఆకృతులు.',
+    address: '1/1, Main Road, Belum Caves, Kurnool District, Andhra Pradesh 518123',
+    timings: '10:00 AM - 05:00 PM',
+    entryFee: '₹60 for Indians / ₹300 Foreigners',
+    bestTimeToVisit: 'November to February',
+    photos: ['https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80'],
+    latitude: 15.1031,
+    longitude: 78.1147,
+    isPromoted: true,
+  },
+  {
+    id: 'rollapadu_wildlife',
+    type: 'park',
+    name_en: 'Rollapadu Bird Sanctuary',
+    name_te: 'రోళ్లపాడు వన్యప్రాణి అభయారణ్యం',
+    description_en: 'Renowned grasslands sanctuary home to the endangered Great Indian Bustard, blackbucks, foxes, and diverse migratory birds.',
+    description_te: 'బట్టమేక పిట్ట మరియు జింకల ప్రసిద్ధ రోళ్లపాడు పక్షుల అభయారణ్యం.',
+    address: 'Rollapadu, near Nandikotkur, Kurnool District, Andhra Pradesh 518401',
+    timings: '07:00 AM - 06:00 PM',
+    entryFee: '₹30 Entry Fee',
+    bestTimeToVisit: 'September to February',
+    photos: ['https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop&q=80'],
+    latitude: 15.7483,
+    longitude: 78.3617,
+    isPromoted: false,
+  },
+];
 
-export const SEED_WORSHIP_PLACES: PlaceItem[] = [];
+export const SEED_WORSHIP_PLACES: PlaceItem[] = [
+  {
+    id: 'worship_mahanandi',
+    type: 'temple',
+    name_en: 'Mahanandi Temple',
+    name_te: 'మహానంది క్షేత్రం',
+    description_en: 'Ancient 1,500-year-old Lord Shiva temple nestled in lush Nallamala forests, renowned for its crystal-clear mineral freshwater springs (Pushkarini) that flow continuously across seasons.',
+    description_te: 'నల్లమల అటవీ ప్రాంతంలో వెలసిన అతి పురాతన శైవ క్షేత్రం. నిరంతరం స్వచ్ఛమైన నీటి ఊట ప్రవహించే రుద్రగుండం పుష్కరిణి.',
+    address: 'Mahanandi, near Nandyal, Kurnool / Nandyal District, Andhra Pradesh 518502',
+    timings: '05:30 AM - 12:30 PM, 05:00 PM - 08:30 PM',
+    entryFee: 'Free Darshan / Special Darshan ₹50',
+    bestTimeToVisit: 'All Year Round (Maha Shivaratri special)',
+    dressCodeRules: 'Traditional Indian Attire (Dhoti/Kurta for Men, Saree/Chudidhar for Women)',
+    photos: ['https://images.unsplash.com/photo-1544816155-12df9643f363?w=800&auto=format&fit=crop&q=80'],
+    latitude: 15.4833,
+    longitude: 78.6167,
+    isPromoted: true,
+  },
+  {
+    id: 'worship_ahobilam',
+    type: 'temple',
+    name_en: 'Ahobilam Nava Narasimha Swamy Kshethram',
+    name_te: 'అహోబిలం నవ నారసింహ స్వామి క్షేత్రం',
+    description_en: 'Sacred Divya Desam nestled amidst the hills of Garudadri with 9 temples dedicated to the 9 avatars of Lord Narasimha, split between Upper and Lower Ahobilam with forest trekking routes.',
+    description_te: 'నవ నారసింహుల పవిత్ర దివ్యదేశం. ఎగువ మరియు దిగువ అహోబిలం కొండల మధ్య వెలసిన పవిత్ర క్షేత్రం.',
+    address: 'Allagadda Mandal, Kurnool / Nandyal District, Andhra Pradesh 518545',
+    timings: '06:00 AM - 01:00 PM, 03:00 PM - 08:00 PM',
+    entryFee: 'Free Darshan / Special Darshan ₹100',
+    bestTimeToVisit: 'October to March',
+    dressCodeRules: 'Traditional Hindu Attire',
+    photos: ['https://images.unsplash.com/photo-1599818491741-94420e1762c4?w=800&auto=format&fit=crop&q=80'],
+    latitude: 15.1333,
+    longitude: 78.7333,
+    isPromoted: true,
+  },
+  {
+    id: 'worship_yaganti',
+    type: 'temple',
+    name_en: 'Yaganti Uma Maheshwara Temple',
+    name_te: 'యాగంటి ఉమా మహేశ్వర స్వామి దేవాలయం',
+    description_en: 'Magnificent 15th-century Sangama dynasty cave temple famous for the naturally growing stone Nandi (Basavanna), Agastya Pushkarini, and Venkateswara Cave.',
+    description_te: 'క్రమంగా పరిమాణం పెరుగుతున్న నంది విగ్రహం, అగస్త్య పుష్కరిణి గల ప్రసిద్ధ పురాతన శైవ క్షేత్రం.',
+    address: 'Yaganti Temple Road, Banaganapalle, Kurnool District, Andhra Pradesh 518124',
+    timings: '06:00 AM - 01:00 PM, 03:00 PM - 08:00 PM',
+    entryFee: 'Free Darshan',
+    bestTimeToVisit: 'Winter (November to February)',
+    dressCodeRules: 'Modest Traditional Attire',
+    photos: ['https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=800&auto=format&fit=crop&q=80'],
+    latitude: 15.3500,
+    longitude: 78.1400,
+    isPromoted: true,
+  },
+  {
+    id: 'worship_mantralayam',
+    type: 'temple',
+    name_en: 'Mantralayam Sri Raghavendra Swamy Mutt',
+    name_te: 'మంత్రాలయం శ్రీ రాఘవేంద్ర స్వామి మఠం',
+    description_en: 'World-renowned holy pilgrimage destination situated on the picturesque banks of the Tungabhadra River, enshrining the sacred Jeeva Samadhi (Brindavan) of Sri Raghavendra Teertha.',
+    description_te: 'తుంగభద్ర నదీ తీరాన వెలసిన పరమ పవిత్ర శ్రీ రాఘవేంద్ర స్వామి మూల బృందావన క్షేత్రం.',
+    address: 'Sri Raghavendra Swamy Matha, Mantralayam, Kurnool District, Andhra Pradesh 518345',
+    timings: '06:00 AM - 02:00 PM, 04:00 PM - 09:00 PM',
+    entryFee: 'Free Darshan / Seva passes available at counter',
+    bestTimeToVisit: 'All Year (Avoid peak summer afternoons)',
+    dressCodeRules: 'Dhoti/Kurta for Men (Shirts removed during Darshan), Sarees for Women',
+    photos: ['https://images.unsplash.com/photo-1609766857041-ed402ea8069a?w=800&auto=format&fit=crop&q=80'],
+    latitude: 15.9372,
+    longitude: 77.4300,
+    isPromoted: true,
+  },
+  {
+    id: 'worship_jagannatha_gattu',
+    type: 'temple',
+    name_en: 'Jagannatha Gattu Shiva Temple',
+    name_te: 'జగన్నాథ గట్టు శివాలయం',
+    description_en: 'Historic hilltop temple perched on a rocky hillock in Kurnool city, said to have been consecrated by Lord Rama, providing scenic 360-degree sunset views over Kurnool.',
+    description_te: 'కర్నూలు నగర సుందర దృశ్యాలను వీక్షించగల చారిత్రక కొండపై వెలసిన జగన్నాథ గట్టు శివాలయం.',
+    address: 'Jagannatha Gattu Hilltop, Kurnool, Andhra Pradesh 518002',
+    timings: '06:00 AM - 12:00 PM, 04:30 PM - 08:00 PM',
+    entryFee: 'Free Entry',
+    bestTimeToVisit: 'Early Mornings & Evenings',
+    dressCodeRules: 'Modest Attire',
+    photos: ['https://images.unsplash.com/photo-1544816155-12df9643f363?w=800&auto=format&fit=crop&q=80'],
+    latitude: 15.7925,
+    longitude: 78.0410,
+    isPromoted: false,
+  },
+  {
+    id: 'worship_jumma_masjid',
+    type: 'masjid',
+    name_en: 'Historic Jumma Masjid & Dargahs',
+    name_te: 'చారిత్రాత్మక జుమ్మా మసీదు',
+    description_en: 'Historic 17th-century grand mosque constructed during the Bijapur Sultanate rule in Kurnool Old City with impressive towering minarets and expansive prayer halls.',
+    description_te: 'బీజాపూర్ సుల్తానుల కాలం నాటి కర్నూలు ఓల్డ్ సిటీలోని ప్రసిద్ధ చారిత్రక జుమ్మా మసీదు.',
+    address: 'Old City, Near Osmania College Road, Kurnool, Andhra Pradesh 518001',
+    timings: '05:00 AM - 09:30 PM (Except during private congregational prayers)',
+    entryFee: 'Free Entry',
+    bestTimeToVisit: 'All Year',
+    dressCodeRules: 'Modest attire covering arms and legs; head covering recommended.',
+    photos: ['https://images.unsplash.com/photo-1564769625905-50e93615e769?w=800&auto=format&fit=crop&q=80'],
+    latitude: 15.8310,
+    longitude: 78.0425,
+    isPromoted: false,
+  },
+];
 
 export const SEED_OFFERS: OfferItem[] = [];
 
@@ -897,6 +1066,21 @@ export const fetchProfessionals = async (): Promise<ProfessionalItem[]> => {
   }
 };
 
+export const fetchProfessionalById = async (id: string): Promise<ProfessionalItem | null> => {
+  try {
+    const docRef = doc(db, 'professionals', id);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      return { id: snap.id, ...snap.data() } as ProfessionalItem;
+    }
+    const seed = SEED_PROFESSIONALS.find(p => p.id === id);
+    return seed || null;
+  } catch {
+    const seed = SEED_PROFESSIONALS.find(p => p.id === id);
+    return seed || null;
+  }
+};
+
 export const fetchPlaces = async (): Promise<PlaceItem[]> => {
   try {
     const coll = collection(db, 'places');
@@ -905,6 +1089,77 @@ export const fetchPlaces = async (): Promise<PlaceItem[]> => {
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as PlaceItem));
   } catch {
     return SEED_PLACES;
+  }
+};
+
+export const fetchWorshipPlaces = async (type?: string): Promise<PlaceItem[]> => {
+  try {
+    const coll = collection(db, 'places_of_worship');
+    const snap = await getDocs(coll);
+    if (snap.empty) {
+      if (type && type !== 'all') {
+        return SEED_WORSHIP_PLACES.filter(p => p.type === type);
+      }
+      return SEED_WORSHIP_PLACES;
+    }
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as PlaceItem));
+  } catch {
+    return SEED_WORSHIP_PLACES;
+  }
+};
+
+export interface CustomerLeadData {
+  targetId: string;
+  targetType: 'business' | 'professional';
+  targetOwnerUid?: string;
+  targetName: string;
+  actionType: 'view' | 'call' | 'whatsapp';
+  citizenUid?: string;
+  citizenName?: string;
+  citizenPhone?: string;
+  citizenArea?: string;
+  citizenGender?: string;
+}
+
+export const recordCustomerLead = async (lead: CustomerLeadData): Promise<void> => {
+  try {
+    const leadsColl = collection(db, 'leads');
+    const sanitizedLead: Record<string, any> = {
+      targetId: lead.targetId,
+      targetType: lead.targetType,
+      actionType: lead.actionType,
+      targetName: lead.targetName || '',
+      createdAt: serverTimestamp(),
+    };
+    if (lead.targetOwnerUid) sanitizedLead.targetOwnerUid = lead.targetOwnerUid;
+    if (lead.citizenUid) sanitizedLead.citizenUid = lead.citizenUid;
+    if (lead.citizenName) sanitizedLead.citizenName = lead.citizenName;
+    if (lead.citizenPhone) sanitizedLead.citizenPhone = lead.citizenPhone;
+    if (lead.citizenGender) sanitizedLead.citizenGender = lead.citizenGender;
+
+    await addDoc(leadsColl, sanitizedLead);
+    if (lead.targetOwnerUid) {
+      const notifColl = collection(db, 'users', lead.targetOwnerUid, 'notifications');
+      let title = 'New Profile Lead! 🔔';
+      let body = `${lead.citizenName || 'A Kurnool resident'} viewed your profile on Kurnool One.`;
+      if (lead.actionType === 'call') {
+        title = 'Direct Call Lead! 📞';
+        body = `${lead.citizenName || 'A customer'} initiated a phone call to your listing.`;
+      } else if (lead.actionType === 'whatsapp') {
+        title = 'WhatsApp Inquiry Lead! 💬';
+        body = `${lead.citizenName || 'A customer'} opened a WhatsApp chat with you.`;
+      }
+      await addDoc(notifColl, {
+        title,
+        body,
+        read: false,
+        type: 'lead',
+        targetId: lead.targetId,
+        createdAt: serverTimestamp(),
+      });
+    }
+  } catch (err) {
+    console.error('Error logging lead:', err);
   }
 };
 
@@ -926,9 +1181,32 @@ export const uploadBusinessImage = async (file: File): Promise<string> => {
   return await getDownloadURL(task.ref);
 };
 
+export function sanitizeFirestoreData<T>(obj: T): T {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) {
+    return (obj as any[])
+      .filter((item) => item !== undefined)
+      .map((item) => sanitizeFirestoreData(item)) as unknown as T;
+  }
+  if (typeof obj === 'object') {
+    const proto = Object.getPrototypeOf(obj);
+    if (proto && proto.constructor && proto.constructor.name !== 'Object') {
+      return obj;
+    }
+    const clean: any = {};
+    for (const [k, v] of Object.entries(obj)) {
+      if (v !== undefined) {
+        clean[k] = sanitizeFirestoreData(v);
+      }
+    }
+    return clean as T;
+  }
+  return obj;
+}
+
 export const registerBusiness = async (data: Partial<BusinessItem>): Promise<string> => {
   const coll = collection(db, 'businesses');
-  const docRef = await addDoc(coll, {
+  const payload = sanitizeFirestoreData({
     ...data,
     claimStatus: 'unclaimed',
     tier: data.tier || 'free',
@@ -941,6 +1219,7 @@ export const registerBusiness = async (data: Partial<BusinessItem>): Promise<str
     status: data.status || 'pending_approval',
     createdAt: serverTimestamp(),
   });
+  const docRef = await addDoc(coll, payload);
   return docRef.id;
 };
 
@@ -1136,7 +1415,7 @@ export const registerProfessional = async (
   data: Partial<ProfessionalItem>
 ): Promise<string> => {
   const coll = collection(db, 'professionals');
-  const docRef = await addDoc(coll, {
+  const payload = sanitizeFirestoreData({
     ...data,
     ratingAvg: 5.0,
     ratingCount: 1,
@@ -1144,6 +1423,7 @@ export const registerProfessional = async (
     status: data.status || 'active',
     createdAt: serverTimestamp(),
   });
+  const docRef = await addDoc(coll, payload);
   return docRef.id;
 };
 
@@ -1447,6 +1727,67 @@ export interface MarketplaceItem {
   createdAt?: any;
 }
 
+export const SEED_MARKET_ITEMS: MarketplaceItem[] = [
+  {
+    id: 'm1',
+    title_en: 'Honda Activa 5G (Single Owner, Kurnool Reg)',
+    title_te: 'హోండా యాక్టివా 5G (సింగిల్ ఓనర్, కర్నూలు)',
+    price: '₹38,500',
+    category: 'Two-Wheelers',
+    sellerName: 'Suresh Rao',
+    sellerPhone: '9848012345',
+    sellerWhatsapp: '9848012345',
+    area: 'Abbas Nagar, Kurnool',
+    condition: 'Excellent • 24,000 KM',
+    postedDate: 'Today',
+    imageUrl: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=600&auto=format&fit=crop&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=800&auto=format&fit=crop&q=80',
+    ],
+    description: 'Very well maintained scooter with insurance valid till Dec 2026. New rear tyre, single hand drive.',
+    status: 'active',
+  },
+  {
+    id: 'm2',
+    title_en: 'Apple iPhone 13 (128GB Midnight Black)',
+    title_te: 'యాపిల్ ఐఫోన్ 13 (128GB మిడ్‌నైట్)',
+    price: '₹36,000',
+    category: 'Mobiles & Tablets',
+    sellerName: 'K. Rakesh',
+    sellerPhone: '9440188990',
+    sellerWhatsapp: '9440188990',
+    area: 'Gayatri Estate, Kurnool',
+    condition: 'Like New • 89% Battery Health',
+    postedDate: 'Yesterday',
+    imageUrl: 'https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=600&auto=format&fit=crop&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=800&auto=format&fit=crop&q=80',
+    ],
+    description: 'Original Indian bill with box and braided lightning cable. Flawless condition, zero scratches, tempered glass applied.',
+    status: 'active',
+  },
+  {
+    id: 'm3',
+    title_en: 'Solid Teak Wood 6-Seater Dining Table',
+    title_te: 'టేకు కలప 6-సీటర్ డైనింగ్ టేబుల్',
+    price: '₹14,500',
+    category: 'Home & Furniture',
+    sellerName: 'M. Venkateswarlu',
+    sellerPhone: '9989012345',
+    sellerWhatsapp: '9989012345',
+    area: 'Nandyal Checkpost, Kurnool',
+    condition: 'Very Good • Genuine Teak',
+    postedDate: '2 days ago',
+    imageUrl: 'https://images.unsplash.com/photo-1617806118233-18e1de247200?w=600&auto=format&fit=crop&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1617806118233-18e1de247200?w=800&auto=format&fit=crop&q=80',
+    ],
+    description: 'Heavy solid teakwood dining set with 6 chairs and 10mm beveled glass top. Moving out sale.',
+    status: 'active',
+  },
+];
+
 export async function fetchMarketplaceItems(): Promise<MarketplaceItem[]> {
   try {
     const q = query(
@@ -1456,12 +1797,15 @@ export async function fetchMarketplaceItems(): Promise<MarketplaceItem[]> {
     );
     const snap = await getDocs(q);
     if (!snap.empty) {
-      return snap.docs.map(d => ({ id: d.id, ...d.data() } as MarketplaceItem));
+      const live = snap.docs.map(d => ({ id: d.id, ...d.data() } as MarketplaceItem));
+      const liveIds = new Set(live.map(l => l.id));
+      const seeds = SEED_MARKET_ITEMS.filter(s => !liveIds.has(s.id));
+      return [...live, ...seeds];
     }
   } catch (err) {
     console.warn('fetchMarketplaceItems non-fatal:', err);
   }
-  return [];
+  return SEED_MARKET_ITEMS;
 }
 
 export async function createMarketplaceItem(item: Omit<MarketplaceItem, 'id' | 'createdAt'>): Promise<string> {
@@ -1489,7 +1833,7 @@ export async function deleteMarketplaceItem(id: string): Promise<void> {
 
 export interface BloodDonorItem {
   id: string;
-  userId: string;
+  userId?: string;
   displayName: string;
   bloodGroup: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
   phone: string;
@@ -1502,6 +1846,69 @@ export interface BloodDonorItem {
   updatedAt?: any;
 }
 
+export const SEED_BLOOD_DONORS: BloodDonorItem[] = [
+  {
+    id: 'seed_bd1',
+    userId: 'seed_1',
+    displayName: 'Praveen Kumar',
+    bloodGroup: 'O+',
+    phone: '9848011223',
+    showPhonePublicly: true,
+    area: 'Gayatri Estate, Kurnool',
+    availability: 'available',
+    notes: 'Available for urgent emergency requests',
+    status: 'active',
+  },
+  {
+    id: 'seed_bd2',
+    userId: 'seed_2',
+    displayName: 'M. Ramesh',
+    bloodGroup: 'A+',
+    phone: '9440198765',
+    showPhonePublicly: true,
+    area: 'Nandyal Checkpost, Kurnool',
+    availability: 'available',
+    notes: 'Regular donor at Kurnool General Hospital',
+    status: 'active',
+  },
+  {
+    id: 'seed_bd3',
+    userId: 'seed_3',
+    displayName: 'Syed Farooq',
+    bloodGroup: 'B+',
+    phone: '9123456780',
+    showPhonePublicly: true,
+    area: 'Joharapuram Road, Kurnool',
+    availability: 'available',
+    notes: 'Available during day time',
+    status: 'active',
+  },
+  {
+    id: 'seed_bd4',
+    userId: 'seed_4',
+    displayName: 'K. Sreekanth',
+    bloodGroup: 'AB+',
+    phone: '9849200001',
+    showPhonePublicly: true,
+    area: 'B Camp, Kurnool',
+    availability: 'available',
+    notes: 'Available on weekends and evenings',
+    status: 'active',
+  },
+  {
+    id: 'seed_bd5',
+    userId: 'seed_5',
+    displayName: 'D. Venkat',
+    bloodGroup: 'O-',
+    phone: '9701234567',
+    showPhonePublicly: true,
+    area: 'Collectorate Complex, Kurnool',
+    availability: 'available',
+    notes: 'Rare blood group voluntary donor',
+    status: 'active',
+  },
+];
+
 export async function fetchBloodDonors(bloodGroup?: string): Promise<BloodDonorItem[]> {
   try {
     const coll = collection(db, 'blood_donors');
@@ -1512,29 +1919,43 @@ export async function fetchBloodDonors(bloodGroup?: string): Promise<BloodDonorI
       q = query(coll, where('status', '==', 'active'), limit(50));
     }
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as BloodDonorItem));
+    const liveItems = snap.docs.map(d => ({ id: d.id, ...d.data() } as BloodDonorItem));
+    if (liveItems.length > 0) {
+      const liveIds = new Set(liveItems.map(i => i.id));
+      const filteredSeeds = SEED_BLOOD_DONORS.filter(s => {
+        if (liveIds.has(s.id)) return false;
+        if (bloodGroup && bloodGroup !== 'all' && bloodGroup !== 'All') return s.bloodGroup === bloodGroup;
+        return true;
+      });
+      return [...liveItems, ...filteredSeeds];
+    }
   } catch (err) {
     console.warn('fetchBloodDonors error:', err);
-    return [];
   }
+  if (bloodGroup && bloodGroup !== 'all' && bloodGroup !== 'All') {
+    return SEED_BLOOD_DONORS.filter(s => s.bloodGroup === bloodGroup);
+  }
+  return SEED_BLOOD_DONORS;
 }
 
 export async function registerBloodDonor(donor: Omit<BloodDonorItem, 'id' | 'createdAt'>): Promise<string> {
   const colRef = collection(db, 'blood_donors');
-  const docRef = await addDoc(colRef, {
+  const payload = sanitizeFirestoreData({
     ...donor,
     status: 'active',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  const docRef = await addDoc(colRef, payload);
   return docRef.id;
 }
 
 export async function updateBloodDonor(id: string, updates: Partial<BloodDonorItem>): Promise<void> {
-  await updateDoc(doc(db, 'blood_donors', id), {
+  const payload = sanitizeFirestoreData({
     ...updates,
     updatedAt: serverTimestamp(),
   });
+  await updateDoc(doc(db, 'blood_donors', id), payload);
 }
 
 export async function deleteBloodDonor(id: string): Promise<void> {
@@ -1609,4 +2030,397 @@ export async function fetchBroadcastNotifications(): Promise<BroadcastNotificati
 export async function deleteBroadcastNotification(id: string): Promise<void> {
   await deleteDoc(doc(db, 'broadcast_notifications', id));
 }
+
+// ─── NEWS INTERFACES & SERVICES (CITIZEN JOURNALISM) ─────────────────────────
+
+export interface NewsItem {
+  id: string;
+  title_en: string;
+  title_te?: string;
+  content_en: string;
+  content_te?: string;
+  source?: string;
+  sourceUrl?: string;
+  imageUrl?: string;
+  publishedAt: string;
+  dateStr?: string;
+  category?: string;
+  area?: string;
+  authorUid?: string;
+  authorName?: string;
+  authorPhone?: string;
+  status?: 'pending_approval' | 'published' | 'rejected';
+  createdAt?: any;
+}
+
+export const SEED_NEWS: NewsItem[] = [
+  {
+    id: 'news-1',
+    title_en: 'Kurnool City Development: New Bypass Road & Flyover Project Approved',
+    title_te: 'కర్నూలు నగర అభివృద్ధి: కొత్త బైపాస్ రోడ్డు మరియు ఫ్లైఓవర్ ప్రాజెక్టుకు ఆమోదం',
+    content_en: 'The Andhra Pradesh state administration has sanctioned new infrastructure upgrades for Kurnool city, easing traffic congestion between Bellary Chowrasta and Raj Vihar center. Work is slated to commence shortly.',
+    content_te: 'కర్నూలు నగరంలో ట్రాఫిక్ సమస్యలను పరిష్కరించేందుకు బళ్లారి చౌరస్తా మరియు రాజ్ విహార్ సెంటర్ మధ్య కొత్త ఫ్లైఓవర్ ప్రాజెక్టును ప్రభుత్వం మంజూరు చేసింది.',
+    source: 'Public Press Release / District Information',
+    publishedAt: '2026-10-15',
+    category: 'Development',
+    area: 'Raj Vihar to Bellary Chowrasta',
+    imageUrl: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800&auto=format&fit=crop&q=80',
+    status: 'published',
+  },
+  {
+    id: 'news-2',
+    title_en: 'Historic Konda Reddy Buruju Light & Sound Show Revamped for Visitors',
+    title_te: 'చారిత్రక కొండారెడ్డి బురుజు లైట్ అండ్ సౌండ్ షో ఆధునికీకరణ',
+    content_en: 'The prestigious Konda Reddy Buruju fort in Kurnool is now hosting an upgraded evening light and sound show narrating the glorious history of Rayalaseema and freedom fighters.',
+    content_te: 'కర్నూలులోని కొండారెడ్డి బురుజు వద్ద సాయంత్రం వేళల్లో నిర్వహించే లైట్ అండ్ సౌండ్ షోను సరికొత్త హంగులతో ఆధునీకరించారు.',
+    source: 'Tourism & Cultural Dept Updates',
+    publishedAt: '2026-10-10',
+    category: 'Culture & Tourism',
+    area: 'Konda Reddy Buruju, Old City',
+    imageUrl: 'https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?w=800&auto=format&fit=crop&q=80',
+    status: 'published',
+  },
+  {
+    id: 'news-3',
+    title_en: 'Solar & Renewable Energy Push Across Kurnool District',
+    title_te: 'కర్నూలు జిల్లాలో సౌర విద్యుత్ ప్రాజెక్టుల విస్తరణ',
+    content_en: 'With Kurnool remaining one of the largest renewable energy hubs in India, new rooftop solar incentives and mega park installations are generating sustainable local employment.',
+    content_te: 'భారతదేశంలో ప్రముఖ పునరుత్పాదక ఇంధన కేంద్రంగా ఉన్న కర్నూలు జిల్లాలో మరిన్ని సౌర విద్యుత్ ప్రాజెక్టులు అందుబాటులోకి వస్తున్నాయి.',
+    source: 'District Energy Updates',
+    publishedAt: '2026-10-05',
+    category: 'Energy',
+    area: 'Orvakal Industrial Corridor',
+    imageUrl: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=800&auto=format&fit=crop&q=80',
+    status: 'published',
+  },
+];
+
+export async function fetchNews(): Promise<NewsItem[]> {
+  try {
+    const q = query(
+      collection(db, 'news'),
+      where('status', '==', 'published'),
+      limit(50)
+    );
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const live = snap.docs.map(d => ({ id: d.id, ...d.data() } as NewsItem));
+      const liveIds = new Set(live.map(l => l.id));
+      const seeds = SEED_NEWS.filter(s => !liveIds.has(s.id));
+      return [...live, ...seeds];
+    }
+  } catch (err) {
+    console.warn('fetchNews non-fatal fallback:', err);
+  }
+  return SEED_NEWS;
+}
+
+export async function submitNewsStory(newsData: Omit<NewsItem, 'id' | 'createdAt' | 'status'> & { status?: 'pending_approval' | 'published' }): Promise<string> {
+  const colRef = collection(db, 'news');
+  const docRef = await addDoc(colRef, {
+    ...newsData,
+    status: newsData.status || 'pending_approval',
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+export async function createNews(newsData: Omit<NewsItem, 'id'>): Promise<string> {
+  const colRef = collection(db, 'news');
+  const docRef = await addDoc(colRef, {
+    ...newsData,
+    status: newsData.status || 'published',
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+export async function deleteNews(newsId: string): Promise<void> {
+  await deleteDoc(doc(db, 'news', newsId));
+}
+
+// ─── HOUSE RENTALS & TO-LET PROPERTIES ───────────────────────────────────────
+
+export interface HouseRentalItem {
+  id: string;
+  ownerUid?: string;
+  ownerName: string;
+  ownerPhone: string;
+  ownerWhatsapp?: string;
+  title_en: string;
+  title_te?: string;
+  bhk: '1 RK' | '1 BHK' | '2 BHK' | '3 BHK' | '4+ BHK' | 'Commercial';
+  propertyType: string;
+  monthlyRent: number;
+  depositAmount?: number;
+  tenantPreference: 'Family Only' | 'Bachelors' | 'Any / All';
+  furnishing: 'Unfurnished' | 'Semi-Furnished' | 'Fully Furnished';
+  area: string;
+  addressDetails?: string;
+  waterFacility?: string;
+  parking?: string;
+  description: string;
+  images: string[];
+  status: 'available' | 'rented';
+  postedDate?: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export const SEED_HOUSE_RENTALS: HouseRentalItem[] = [
+  {
+    id: 'hr_seed_1',
+    ownerUid: 'seed_owner_1',
+    ownerName: 'Venkateswarlu G.',
+    ownerPhone: '9848011223',
+    ownerWhatsapp: '9848011223',
+    title_en: '2 BHK Spacious Flat (1st Floor, East Facing)',
+    title_te: '2 BHK విశాలమైన ఫ్లాట్ (మొదటి అంతస్తు, తూర్పు ముఖం)',
+    bhk: '2 BHK',
+    propertyType: 'Apartment / Flat',
+    monthlyRent: 9500,
+    depositAmount: 25000,
+    tenantPreference: 'Family Only',
+    furnishing: 'Semi-Furnished',
+    area: 'Gayatri Estate, Kurnool',
+    addressDetails: 'Near Venkateswara Swamy Temple, 2nd Cross Road',
+    waterFacility: '24/7 Borewell + Municipal Drinking Tap',
+    parking: 'Car & Bike Parking Available',
+    description: 'Neat & clean 2 BHK flat with modular kitchen, fans, lights, geyser, and separate utility balcony. Strictly vegetarian families preferred.',
+    images: [
+      'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&auto=format&fit=crop&q=80',
+    ],
+    status: 'available',
+    postedDate: 'Today',
+  },
+  {
+    id: 'hr_seed_2',
+    ownerUid: 'seed_owner_2',
+    ownerName: 'Shaik Abdul Rahim',
+    ownerPhone: '9440198765',
+    ownerWhatsapp: '9440198765',
+    title_en: '1 BHK Independent House Ground Floor',
+    title_te: '1 BHK ఇండిపెండెంట్ ఇల్లు గ్రౌండ్ ఫ్లోర్',
+    bhk: '1 BHK',
+    propertyType: 'Independent House',
+    monthlyRent: 5500,
+    depositAmount: 12000,
+    tenantPreference: 'Any / All',
+    furnishing: 'Unfurnished',
+    area: 'Joharapuram Road, Kurnool',
+    addressDetails: 'Opposite Community Hall, 30ft Road',
+    waterFacility: '24/7 Borewell water',
+    parking: 'Bike Parking Inside Gate',
+    description: 'Peaceful residential locality with peaceful surroundings. 1 Hall, 1 Bedroom with attached bath, Kitchen, and utility wash area.',
+    images: [
+      'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&auto=format&fit=crop&q=80',
+    ],
+    status: 'available',
+    postedDate: 'Yesterday',
+  },
+  {
+    id: 'hr_seed_3',
+    ownerUid: 'seed_owner_3',
+    ownerName: 'M. Suresh Reddy',
+    ownerPhone: '9849200001',
+    ownerWhatsapp: '9849200001',
+    title_en: '3 BHK Deluxe Flat with Lift & Generator',
+    title_te: '3 BHK డీలక్స్ ఫ్లాట్ (లిఫ్ట్ & జనరేటర్)',
+    bhk: '3 BHK',
+    propertyType: 'Apartment / Flat',
+    monthlyRent: 16000,
+    depositAmount: 40000,
+    tenantPreference: 'Family Only',
+    furnishing: 'Fully Furnished',
+    area: 'B Camp, Kurnool',
+    addressDetails: 'Prime Location, Near Silver Jubilee College',
+    waterFacility: 'Borewell & Manjeera connection',
+    parking: 'Dedicated Covered Car Parking',
+    description: 'Fully furnished 3 BHK with 3 ACs, sofa set, dining table, 2 double beds with mattresses, and modular kitchen chimney. 24/7 security guard.',
+    images: [
+      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?w=800&auto=format&fit=crop&q=80',
+    ],
+    status: 'available',
+    postedDate: '2 days ago',
+  },
+  {
+    id: 'hr_seed_4',
+    ownerUid: 'seed_owner_4',
+    ownerName: 'K. Srinivasa Rao',
+    ownerPhone: '9123456780',
+    ownerWhatsapp: '9123456780',
+    title_en: '2 BHK Independent House (Near Checkpost)',
+    title_te: '2 BHK ఇండిపెండెంట్ ఇల్లు (చెక్ పోస్ట్ దగ్గర)',
+    bhk: '2 BHK',
+    propertyType: 'Independent House',
+    monthlyRent: 8000,
+    depositAmount: 20000,
+    tenantPreference: 'Family Only',
+    furnishing: 'Semi-Furnished',
+    area: 'Nandyal Checkpost, Kurnool',
+    addressDetails: 'Behind Reliance Trends, Krishna Nagar',
+    waterFacility: 'Continuous supply borewell water',
+    parking: 'Bike & Small Car Parking',
+    description: 'Very close to main road, bus stop, schools, and hospitals. 100% Vastu compliant, east facing with marble flooring.',
+    images: [
+      'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&auto=format&fit=crop&q=80',
+    ],
+    status: 'available',
+    postedDate: '3 days ago',
+  },
+  {
+    id: 'hr_seed_5',
+    ownerUid: 'seed_owner_5',
+    ownerName: 'Ravi Teja',
+    ownerPhone: '9848055667',
+    ownerWhatsapp: '9848055667',
+    title_en: 'Main Road Commercial Shop / Office Space',
+    title_te: 'మెయిన్ రోడ్ కమర్షియల్ షాప్ / ఆఫీస్ స్పేస్',
+    bhk: 'Commercial',
+    propertyType: 'Commercial Space',
+    monthlyRent: 12000,
+    depositAmount: 50000,
+    tenantPreference: 'Any / All',
+    furnishing: 'Unfurnished',
+    area: 'Abbas Nagar, Kurnool',
+    addressDetails: 'Ground Floor, High Footfall Main Junction',
+    waterFacility: 'Commercial water connection',
+    parking: 'Customer Parking on Frontage',
+    description: '280 sq.ft prime commercial space with rolling shutter, glass partition, tile flooring, and separate electrical meter. Ideal for clinic, pharmacy, or office.',
+    images: [
+      'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&auto=format&fit=crop&q=80',
+    ],
+    status: 'available',
+    postedDate: '4 days ago',
+  },
+];
+
+export async function fetchHouseRentals(bhkFilter?: string): Promise<HouseRentalItem[]> {
+  try {
+    const coll = collection(db, 'house_rentals');
+    let q;
+    if (bhkFilter && bhkFilter !== 'all' && bhkFilter !== 'All') {
+      q = query(coll, where('status', '==', 'available'), where('bhk', '==', bhkFilter), limit(50));
+    } else {
+      q = query(coll, where('status', '==', 'available'), limit(50));
+    }
+    const snap = await getDocs(q);
+    const liveItems = snap.docs.map(d => ({ id: d.id, ...d.data() } as HouseRentalItem));
+    if (liveItems.length > 0) {
+      const liveIds = new Set(liveItems.map(i => i.id));
+      const filteredSeeds = SEED_HOUSE_RENTALS.filter(s => {
+        if (liveIds.has(s.id)) return false;
+        if (bhkFilter && bhkFilter !== 'all' && bhkFilter !== 'All') return s.bhk === bhkFilter;
+        return true;
+      });
+      return [...liveItems, ...filteredSeeds];
+    }
+  } catch (err) {
+    console.warn('fetchHouseRentals fallback to seeds:', err);
+  }
+  if (bhkFilter && bhkFilter !== 'all' && bhkFilter !== 'All') {
+    return SEED_HOUSE_RENTALS.filter(s => s.bhk === bhkFilter);
+  }
+  return SEED_HOUSE_RENTALS;
+}
+
+export async function createHouseRental(rental: Omit<HouseRentalItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+  const colRef = collection(db, 'house_rentals');
+  const payload = sanitizeFirestoreData({
+    ...rental,
+    status: 'available',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  const docRef = await addDoc(colRef, payload);
+  return docRef.id;
+}
+
+export async function updateHouseRental(id: string, updates: Partial<HouseRentalItem>): Promise<void> {
+  const payload = sanitizeFirestoreData({
+    ...updates,
+    updatedAt: serverTimestamp(),
+  });
+  await updateDoc(doc(db, 'house_rentals', id), payload);
+}
+
+export async function deleteHouseRental(id: string): Promise<void> {
+  await deleteDoc(doc(db, 'house_rentals', id));
+}
+
+// ─── BUSINESS REVIEWS ────────────────────────────────────────────────────────
+
+export interface BusinessReview {
+  id: string;
+  businessId: string;
+  userId: string;
+  userName: string;
+  userPhoto?: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
+export const fetchBusinessReviews = async (businessId: string): Promise<BusinessReview[]> => {
+  try {
+    const q = query(
+      collection(db, 'businesses', businessId, 'reviews'),
+      orderBy('createdAt', 'desc'),
+      limit(30)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.()?.toISOString() || d.data().createdAt || new Date().toISOString(),
+    } as BusinessReview));
+  } catch (err) {
+    console.warn('fetchBusinessReviews error:', err);
+    return [];
+  }
+};
+
+export const addBusinessReview = async (
+  businessId: string,
+  userId: string,
+  userName: string,
+  userPhoto: string,
+  rating: number,
+  comment: string
+): Promise<void> => {
+  const reviewRef = collection(db, 'businesses', businessId, 'reviews');
+  await addDoc(reviewRef, {
+    businessId,
+    userId,
+    userName,
+    userPhoto: userPhoto || '',
+    rating,
+    comment,
+    createdAt: serverTimestamp(),
+  });
+
+  try {
+    const bizRef = doc(db, 'businesses', businessId);
+    const bizSnap = await getDoc(bizRef);
+    if (bizSnap.exists()) {
+      const data = bizSnap.data();
+      const currentCount = data.ratingCount || 0;
+      const currentAvg = data.ratingAvg || 0;
+      const newCount = currentCount + 1;
+      const newAvg = Number(((currentAvg * currentCount + rating) / newCount).toFixed(1));
+      await updateDoc(bizRef, {
+        ratingCount: newCount,
+        ratingAvg: newAvg,
+        updatedAt: serverTimestamp(),
+      });
+    }
+  } catch (err) {
+    console.warn('Error updating business rating aggregate:', err);
+  }
+};
+
 

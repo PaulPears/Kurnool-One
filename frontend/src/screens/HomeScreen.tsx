@@ -4,7 +4,7 @@ import {
   Image, TextInput, ActivityIndicator, StatusBar, Linking, StyleSheet, Modal,
   Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { auth } from '../config/firebase';
 import { useLanguage } from '../context/LanguageContext';
 import {
@@ -12,7 +12,6 @@ import {
   SEED_PLACES, SEED_WORSHIP_PLACES, SEED_OFFERS,
   fetchBusinesses, fetchProfessionals, BusinessItem, ProfessionalItem, OfferItem,
 } from '../services/directoryService';
-import { fetchPromotionBanners } from '../services/firestoreService';
 import { SafeBannerAd, AD_TEST_ID } from '../components/SafeBannerAd';
 
 const BANNER_AD_UNIT = __DEV__ ? AD_TEST_ID : 'ca-app-pub-6894923761807901/6288303254';
@@ -20,12 +19,12 @@ const BANNER_AD_UNIT = __DEV__ ? AD_TEST_ID : 'ca-app-pub-6894923761807901/62883
 export default function HomeScreen({ navigation }: any) {
   const { language, toggleLanguage } = useLanguage();
 
-  const [heroBanners, setHeroBanners] = useState<any[]>([]);
   const [featuredBusinesses, setFeaturedBusinesses] = useState<BusinessItem[]>(SEED_BUSINESSES);
   const [topPros, setTopPros] = useState<ProfessionalItem[]>(SEED_PROFESSIONALS);
   const [offers, setOffers] = useState<OfferItem[]>(SEED_OFFERS);
   const [loading, setLoading] = useState(false);
   const [showRegisterChooser, setShowRegisterChooser] = useState(false);
+  const [showMenuDrawer, setShowMenuDrawer] = useState(false);
 
   useEffect(() => {
     loadHomeData();
@@ -33,19 +32,19 @@ export default function HomeScreen({ navigation }: any) {
 
   const loadHomeData = async () => {
     try {
-      const [banners, bizs, pros] = await Promise.all([
-        fetchPromotionBanners().catch(() => []),
+      const [bizs, pros] = await Promise.all([
         fetchBusinesses().catch(() => SEED_BUSINESSES),
         fetchProfessionals().catch(() => SEED_PROFESSIONALS),
       ]);
-      if (banners && banners.length > 0) {
-        setHeroBanners(banners.filter((b: any) => b.active));
-      }
       if (bizs && bizs.length > 0) {
-        setFeaturedBusinesses(bizs);
+        // Prioritize yearly plan subscribers for Featured in Kurnool
+        const yearlyBizs = bizs.filter(b => b.planId === 'yearly' || b.planId === 'premium');
+        setFeaturedBusinesses(yearlyBizs.length > 0 ? yearlyBizs : bizs.slice(0, 8));
       }
       if (pros && pros.length > 0) {
-        setTopPros(pros);
+        // Prioritize yearly / elite plan subscribers for Need a Service
+        const yearlyPros = pros.filter(p => p.planId === 'yearly' || p.planId === 'elite' || p.planId === 'premium');
+        setTopPros(yearlyPros.length > 0 ? yearlyPros : pros.slice(0, 8));
       }
     } catch (e) {
       console.error('loadHomeData error:', e);
@@ -53,7 +52,7 @@ export default function HomeScreen({ navigation }: any) {
   };
 
   const handleCall = (phone?: string) => {
-    if (phone) Linking.openURL(`tel:${phone}`).catch(() => {});
+    if (phone) Linking.openURL(`tel:${phone}`).catch(() => { });
   };
 
   return (
@@ -85,6 +84,13 @@ export default function HomeScreen({ navigation }: any) {
             style={styles.langBadge}
           >
             <Text style={styles.langText}>{language === 'en' ? 'తెలుగు' : 'ENG'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setShowMenuDrawer(true)}
+            style={{ padding: 6, backgroundColor: '#EFF6FF', borderRadius: 10, borderWidth: 1, borderColor: '#BFDBFE' }}
+          >
+            <Ionicons name="menu-outline" size={22} color="#1D4ED8" />
           </TouchableOpacity>
         </View>
       </View>
@@ -140,43 +146,15 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.highlightPill, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}
-            onPress={() => navigation.navigate('Explore')}
+            style={[styles.highlightPill, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}
+            onPress={() => navigation.navigate('BloodDonors')}
           >
-            <Ionicons name="compass" size={15} color="#16A34A" />
-            <Text style={[styles.highlightPillText, { color: '#15803D' }]}>
-              {language === 'en' ? 'Tourism' : 'పర్యాటకం'}
+            <Ionicons name="water" size={15} color="#DC2626" />
+            <Text style={[styles.highlightPillText, { color: '#B91C1C' }]}>
+              {language === 'en' ? 'Blood Donors' : 'రక్తదాతలు'}
             </Text>
           </TouchableOpacity>
         </View>
-
-        {/* Hero Banners Carousel (if active) */}
-        {heroBanners.length > 0 ? (
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            style={styles.heroScroll}
-          >
-            {heroBanners.map(banner => (
-              <TouchableOpacity
-                key={banner.id}
-                activeOpacity={0.9}
-                onPress={() => {
-                  if (banner.redirectUrl) Linking.openURL(banner.redirectUrl).catch(() => {});
-                }}
-                style={styles.heroCard}
-              >
-                <Image source={{ uri: banner.imageUrl }} style={styles.heroImg} resizeMode="cover" />
-                {banner.title ? (
-                  <View style={styles.heroOverlay}>
-                    <Text style={styles.heroTitle}>{banner.title}</Text>
-                  </View>
-                ) : null}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        ) : null}
 
         {/* Quick Categories Grid */}
         <View style={styles.sectionHeader}>
@@ -204,7 +182,11 @@ export default function HomeScreen({ navigation }: any) {
                   },
                 ]}
               >
-                <Ionicons name={cat.icon as any} size={22} color={cat.color || '#2563EB'} />
+                {cat.id === 'chicken_mutton_center' ? (
+                  <MaterialCommunityIcons name="food-drumstick" size={22} color={cat.color || '#DC2626'} />
+                ) : (
+                  <Ionicons name={cat.icon as any} size={22} color={cat.color || '#2563EB'} />
+                )}
               </View>
               <Text style={styles.categoryLabel} numberOfLines={2}>
                 {language === 'en' ? cat.name_en : cat.name_te}
@@ -235,14 +217,14 @@ export default function HomeScreen({ navigation }: any) {
               style={styles.proCard}
             >
               <View style={styles.proAvatar}>
-                <Text style={styles.proAvatarText}>{pro.fullName.charAt(0)}</Text>
+                <Text style={styles.proAvatarText}>{(pro.fullName || 'P').charAt(0)}</Text>
               </View>
-              <Text style={styles.proName} numberOfLines={1}>{pro.fullName}</Text>
-              <Text style={styles.proCategory}>{pro.category}</Text>
+              <Text style={styles.proName} numberOfLines={1}>{pro.fullName || 'Professional'}</Text>
+              <Text style={styles.proCategory}>{pro.category || 'Expert'}</Text>
               <View style={styles.proRatingRow}>
                 <Ionicons name="star" size={12} color="#F59E0B" />
-                <Text style={styles.proRatingText}>{pro.ratingAvg.toFixed(1)}</Text>
-                <Text style={{ fontSize: 10, color: '#9CA3AF' }}>({pro.ratingCount})</Text>
+                <Text style={styles.proRatingText}>{Number(pro.ratingAvg || 5.0).toFixed(1)}</Text>
+                <Text style={{ fontSize: 10, color: '#9CA3AF' }}>({pro.ratingCount || 1})</Text>
               </View>
 
               <TouchableOpacity
@@ -305,7 +287,7 @@ export default function HomeScreen({ navigation }: any) {
                 <View style={styles.featuredBtm}>
                   <View style={styles.featuredRating}>
                     <Ionicons name="star" size={12} color="#F59E0B" />
-                    <Text style={styles.featuredRatingScore}>{biz.ratingAvg.toFixed(1)}</Text>
+                    <Text style={styles.featuredRatingScore}>{Number(biz.ratingAvg || 5.0).toFixed(1)}</Text>
                   </View>
                   <TouchableOpacity
                     onPress={() => handleCall(biz.phone)}
@@ -353,45 +335,7 @@ export default function HomeScreen({ navigation }: any) {
           ))}
         </ScrollView>
 
-        {/* Emergency Blood Donors Network CTA Card (After Tourism) */}
-        <TouchableOpacity
-          activeOpacity={0.92}
-          onPress={() => navigation.navigate('BloodDonors')}
-          style={styles.bloodCtaCard}
-        >
-          <View style={styles.bloodCtaHeader}>
-            <View style={styles.bloodCtaIconCircle}>
-              <Ionicons name="water" size={24} color="#DC2626" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={styles.bloodCtaTitle}>
-                  {language === 'en' ? 'Emergency Blood Donors' : 'అత్యవసర రక్తదాతలు'}
-                </Text>
-                <View style={styles.bloodLivePill}>
-                  <Text style={styles.bloodLiveText}>KURNOOL</Text>
-                </View>
-              </View>
-              <Text style={styles.bloodCtaSub}>
-                {language === 'en'
-                  ? 'Urgent blood need? Connect with volunteer donors by blood group in Kurnool.'
-                  : 'రక్తం అత్యవసరంగా కావాలా? కర్నూలు స్వచ్ఛంద రక్తదాతలతో మాట్లాడండి.'}
-              </Text>
-            </View>
-          </View>
 
-          <View style={styles.bloodCtaFooter}>
-            <View style={styles.bloodGroupMiniRow}>
-              <Text style={styles.bloodGroupMiniText}>O+ • A+ • B+ • AB+ • O- • A- • B-</Text>
-            </View>
-            <View style={styles.bloodCtaBtn}>
-              <Text style={styles.bloodCtaBtnText}>
-                {language === 'en' ? 'Find Donors' : 'రక్తదాతల జాబితా'}
-              </Text>
-              <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
-            </View>
-          </View>
-        </TouchableOpacity>
 
         {/* Places of Worship */}
         <View style={styles.sectionHeader}>
@@ -561,6 +505,63 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         </View>
       </Modal>
+
+      {/* ─── HAMBURGER SIDE DRAWER MODAL ─── */}
+      <Modal visible={showMenuDrawer} transparent animationType="fade">
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setShowMenuDrawer(false)}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', flexDirection: 'row' }}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            style={{ width: '80%', backgroundColor: '#FFFFFF', height: '100%', padding: 20, paddingTop: 50 }}
+          >
+            {/* Drawer Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Image source={require('../../assets/logo.png')} style={{ width: 36, height: 36, borderRadius: 8 }} />
+                <View>
+                  <Text style={{ fontSize: 18, fontWeight: '900', color: '#1D4ED8' }}>Kurnool One</Text>
+                  <Text style={{ fontSize: 11, color: '#64748B' }}>Smart City Directory</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => setShowMenuDrawer(false)} style={{ padding: 4 }}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Menu Items */}
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {[
+                { icon: 'home-outline', label: language === 'en' ? 'Home' : 'హోమ్', screen: 'Main' },
+                { icon: 'storefront-outline', label: language === 'en' ? 'Business Directory' : 'దుకాణాల డైరెక్టరీ', screen: 'Directory', params: { initialTab: 'businesses' } },
+                { icon: 'construct-outline', label: language === 'en' ? 'Skilled Professionals' : 'వృత్తి నిపుణులు', screen: 'Directory', params: { initialTab: 'professionals' } },
+                { icon: 'flame-outline', label: language === 'en' ? 'Hot Deals & Offers' : 'హాట్ డీల్స్ & ఆఫర్లు', screen: 'Offers', params: { initialTab: 'offers' } },
+                { icon: 'cart-outline', label: language === 'en' ? 'Kurnool Bazaar (Used Goods)' : 'కర్నూలు బజార్', screen: 'Offers', params: { initialTab: 'marketplace' } },
+                { icon: 'water-outline', label: language === 'en' ? 'Blood Donors Network' : 'రక్తదాతల నెట్‌వర్క్', screen: 'BloodDonation' },
+                { icon: 'compass-outline', label: language === 'en' ? 'Explore & Heritage Spots' : 'దర్శనీయ స్థలాలు', screen: 'Explore' },
+                { icon: 'sparkles-outline', label: language === 'en' ? '🤝 Kurnool One Partner (Earn Money)' : '🤝 కర్నూలు వన్ పార్ట్‌నర్ (ఆదాయం)', screen: 'PartnerProgram' },
+                { icon: 'newspaper-outline', label: language === 'en' ? 'City News & Updates' : 'నగర వార్తలు', screen: 'News' },
+                { icon: 'business-outline', label: language === 'en' ? 'Merchant Portal (My Shop)' : 'వ్యాపార పోర్టల్', screen: 'ManageBusiness' },
+                { icon: 'person-outline', label: language === 'en' ? 'My Profile' : 'నా ప్రొఫైల్', screen: 'Profile' },
+              ].map((item, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  onPress={() => {
+                    setShowMenuDrawer(false);
+                    navigation.navigate(item.screen, item.params);
+                  }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' }}
+                >
+                  <Ionicons name={item.icon as any} size={20} color="#2563EB" />
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#1E293B' }}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -583,7 +584,7 @@ const styles = StyleSheet.create({
   iconBtn: { padding: 4 },
   searchBar: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB',
-    marginHorizontal: 16, marginTop: 12, marginBottom: 8, paddingLeft: 14, paddingRight: 6,
+    marginHorizontal: 16, marginTop: 8, marginBottom: 4, paddingLeft: 14, paddingRight: 6,
     paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB',
   },
   searchPlaceholder: { flex: 1, marginLeft: 8, fontSize: 13, color: '#6B7280' },
@@ -591,20 +592,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#2563EB', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
   },
   searchBtnInnerText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12 },
-  heroScroll: { marginTop: 8 },
-  heroCard: {
-    width: 320, height: 160, marginHorizontal: 8, borderRadius: 18,
-    overflow: 'hidden', backgroundColor: '#1E3A8A',
-  },
-  heroImg: { width: '100%', height: '100%' },
-  heroOverlay: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)', padding: 12,
-  },
-  heroTitle: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
   sectionHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, marginTop: 22, marginBottom: 12,
+    paddingHorizontal: 16, marginTop: 14, marginBottom: 8,
   },
   sectionTitle: { fontSize: 16, fontWeight: '900', color: '#111827' },
   viewAllText: { fontSize: 12, fontWeight: '800', color: '#2563EB' },

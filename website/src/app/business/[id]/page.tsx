@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { fetchBusinessById, SEED_BUSINESSES } from '@/services/directoryService';
 import BusinessActionButtons from '@/components/BusinessActionButtons';
+import BusinessReviews from '@/components/BusinessReviews';
 
 export const revalidate = 60;
 
@@ -175,8 +176,8 @@ export default async function BusinessDetailPage({ params }: PageProps) {
                   <Star key={s} className="w-5 h-5 fill-amber-400 text-amber-400" />
                 ))}
               </div>
-              <span className="text-xl font-black text-slate-900">{business.ratingAvg.toFixed(1)}</span>
-              <span className="text-sm text-slate-500">({business.ratingCount} Google & Resident Reviews)</span>
+              <span className="text-xl font-black text-slate-900">{Number(business.ratingAvg || 5.0).toFixed(1)}</span>
+              <span className="text-sm text-slate-500">({business.ratingCount || 1} Google & Resident Reviews)</span>
             </div>
 
             {/* Interactive & Tracked Action Buttons */}
@@ -329,6 +330,14 @@ export default async function BusinessDetailPage({ params }: PageProps) {
             </div>
           </div>
         </div>
+
+        {/* Customer Ratings & Reviews */}
+        <BusinessReviews
+          businessId={business.id}
+          businessName={business.name_en}
+          initialRatingAvg={business.ratingAvg || 4.5}
+          initialRatingCount={business.ratingCount || 10}
+        />
       </div>
     </>
   );

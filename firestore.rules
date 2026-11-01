@@ -36,8 +36,7 @@ service cloud.firestore {
 
     // Registered phone role exclusivity
     match /registered_phones/{phone} {
-      allow read: if true;
-      allow create, update: if isAuthenticated();
+      allow read, create, update: if true;
       allow delete: if isAdmin();
     }
 
@@ -61,8 +60,7 @@ service cloud.firestore {
     
     // Businesses directory
     match /businesses/{businessId} {
-      allow read: if true;
-      allow create: if isAuthenticated();
+      allow read, create: if true;
       allow update: if isAuthenticated() && (
         isAdmin() || 
         (resource.data.ownerUid == request.auth.uid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['tier', 'verificationBadge', 'status', 'paymentStatus']))
@@ -78,8 +76,7 @@ service cloud.firestore {
 
     // Skilled professionals
     match /professionals/{proId} {
-      allow read: if true;
-      allow create: if isAuthenticated();
+      allow read, create: if true;
       allow update: if isAuthenticated() && (
         isAdmin() || 
         (resource.data.userId == request.auth.uid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['verifiedProfessional', 'status', 'paymentStatus']))
@@ -96,15 +93,13 @@ service cloud.firestore {
 
     // Blood Donors directory
     match /blood_donors/{donorId} {
-      allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read, create: if true;
       allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
     // House Rentals (To-Let)
     match /house_rentals/{rentalId} {
-      allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      allow read, create: if true;
       allow update, delete: if isAuthenticated() && (resource.data.ownerUid == request.auth.uid || isAdmin());
     }
 
@@ -182,10 +177,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // City news
+    // City news & citizen journalism
     match /news/{newsId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create: if isAuthenticated() && (request.resource.data.status == 'pending_approval' || isAdmin());
+      allow update, delete: if isAdmin();
     }
 
     // Admin access grants audit log

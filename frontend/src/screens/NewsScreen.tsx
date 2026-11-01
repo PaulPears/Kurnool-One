@@ -12,16 +12,80 @@ import {
   Share,
   Modal,
   ScrollView,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
-import { fetchNews, NewsItem } from '../services/directoryService';
+import { fetchNews, submitNewsStory, NewsItem } from '../services/directoryService';
 
 export default function NewsScreen({ navigation }: any) {
   const { language } = useLanguage();
   const [newsList, setNewsList] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState<NewsItem | null>(null);
+
+  // Citizen Reporter Modal State
+  const [submitModalVisible, setSubmitModalVisible] = useState(false);
+  const [headline, setHeadline] = useState('');
+  const [category, setCategory] = useState('Civic');
+  const [area, setArea] = useState('');
+  const [content, setContent] = useState('');
+  const [reporterName, setReporterName] = useState('');
+  const [reporterPhone, setReporterPhone] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmitNews = async () => {
+    if (!headline.trim() || !content.trim() || !reporterName.trim() || !reporterPhone.trim()) {
+      Alert.alert(
+        language === 'en' ? 'Missing Details' : 'వివరాలు అసంపూర్ణం',
+        language === 'en' ? 'Please fill in headline, content, your name, and phone number.' : 'దయచేసి శీర్షిక, వార్తా వివరాలు, మీ పేరు మరియు ఫోన్ నంబర్‌ను నమోదు చేయండి.'
+      );
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await submitNewsStory({
+        title_en: headline.trim(),
+        title_te: headline.trim(),
+        category,
+        area: area.trim() || 'Kurnool City',
+        content_en: content.trim(),
+        content_te: content.trim(),
+        source: `${reporterName.trim()} (Citizen Reporter)`,
+        authorName: reporterName.trim(),
+        authorPhone: reporterPhone.trim(),
+        imageUrl: imageUrl.trim() || 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800',
+        publishedAt: new Date().toISOString().split('T')[0],
+        status: 'pending_approval',
+      });
+
+      Alert.alert(
+        language === 'en' ? 'Story Submitted' : 'వార్త సమర్పించబడింది',
+        language === 'en'
+          ? 'Thank you! Your story has been sent to our editorial desk for verification. It will be published once approved.'
+          : 'ధన్యవాదాలు! మీ వార్త సంపాదకీయ పరిశీలన కోసం పంపబడింది. ఆమోదం పొందిన తర్వాత లైవ్ చేయబడుతుంది.'
+      );
+
+      setSubmitModalVisible(false);
+      setHeadline('');
+      setContent('');
+      setArea('');
+      setReporterName('');
+      setReporterPhone('');
+      setImageUrl('');
+    } catch (err) {
+      console.error(err);
+      Alert.alert(
+        language === 'en' ? 'Error' : 'లోపం',
+        language === 'en' ? 'Failed to submit news story. Please try again.' : 'వార్త సమర్పణ విఫలమైంది.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     loadNews();
@@ -117,6 +181,23 @@ export default function NewsScreen({ navigation }: any) {
             {language === 'en' ? 'Curated Local Updates & Announcements' : 'స్థానిక విశేషాలు మరియు ప్రకటనలు'}
           </Text>
         </View>
+        <TouchableOpacity
+          onPress={() => setSubmitModalVisible(true)}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            backgroundColor: '#2563EB',
+            paddingHorizontal: 12,
+            paddingVertical: 7,
+            borderRadius: 20,
+          }}
+        >
+          <Ionicons name="add" size={16} color="#FFFFFF" />
+          <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800' }}>
+            {language === 'en' ? 'Report' : 'వార్త'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Content */}
@@ -215,6 +296,116 @@ export default function NewsScreen({ navigation }: any) {
               </View>
             </ScrollView>
           )}
+        </SafeAreaView>
+      </Modal>
+
+      {/* Submit News Story Modal (Citizen Journalism) */}
+      <Modal
+        visible={submitModalVisible}
+        animationType="slide"
+        onRequestClose={() => setSubmitModalVisible(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setSubmitModalVisible(false)} style={styles.backBtn}>
+              <Ionicons name="close" size={26} color="#111827" />
+            </TouchableOpacity>
+            <Text style={styles.modalHeaderTitle}>
+              {language === 'en' ? 'Submit Local News Story' : 'వార్తను సమర్పించండి'}
+            </Text>
+            <View style={{ width: 26 }} />
+          </View>
+
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+            <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>
+              {language === 'en'
+                ? 'Report local news, civic issues, and events in Kurnool. Stories will be published once verified by our editorial desk.'
+                : 'కర్నూలు స్థానిక విశేషాలు మరియు సమస్యలను నివేదించండి. సంపాదకీయ బృందం పరిశీలన అనంతరం లైవ్ చేయబడుతుంది.'}
+            </Text>
+
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 4 }}>
+              {language === 'en' ? 'Headline *' : 'వార్తా శీర్షిక *'}
+            </Text>
+            <TextInput
+              style={{ borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 12, fontSize: 13, marginBottom: 12, backgroundColor: '#F8FAFC' }}
+              placeholder={language === 'en' ? 'e.g. New traffic diversion at Bellary Chowrasta' : 'ఉదా: బళ్లారి చౌరస్తా వద్ద ట్రాఫిక్ మళ్లింపు'}
+              value={headline}
+              onChangeText={setHeadline}
+            />
+
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 4 }}>
+              {language === 'en' ? 'Area in Kurnool *' : 'ప్రాంతం *'}
+            </Text>
+            <TextInput
+              style={{ borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 12, fontSize: 13, marginBottom: 12, backgroundColor: '#F8FAFC' }}
+              placeholder={language === 'en' ? 'e.g. Raj Vihar / C-Camp / Old City' : 'ఉదా: రాజ్ విహార్ / బి క్యాంప్'}
+              value={area}
+              onChangeText={setArea}
+            />
+
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 4 }}>
+              {language === 'en' ? 'Detailed News Story *' : 'వార్తా వివరాలు *'}
+            </Text>
+            <TextInput
+              style={{ borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 12, fontSize: 13, height: 110, textAlignVertical: 'top', marginBottom: 12, backgroundColor: '#F8FAFC' }}
+              placeholder={language === 'en' ? 'Provide full factual details...' : 'పూర్తి వాస్తవ సమాచారాన్ని నమోదు చేయండి...'}
+              value={content}
+              onChangeText={setContent}
+              multiline
+            />
+
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 4 }}>
+              {language === 'en' ? 'Reporter Name *' : 'మీ పేరు (విలేకరి) *'}
+            </Text>
+            <TextInput
+              style={{ borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 12, fontSize: 13, marginBottom: 12, backgroundColor: '#F8FAFC' }}
+              placeholder="e.g. S. Srinivas"
+              value={reporterName}
+              onChangeText={setReporterName}
+            />
+
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 4 }}>
+              {language === 'en' ? 'Reporter Phone *' : 'సంప్రదించాల్సిన ఫోన్ నంబర్ *'}
+            </Text>
+            <TextInput
+              style={{ borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 12, fontSize: 13, marginBottom: 12, backgroundColor: '#F8FAFC' }}
+              placeholder="98480XXXXX"
+              keyboardType="phone-pad"
+              value={reporterPhone}
+              onChangeText={setReporterPhone}
+            />
+
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 4 }}>
+              {language === 'en' ? 'Photo URL (Optional)' : 'ఫోటో లింక్ (ఐచ్ఛికం)'}
+            </Text>
+            <TextInput
+              style={{ borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 12, fontSize: 13, marginBottom: 20, backgroundColor: '#F8FAFC' }}
+              placeholder="https://..."
+              value={imageUrl}
+              onChangeText={setImageUrl}
+              autoCapitalize="none"
+            />
+
+            <TouchableOpacity
+              onPress={handleSubmitNews}
+              disabled={submitting}
+              style={{
+                backgroundColor: '#2563EB',
+                borderRadius: 14,
+                paddingVertical: 14,
+                alignItems: 'center',
+                opacity: submitting ? 0.6 : 1,
+              }}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>
+                  {language === 'en' ? 'Submit Story for Verification' : 'వార్తను సమర్పించండి'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
         </SafeAreaView>
       </Modal>
     </SafeAreaView>

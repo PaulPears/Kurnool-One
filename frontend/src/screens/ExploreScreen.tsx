@@ -5,12 +5,22 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
-import { fetchPlaces, fetchWorshipPlaces, PlaceItem } from '../services/directoryService';
+import {
+  fetchPlaces,
+  fetchWorshipPlaces,
+  fetchEvents,
+  PlaceItem,
+  EventItem,
+  SEED_PLACES,
+  SEED_WORSHIP_PLACES,
+  SEED_EVENTS,
+} from '../services/directoryService';
 
 export default function ExploreScreen({ navigation }: any) {
   const { language } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'tourist' | 'worship'>('tourist');
-  const [places, setPlaces] = useState<PlaceItem[]>([]);
+  const [activeTab, setActiveTab] = useState<'tourist' | 'worship' | 'events'>('tourist');
+  const [places, setPlaces] = useState<PlaceItem[]>(SEED_PLACES);
+  const [events, setEvents] = useState<EventItem[]>(SEED_EVENTS);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -21,14 +31,20 @@ export default function ExploreScreen({ navigation }: any) {
     setLoading(true);
     try {
       if (activeTab === 'tourist') {
-        const data = await fetchPlaces();
-        setPlaces(data);
+        const data = await fetchPlaces().catch(() => SEED_PLACES);
+        setPlaces(data && data.length > 0 ? data : SEED_PLACES);
+      } else if (activeTab === 'worship') {
+        const data = await fetchWorshipPlaces().catch(() => SEED_WORSHIP_PLACES);
+        setPlaces(data && data.length > 0 ? data : SEED_WORSHIP_PLACES);
       } else {
-        const data = await fetchWorshipPlaces();
-        setPlaces(data);
+        const data = await fetchEvents().catch(() => SEED_EVENTS);
+        setEvents(data && data.length > 0 ? data : SEED_EVENTS);
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Explore load error, using fallbacks:', e);
+      if (activeTab === 'tourist') setPlaces(SEED_PLACES);
+      else if (activeTab === 'worship') setPlaces(SEED_WORSHIP_PLACES);
+      else setEvents(SEED_EVENTS);
     } finally {
       setLoading(false);
     }
@@ -93,7 +109,21 @@ export default function ExploreScreen({ navigation }: any) {
             color={activeTab === 'worship' ? '#2563EB' : '#6B7280'}
           />
           <Text style={[styles.segmentText, activeTab === 'worship' && styles.segmentTextActive]}>
-            {language === 'en' ? 'Places of Worship' : 'పుణ్యక్షేత్రాలు & మసీదులు'}
+            {language === 'en' ? 'Places of Worship' : 'పుణ్యక్షేత్రాలు'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => setActiveTab('events')}
+          style={[styles.segmentBtn, activeTab === 'events' && styles.segmentBtnActive]}
+        >
+          <Ionicons
+            name="calendar"
+            size={16}
+            color={activeTab === 'events' ? '#2563EB' : '#6B7280'}
+          />
+          <Text style={[styles.segmentText, activeTab === 'events' && styles.segmentTextActive]}>
+            {language === 'en' ? 'City Events' : 'నగర ఈవెంట్లు'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -103,69 +133,126 @@ export default function ExploreScreen({ navigation }: any) {
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color="#2563EB" />
         </View>
-      ) : (
+      ) : activeTab === 'events' ? (
         <FlatList
-          data={places}
-          keyExtractor={item => item.id}
+          data={events}
+          keyExtractor={(item, index) => item?.id || String(index)}
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 60, paddingHorizontal: 24 }}>
+              <Ionicons name="calendar-outline" size={48} color="#9CA3AF" />
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#1F2937', marginTop: 12 }}>
+                {language === 'en' ? 'No Upcoming Events' : 'రాబోయే ఈవెంట్లు ఏవీ లేవు'}
+              </Text>
+              <Text style={{ fontSize: 13, color: '#6B7280', textAlign: 'center', marginTop: 4 }}>
+                {language === 'en' ? 'Cultural events and exhibitions will be posted here.' : 'నగర సాంస్కృతిక కార్యక్రమాలు ఇక్కడ పోస్ట్ చేయబడతాయి.'}
+              </Text>
+            </View>
+          }
           renderItem={({ item }) => (
             <View style={styles.card}>
-              {item.photos && item.photos.length > 0 ? (
-                <Image source={{ uri: item.photos[0] }} style={styles.cardImage} resizeMode="cover" />
-              ) : (
-                <View style={[styles.cardImage, { backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' }]}>
-                  <Ionicons name="image-outline" size={48} color="#9CA3AF" />
-                </View>
-              )}
-
+              {item.posterUrl ? (
+                <Image source={{ uri: item.posterUrl }} style={styles.cardImage} resizeMode="cover" />
+              ) : null}
               <View style={styles.cardBody}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <View style={{ flex: 1, marginRight: 8 }}>
-                    <Text style={styles.placeName}>{item.name_en}</Text>
-                    {item.name_te ? <Text style={styles.placeNameTe}>{item.name_te}</Text> : null}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <View style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                    <Text style={{ color: '#1E40AF', fontWeight: '800', fontSize: 11 }}>📅 {item.dateStr || 'This Month'} • {item.timeStr || 'Evening'}</Text>
                   </View>
-                  <TouchableOpacity onPress={() => handleShare(item)} style={styles.shareIconBtn}>
-                    <Ionicons name="share-social-outline" size={18} color="#4B5563" />
-                  </TouchableOpacity>
+                  <View style={{ backgroundColor: item.entryType === 'free' ? '#ECFDF5' : '#FEF3C7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                    <Text style={{ color: item.entryType === 'free' ? '#059669' : '#D97706', fontWeight: '800', fontSize: 10, textTransform: 'uppercase' }}>
+                      {item.entryType || 'FREE'}
+                    </Text>
+                  </View>
                 </View>
-
+                <Text style={styles.placeName}>{item.title_en}</Text>
+                {item.title_te ? <Text style={styles.placeNameTe}>{item.title_te}</Text> : null}
                 <Text style={styles.placeAddress}>
-                  <Ionicons name="location-outline" size={13} color="#6B7280" /> {item.address}
+                  <Ionicons name="location-outline" size={13} color="#6B7280" /> {item.venue || 'Kurnool'}
                 </Text>
-
-                <View style={styles.metaBadgeRow}>
-                  {item.timings ? (
-                    <View style={styles.metaBadge}>
-                      <Ionicons name="time-outline" size={12} color="#1E40AF" />
-                      <Text style={styles.metaBadgeText}>{item.timings}</Text>
-                    </View>
-                  ) : null}
-
-                  {item.entryFee ? (
-                    <View style={[styles.metaBadge, { backgroundColor: '#F0FDF4', borderColor: '#DCFCE7' }]}>
-                      <Ionicons name="ticket-outline" size={12} color="#15803D" />
-                      <Text style={[styles.metaBadgeText, { color: '#15803D' }]}>{item.entryFee}</Text>
-                    </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 10 }}>
+                  <Text style={{ fontSize: 12, color: '#6B7280' }}>By {item.organizerName || 'Kurnool One'}</Text>
+                  {item.contactPhone ? (
+                    <TouchableOpacity
+                      onPress={() => Linking.openURL(`tel:${item.contactPhone}`)}
+                      style={{ backgroundColor: '#2563EB', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                    >
+                      <Ionicons name="call" size={12} color="#FFFFFF" />
+                      <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 11 }}>Contact</Text>
+                    </TouchableOpacity>
                   ) : null}
                 </View>
-
-                <Text style={styles.description} numberOfLines={3}>
-                  {language === 'en' ? item.description_en : (item.description_te || item.description_en)}
-                </Text>
-
-                <TouchableOpacity
-                  onPress={() => handleDirections(item)}
-                  style={styles.directionsBtn}
-                >
-                  <Ionicons name="navigate" size={16} color="#FFFFFF" />
-                  <Text style={styles.directionsBtnText}>
-                    {language === 'en' ? 'Get Directions on Google Maps' : 'గూగుల్ మ్యాప్స్ రూట్'}
-                  </Text>
-                </TouchableOpacity>
               </View>
             </View>
           )}
+        />
+      ) : (
+        <FlatList
+          data={places}
+          keyExtractor={(item, index) => item?.id || String(index)}
+          contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => {
+            const itemPhotos = Array.isArray(item.photos) ? item.photos : [];
+            return (
+              <View style={styles.card}>
+                {itemPhotos.length > 0 ? (
+                  <Image source={{ uri: itemPhotos[0] }} style={styles.cardImage} resizeMode="cover" />
+                ) : (
+                  <View style={[styles.cardImage, { backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' }]}>
+                    <Ionicons name="image-outline" size={48} color="#9CA3AF" />
+                  </View>
+                )}
+
+                <View style={styles.cardBody}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={styles.placeName}>{item.name_en}</Text>
+                      {item.name_te ? <Text style={styles.placeNameTe}>{item.name_te}</Text> : null}
+                    </View>
+                    <TouchableOpacity onPress={() => handleShare(item)} style={styles.shareIconBtn}>
+                      <Ionicons name="share-social-outline" size={18} color="#4B5563" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={styles.placeAddress}>
+                    <Ionicons name="location-outline" size={13} color="#6B7280" /> {item.address}
+                  </Text>
+
+                  <View style={styles.metaBadgeRow}>
+                    {item.timings ? (
+                      <View style={styles.metaBadge}>
+                        <Ionicons name="time-outline" size={12} color="#1E40AF" />
+                        <Text style={styles.metaBadgeText}>{item.timings}</Text>
+                      </View>
+                    ) : null}
+
+                    {item.entryFee ? (
+                      <View style={[styles.metaBadge, { backgroundColor: '#F0FDF4', borderColor: '#DCFCE7' }]}>
+                        <Ionicons name="ticket-outline" size={12} color="#15803D" />
+                        <Text style={[styles.metaBadgeText, { color: '#15803D' }]}>{item.entryFee}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  <Text style={styles.description} numberOfLines={3}>
+                    {language === 'en' ? item.description_en : (item.description_te || item.description_en)}
+                  </Text>
+
+                  <TouchableOpacity
+                    onPress={() => handleDirections(item)}
+                    style={styles.directionsBtn}
+                  >
+                    <Ionicons name="navigate" size={16} color="#FFFFFF" />
+                    <Text style={styles.directionsBtnText}>
+                      {language === 'en' ? 'Get Directions on Google Maps' : 'గూగుల్ మ్యాప్స్ రూట్'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          }}
           ListEmptyComponent={
             <View style={{ alignItems: 'center', justifyContent: 'center', padding: 40, marginTop: 40 }}>
               <Ionicons name="compass-outline" size={48} color="#94A3B8" />

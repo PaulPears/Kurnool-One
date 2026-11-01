@@ -10,7 +10,7 @@ import {
   onAuthStateChanged,
   updateProfile,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { auth, googleProvider, db } from '@/config/firebase';
 
 export interface UserProfileData {
@@ -19,18 +19,30 @@ export interface UserProfileData {
   displayName: string | null;
   photoURL: string | null;
   role: 'user' | 'merchant' | 'professional' | 'admin';
+  hasBusiness?: boolean;
+  hasProfessional?: boolean;
+  hasBloodDonor?: boolean;
+  myBusinessId?: string | null;
+  myProfessionalId?: string | null;
 }
 
 interface AuthContextType {
   user: User | null;
   profile: UserProfileData | null;
   loading: boolean;
+  hasBusiness: boolean;
+  hasProfessional: boolean;
+  hasBloodDonor: boolean;
+  isAdmin: boolean;
+  myBusinessId: string | null;
+  myProfessionalId: string | null;
   loginWithGoogle: () => Promise<User>;
   loginWithEmail: (email: string, pass: string) => Promise<User>;
   signupWithEmail: (email: string, pass: string, name: string) => Promise<User>;
   loginAsGuest: (role?: 'merchant' | 'professional' | 'user') => Promise<User>;
   loginWithPhone: (phone: string, role: 'merchant' | 'professional' | 'user', name?: string) => Promise<User>;
   logout: () => Promise<void>;
+  refreshUserRoles: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -68,6 +80,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Auto-detected role states
+  const [hasBusiness, setHasBusiness] = useState(false);
+  const [hasProfessional, setHasProfessional] = useState(false);
+  const [hasBloodDonor, setHasBloodDonor] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [myBusinessId, setMyBusinessId] = useState<string | null>(null);
+  const [myProfessionalId, setMyProfessionalId] = useState<string | null>(null);
+
+  // Check user's businesses, professional profile, and blood donor status
+  const detectUserRoles = async (uid: string, userEmail?: string | null, userPhone?: string | null) => {
+    try {
+      const [bizSnap, proSnap, donorSnap] = await Promise.all([
+        getDocs(query(collection(db, 'businesses'), where('ownerUid', '==', uid), limit(1))).catch(() => null),
+        getDocs(query(collection(db, 'professionals'), where('userId', '==', uid), limit(1))).catch(() => null),
+        getDocs(query(collection(db, 'blood_donors'), where('userId', '==', uid), limit(1))).catch(() => null),
+      ]);
+
+      const foundBiz = bizSnap && !bizSnap.empty ? bizSnap.docs[0] : null;
+      const foundPro = proSnap && !proSnap.empty ? proSnap.docs[0] : null;
+      const foundDonor = donorSnap && !donorSnap.empty ? donorSnap.docs[0] : null;
+
+      setHasBusiness(!!foundBiz);
+      setMyBusinessId(foundBiz ? foundBiz.id : null);
+
+      setHasProfessional(!!foundPro);
+      setMyProfessionalId(foundPro ? foundPro.id : null);
+
+      setHasBloodDonor(!!foundDonor);
+
+      // Check Admin
+      const adminEmails = ['pearsrobert174@gmail.com', 'admin@kurnoolone.com', 'kurnoolone@gmail.com'];
+      const isUserAdmin = Boolean(
+        (userEmail && adminEmails.includes(userEmail.toLowerCase())) ||
+        (typeof window !== 'undefined' && localStorage.getItem('kurnool_admin_session') === 'active')
+      );
+      setIsAdmin(isUserAdmin);
+    } catch (err) {
+      console.warn('Role auto-detection fallback:', err);
+    }
+  };
+
+  const refreshUserRoles = async () => {
+    if (user?.uid) {
+      await detectUserRoles(user.uid, user.email, user.phoneNumber);
+    }
+  };
+
   // Sync user profile to Firestore (with silent offline fallback)
   const syncUserProfile = async (firebaseUser: User, roleFallback: 'user' | 'merchant' | 'professional' = 'user') => {
     try {
@@ -97,6 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: data.role || roleFallback,
         };
         setProfile(existingProfile);
+        if (data.role === 'admin') setIsAdmin(true);
       }
     } catch {
       // Offline fallback
@@ -108,6 +168,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: roleFallback,
       });
     }
+
+    await detectUserRoles(firebaseUser.uid, firebaseUser.email, firebaseUser.phoneNumber);
   };
 
   useEffect(() => {
@@ -290,12 +352,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       localStorage.removeItem('kurnool_mock_user');
+      localStorage.removeItem('kurnool_admin_session');
     } catch {}
     try {
       await signOut(auth);
     } catch {}
     setUser(null);
     setProfile(null);
+    setHasBusiness(false);
+    setHasProfessional(false);
+    setHasBloodDonor(false);
+    setIsAdmin(false);
+    setMyBusinessId(null);
+    setMyProfessionalId(null);
   };
 
   return (
@@ -304,12 +373,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         profile,
         loading,
+        hasBusiness,
+        hasProfessional,
+        hasBloodDonor,
+        isAdmin,
+        myBusinessId,
+        myProfessionalId,
         loginWithGoogle,
         loginWithEmail,
         signupWithEmail,
         loginAsGuest,
         loginWithPhone,
         logout,
+        refreshUserRoles,
       }}
     >
       {children}

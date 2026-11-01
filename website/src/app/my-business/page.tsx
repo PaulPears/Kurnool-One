@@ -223,19 +223,11 @@ export default function MyBusinessPortalPage() {
 
 
           <div className="pt-2 space-y-3">
-            <button
-              type="button"
-              onClick={() => loginWithGoogle()}
-              className="w-full py-3.5 px-4 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-bold text-xs sm:text-sm rounded-xl shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <span>Continue with Google</span>
-            </button>
-
             <Link
-              href="/business/login"
+              href="/login?returnUrl=/my-business"
               className="block w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition"
             >
-              Sign In to Dedicated Business Portal →
+              Sign In to Kurnool One →
             </Link>
           </div>
         </div>
@@ -401,7 +393,7 @@ export default function MyBusinessPortalPage() {
                 <Star className="w-6 h-6 fill-amber-400" />
               </div>
               <div className="text-3xl font-black text-slate-900 mb-1">
-                {selectedBiz.ratingAvg.toFixed(1)} ★
+                {Number(selectedBiz.ratingAvg || 5.0).toFixed(1)} ★
               </div>
               <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Resident Rating Score

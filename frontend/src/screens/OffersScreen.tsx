@@ -14,12 +14,33 @@ import {
   fetchEvents,
   fetchMarketplaceItems,
   createMarketplaceItem,
+  updateMarketplaceItem,
   deleteMarketplaceItem,
   uploadOfferImage,
   OfferItem,
   EventItem,
   MarketplaceItem,
 } from '../services/directoryService';
+
+export const DEAL_FILTER_CATEGORIES = [
+  { id: 'all', label_en: 'All Deals', label_te: 'అన్ని ఆఫర్లు', icon: 'flame' },
+  { id: 'restaurants_dining', label_en: 'Restaurants', label_te: 'రెస్టారెంట్లు', icon: 'restaurant' },
+  { id: 'cafes_bakeries', label_en: 'Cafes & Sweets', label_te: 'కేఫ్‌లు & స్వీట్స్', icon: 'cafe' },
+  { id: 'clothing_fashion', label_en: 'Fashion', label_te: 'ఫ్యాషన్ & బట్టలు', icon: 'shirt' },
+  { id: 'electronics_mobiles', label_en: 'Electronics', label_te: 'ఎలక్ట్రానిక్స్', icon: 'phone-portrait' },
+  { id: 'supermarkets_groceries', label_en: 'Groceries', label_te: 'కిరాణా & మార్కెట్', icon: 'cart' },
+  { id: 'beauty_salons', label_en: 'Beauty & Salon', label_te: 'బ్యూటీ & సెలూన్', icon: 'sparkles' },
+];
+
+export const MARKET_FILTER_CATEGORIES = [
+  { id: 'all', label_en: 'All Items', label_te: 'అన్నీ' },
+  { id: 'Two-Wheelers', label_en: '🏍️ Two-Wheelers', label_te: '🏍️ బైక్స్ & స్కూటర్లు' },
+  { id: 'Mobiles & Tablets', label_en: '📱 Mobiles', label_te: '📱 మొబైల్స్' },
+  { id: 'Home Appliances', label_en: '📺 Appliances', label_te: '📺 గృహోపకరణాలు' },
+  { id: 'Properties & Plots', label_en: '🏠 Properties', label_te: '🏠 ఇళ్ళు & ప్లాట్లు' },
+  { id: 'Furniture', label_en: '🛋️ Furniture', label_te: '🛋️ ఫర్నిచర్' },
+  { id: 'Fashion & Personal', label_en: '👕 Others', label_te: '👕 ఇతరాలు' },
+];
 
 export interface MarketItem {
   id: string;
@@ -149,6 +170,37 @@ export default function OffersScreen({ route, navigation }: any) {
   const [marketItems, setMarketItems] = useState<MarketItem[]>(SEED_MARKET_ITEMS);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Filter States
+  const [selectedDealCategory, setSelectedDealCategory] = useState('all');
+  const [selectedMarketCategory, setSelectedMarketCategory] = useState('all');
+
+  const handleToggleSold = async (item: MarketItem) => {
+    const isCurrentlySold = item.status === 'sold';
+    const newStatus: 'active' | 'sold' = isCurrentlySold ? 'active' : 'sold';
+    try {
+      await updateMarketplaceItem(item.id, { status: newStatus });
+      setMarketItems(prev => prev.map(i => i.id === item.id ? { ...i, status: newStatus } : i));
+      Alert.alert(
+        newStatus === 'sold'
+          ? (language === 'en' ? 'Item Marked as SOLD' : 'వస్తువు అమ్ముడైంది')
+          : (language === 'en' ? 'Item Marked as AVAILABLE' : 'వస్తువు అందుబాటులోకి వచ్చింది'),
+        newStatus === 'sold'
+          ? (language === 'en' ? 'Buyers will now see this item marked as 🔴 SOLD OUT.' : 'కొనుగోలుదారులకు ఇది 🔴 SOLD OUT గా కనిపిస్తుంది.')
+          : (language === 'en' ? 'This item is now active and available for buyers.' : 'ఈ వస్తువు తిరిగి కొనుగోలుదారులకు అందుబాటులో ఉంది.')
+      );
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Could not update status');
+    }
+  };
+
+  const displayedOffers = selectedDealCategory === 'all'
+    ? offers
+    : offers.filter(o => o.category === selectedDealCategory || (selectedDealCategory === 'restaurants_dining' && (o.category === 'restaurants_cafes' || o.category === 'restaurants_dining')));
+
+  const displayedMarketItems = selectedMarketCategory === 'all'
+    ? marketItems
+    : marketItems.filter(m => m.category === selectedMarketCategory || (selectedMarketCategory === 'Furniture' && m.category?.toLowerCase().includes('furniture')));
 
   // Marketplace Post State
   const [postModalVisible, setPostModalVisible] = useState(false);
@@ -283,22 +335,39 @@ export default function OffersScreen({ route, navigation }: any) {
   };
 
   const handlePickPostImage = async () => {
-    if (postImages.length >= 2) {
-      Alert.alert('Limit Reached', 'You can attach up to 2 photos per listing.');
+    if (postImages.length >= 5) {
+      Alert.alert('Limit Reached', 'You can attach up to 5 photos per listing.');
       return;
     }
-    try {
-      const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.75,
-      });
-      if (!res.canceled && res.assets?.[0]?.uri) {
-        setPostImages(prev => [...prev, res.assets[0].uri]);
+    const pickImage = async () => {
+      try {
+        const res = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.7,
+        });
+        if (!res.canceled && res.assets?.[0]?.uri) {
+          setPostImages(prev => [...prev, res.assets[0].uri]);
+        }
+      } catch (e: any) {
+        Alert.alert('Error', e.message || 'Could not pick image');
       }
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Could not pick image');
+    };
+
+    if (postImages.length >= 1) {
+      Alert.alert(
+        language === 'en' ? 'Extra Photo Slot' : 'మరిన్ని ఫోటోలు',
+        language === 'en'
+          ? 'Free slot used (1 photo). Watch a quick partner ad to add up to 5 photos?'
+          : '1వ ఫోటో ఉచితం. మరిన్ని ఫోటోలు (5 వరకు) జోడించడానికి చిన్న ప్రకటన చూడాలా?',
+        [
+          { text: language === 'en' ? 'Cancel' : 'వద్దు', style: 'cancel' },
+          { text: language === 'en' ? 'Watch Ad & Add' : 'చూసి జోడించండి', onPress: pickImage },
+        ]
+      );
+    } else {
+      await pickImage();
     }
   };
 
@@ -307,33 +376,47 @@ export default function OffersScreen({ route, navigation }: any) {
       Alert.alert('Required Fields', 'Please enter Title, Price, and Phone number.');
       return;
     }
+    const cleanPhone = postPhone.replace(/[^0-9]/g, '');
+    if (cleanPhone.length < 10) {
+      Alert.alert('Invalid Phone', 'Please enter a valid 10-digit mobile number.');
+      return;
+    }
     setPosting(true);
     try {
       let uploaded: string[] = [];
       for (const uri of postImages) {
-        const u = await uploadOfferImage(uri);
-        uploaded.push(u);
+        if (uri.startsWith('http://') || uri.startsWith('https://')) {
+          uploaded.push(uri);
+        } else {
+          try {
+            const u = await uploadOfferImage(uri);
+            if (u) uploaded.push(u);
+          } catch (imgErr) {
+            console.warn('Image upload error:', imgErr);
+          }
+        }
       }
+      const uid = auth.currentUser?.uid || '';
       await createMarketplaceItem({
         title_en: postTitle.trim(),
         price: postPrice.trim().startsWith('₹') ? postPrice.trim() : `₹${postPrice.trim()}`,
-        category: postCategory,
-        condition: postCondition.trim() || 'Pre-owned',
+        category: postCategory || 'other',
+        condition: postCondition.trim() || 'Used / Pre-owned',
         area: postArea.trim() || 'Kurnool City',
         sellerName: auth.currentUser?.displayName || 'Citizen Seller',
-        sellerPhone: postPhone.trim(),
-        sellerWhatsapp: postPhone.trim(),
-        sellerUid: auth.currentUser?.uid,
+        sellerPhone: cleanPhone,
+        sellerWhatsapp: cleanPhone,
+        sellerUid: uid,
         description: postDesc.trim() || postTitle.trim(),
-        images: uploaded.length > 0 ? uploaded : undefined,
-        imageUrl: uploaded[0] || undefined,
+        images: uploaded,
+        imageUrl: uploaded[0] || '',
         status: 'active',
       });
-      Alert.alert('Success', 'Your listing is now live on Kurnool Marketplace!');
+      Alert.alert('Success! 🛍️', 'Your item is now live on Kurnool Bazaar!');
       setPostModalVisible(false);
       setPostTitle('');
       setPostPrice('');
-      setPostCondition('');
+      setPostCondition('Used / Pre-owned');
       setPostArea('');
       setPostDesc('');
       setPostImages([]);
@@ -382,24 +465,24 @@ export default function OffersScreen({ route, navigation }: any) {
           )}
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>
-              {language === 'en' ? 'Deals, Offers & Market' : 'ఆఫర్లు, డీల్స్ & మార్కెట్'}
+              {language === 'en' ? 'Deals & Kurnool Bazaar' : 'హాట్ ఆఫర్లు & బజార్'}
             </Text>
             <Text style={styles.headerSub}>
-              {language === 'en' ? 'Local merchant discounts, citizen buy & sell, and city events' : 'స్థానిక తగ్గింపులు, మార్కెట్‌ప్లేస్ మరియు నగర కార్యక్రమాలు'}
+              {language === 'en' ? 'Merchant discounts and citizen buy & sell second-hand goods' : 'స్థానిక తగ్గింపులు మరియు పౌరుల సెకండ్ హ్యాండ్ అమ్మకాలు'}
             </Text>
           </View>
         </View>
       </View>
 
-      {/* Mode Tabs (Deals & Offers, Marketplace, City Events) */}
+      {/* Mode Tabs (Hot Deals & Offers, Kurnool Bazaar) */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
           onPress={() => setActiveTab('offers')}
           style={[styles.tabBtn, activeTab === 'offers' && styles.tabBtnActive]}
         >
-          <Ionicons name="flame" size={15} color={activeTab === 'offers' ? '#DC2626' : '#6B7280'} />
+          <Ionicons name="flame" size={16} color={activeTab === 'offers' ? '#DC2626' : '#6B7280'} />
           <Text style={[styles.tabText, activeTab === 'offers' && { color: '#DC2626', fontWeight: '800' }]}>
-            {language === 'en' ? 'Hot Deals' : 'ఆఫర్లు'}
+            {language === 'en' ? 'Hot Deals & Offers' : 'హాట్ డీల్స్ & ఆఫర్లు'}
           </Text>
         </TouchableOpacity>
 
@@ -407,22 +490,56 @@ export default function OffersScreen({ route, navigation }: any) {
           onPress={() => setActiveTab('marketplace')}
           style={[styles.tabBtn, activeTab === 'marketplace' && styles.tabBtnActive]}
         >
-          <Ionicons name="cart" size={15} color={activeTab === 'marketplace' ? '#059669' : '#6B7280'} />
+          <Ionicons name="cart" size={16} color={activeTab === 'marketplace' ? '#059669' : '#6B7280'} />
           <Text style={[styles.tabText, activeTab === 'marketplace' && { color: '#059669', fontWeight: '800' }]}>
-            {language === 'en' ? 'Marketplace' : 'మార్కెట్'}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => setActiveTab('events')}
-          style={[styles.tabBtn, activeTab === 'events' && styles.tabBtnActive]}
-        >
-          <Ionicons name="calendar" size={15} color={activeTab === 'events' ? '#2563EB' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'events' && { color: '#2563EB', fontWeight: '800' }]}>
-            {language === 'en' ? 'City Events' : 'ఈవెంట్లు'}
+            {language === 'en' ? 'Kurnool Bazaar' : 'కర్నూలు బజార్'}
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Category Filter Bar */}
+      {activeTab === 'offers' && (
+        <View style={{ backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+            {DEAL_FILTER_CATEGORIES.map(cat => {
+              const isSelected = selectedDealCategory === cat.id;
+              return (
+                <TouchableOpacity
+                  key={cat.id}
+                  onPress={() => setSelectedDealCategory(cat.id)}
+                  style={[styles.filterChip, isSelected && styles.filterChipActiveDeals]}
+                >
+                  <Ionicons name={cat.icon as any} size={13} color={isSelected ? '#FFFFFF' : '#DC2626'} />
+                  <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
+                    {language === 'en' ? cat.label_en : cat.label_te}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
+      {activeTab === 'marketplace' && (
+        <View style={{ backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+            {MARKET_FILTER_CATEGORIES.map(cat => {
+              const isSelected = selectedMarketCategory === cat.id;
+              return (
+                <TouchableOpacity
+                  key={cat.id}
+                  onPress={() => setSelectedMarketCategory(cat.id)}
+                  style={[styles.filterChip, isSelected && styles.filterChipActiveMarket]}
+                >
+                  <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
+                    {language === 'en' ? cat.label_en : cat.label_te}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Content Body */}
       {loading ? (
@@ -431,7 +548,7 @@ export default function OffersScreen({ route, navigation }: any) {
         </View>
       ) : activeTab === 'offers' ? (
         <FlatList
-          data={offers}
+          data={displayedOffers}
           keyExtractor={item => item.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
@@ -522,7 +639,7 @@ export default function OffersScreen({ route, navigation }: any) {
         />
       ) : activeTab === 'marketplace' ? (
         <FlatList
-          data={marketItems}
+          data={displayedMarketItems}
           keyExtractor={item => item.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
@@ -531,10 +648,10 @@ export default function OffersScreen({ route, navigation }: any) {
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, backgroundColor: '#ECFDF5', borderRadius: 16, marginBottom: 14, borderWidth: 1, borderColor: '#A7F3D0' }}>
               <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={{ fontSize: 13, fontWeight: '800', color: '#065F46' }}>
-                  {language === 'en' ? 'Citizen Classifieds' : 'కర్నూలు మార్కెట్‌ప్లేస్'}
+                  {language === 'en' ? 'Kurnool Bazaar (Second-Hand)' : 'కర్నూలు బజార్ (సెకండ్ హ్యాండ్)'}
                 </Text>
                 <Text style={{ fontSize: 11, color: '#047857', marginTop: 1 }}>
-                  {language === 'en' ? 'Direct buy & sell with zero commission' : 'ఎలాంటి కమీషన్ లేకుండా కొనండి & అమ్మండి'}
+                  {language === 'en' ? 'Buy & sell pre-owned items directly with zero commission' : 'ఎలాంటి కమీషన్ లేకుండా సెకండ్ హ్యాండ్ వస్తువులు కొనండి & అమ్మండి'}
                 </Text>
               </View>
               <TouchableOpacity
@@ -543,7 +660,7 @@ export default function OffersScreen({ route, navigation }: any) {
               >
                 <Ionicons name="add-circle" size={16} color="#FFFFFF" />
                 <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 12 }}>
-                  {language === 'en' ? '+ Post Item' : '+ అమ్మండి'}
+                  {language === 'en' ? '+ Sell Item' : '+ అమ్మండి'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -554,20 +671,21 @@ export default function OffersScreen({ route, navigation }: any) {
                 <Ionicons name="cart-outline" size={36} color="#059669" />
               </View>
               <Text style={styles.emptyTitle}>
-                {language === 'en' ? 'Marketplace is Empty' : 'మార్కెట్‌ప్లేస్ ఖాళీగా ఉంది'}
+                {language === 'en' ? 'No Items in this Category' : 'ఈ విభాగంలో వస్తువులు లేవు'}
               </Text>
               <Text style={styles.emptySubtitle}>
                 {language === 'en'
-                  ? 'Citizens and sellers in Kurnool will list pre-owned vehicles, phones, and items here.'
-                  : 'కర్నూలు పౌరులు తమ వస్తువులను ఇక్కడ పోస్ట్ చేస్తారు.'}
+                  ? 'Citizens and sellers list pre-owned vehicles, phones, and home items here.'
+                  : 'పౌరులు తమ సెకండ్ హ్యాండ్ వస్తువులను ఇక్కడ పోస్ట్ చేస్తారు.'}
               </Text>
             </View>
           }
           renderItem={({ item }) => {
             const itemImages = item.images && item.images.length > 0 ? item.images : item.imageUrl ? [item.imageUrl] : [];
             const isMyItem = item.sellerUid && auth.currentUser?.uid && item.sellerUid === auth.currentUser.uid;
+            const isSold = item.status === 'sold';
             return (
-              <View style={styles.marketCard}>
+              <View style={[styles.marketCard, isSold && { opacity: 0.88 }]}>
                 {itemImages.length > 0 && (
                   <TouchableOpacity
                     activeOpacity={0.9}
@@ -575,6 +693,13 @@ export default function OffersScreen({ route, navigation }: any) {
                     style={styles.marketImgWrap}
                   >
                     <Image source={{ uri: itemImages[0] }} style={styles.marketImg} resizeMode="cover" />
+                    {isSold && (
+                      <View style={styles.soldOverlay}>
+                        <View style={styles.soldOverlayBadge}>
+                          <Text style={styles.soldOverlayText}>🔴 SOLD OUT</Text>
+                        </View>
+                      </View>
+                    )}
                     <View style={styles.imageZoomBadge}>
                       <Ionicons name="scan-outline" size={12} color="#FFFFFF" />
                       <Text style={styles.imageZoomBadgeText}>
@@ -585,8 +710,15 @@ export default function OffersScreen({ route, navigation }: any) {
                 )}
                 <View style={styles.marketBody}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <View style={styles.priceBadge}>
-                      <Text style={styles.priceBadgeText}>{item.price}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View style={[styles.priceBadge, isSold && { backgroundColor: '#6B7280' }]}>
+                        <Text style={styles.priceBadgeText}>{item.price}</Text>
+                      </View>
+                      {isSold && (
+                        <View style={styles.soldPill}>
+                          <Text style={styles.soldPillText}>SOLD</Text>
+                        </View>
+                      )}
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       {isMyItem && (
@@ -622,21 +754,41 @@ export default function OffersScreen({ route, navigation }: any) {
                     </View>
 
                     <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                      <TouchableOpacity
-                        onPress={() => handleCall(item.sellerPhone)}
-                        style={styles.actionBtnCallSmall}
-                      >
-                        <Ionicons name="call" size={12} color="#FFFFFF" />
-                        <Text style={styles.actionBtnTextCallSmall}>Call</Text>
-                      </TouchableOpacity>
+                      {isMyItem && (
+                        <TouchableOpacity
+                          onPress={() => handleToggleSold(item)}
+                          style={[styles.soldToggleBtn, isSold ? styles.soldToggleBtnReactivate : styles.soldToggleBtnMark]}
+                        >
+                          <Ionicons name={isSold ? 'refresh-outline' : 'checkmark-done'} size={12} color="#FFFFFF" />
+                          <Text style={styles.soldToggleText}>
+                            {isSold ? 'Available' : 'Mark Sold'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
 
-                      <TouchableOpacity
-                        onPress={() => handleWhatsApp(item.sellerWhatsapp || item.sellerPhone, item.title_en)}
-                        style={styles.actionBtnWaSmall}
-                      >
-                        <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
-                        <Text style={styles.actionBtnTextWaSmall}>WhatsApp</Text>
-                      </TouchableOpacity>
+                      {!isSold ? (
+                        <>
+                          <TouchableOpacity
+                            onPress={() => handleCall(item.sellerPhone)}
+                            style={styles.actionBtnCallSmall}
+                          >
+                            <Ionicons name="call" size={12} color="#FFFFFF" />
+                            <Text style={styles.actionBtnTextCallSmall}>Call</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            onPress={() => handleWhatsApp(item.sellerWhatsapp || item.sellerPhone, item.title_en)}
+                            style={styles.actionBtnWaSmall}
+                          >
+                            <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
+                            <Text style={styles.actionBtnTextWaSmall}>WhatsApp</Text>
+                          </TouchableOpacity>
+                        </>
+                      ) : (
+                        <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                          <Text style={{ color: '#DC2626', fontWeight: '800', fontSize: 11 }}>Sold Out</Text>
+                        </View>
+                      )}
 
                       <TouchableOpacity
                         onPress={() => handleShareMarketItem(item)}
@@ -1302,4 +1454,93 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginTop: 8,
   },
   submitPostBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  filterScroll: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  filterChipActiveDeals: {
+    backgroundColor: '#DC2626',
+    borderColor: '#B91C1C',
+  },
+  filterChipActiveMarket: {
+    backgroundColor: '#059669',
+    borderColor: '#047857',
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4B5563',
+  },
+  filterChipTextActive: {
+    color: '#FFFFFF',
+  },
+  soldOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  soldOverlayBadge: {
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    transform: [{ rotate: '-8deg' }],
+  },
+  soldOverlayText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  soldPill: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#F87171',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  soldPillText: {
+    color: '#DC2626',
+    fontWeight: '900',
+    fontSize: 10,
+  },
+  soldToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  soldToggleBtnMark: {
+    backgroundColor: '#DC2626',
+  },
+  soldToggleBtnReactivate: {
+    backgroundColor: '#059669',
+  },
+  soldToggleText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 11,
+  },
 });

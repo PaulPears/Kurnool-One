@@ -269,14 +269,14 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
               {[1, 2, 3, 4, 5].map(star => (
                 <Ionicons
                   key={star}
-                  name={star <= Math.round(business.ratingAvg) ? 'star' : 'star-outline'}
+                  name={star <= Math.round(business.ratingAvg || 5) ? 'star' : 'star-outline'}
                   size={16}
                   color="#F59E0B"
                 />
               ))}
             </View>
-            <Text style={styles.ratingScore}>{business.ratingAvg.toFixed(1)}</Text>
-            <Text style={styles.ratingCount}>({business.ratingCount} reviews)</Text>
+            <Text style={styles.ratingScore}>{Number(business.ratingAvg || 5.0).toFixed(1)}</Text>
+            <Text style={styles.ratingCount}>({business.ratingCount || 1} reviews)</Text>
           </View>
 
           {/* Owner Manage Banner */}

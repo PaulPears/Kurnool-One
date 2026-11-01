@@ -46,6 +46,9 @@ import {
   Send,
   Megaphone,
   Radio,
+  HeartPulse,
+  Home,
+  ShoppingBag,
 } from 'lucide-react';
 import { db, auth } from '@/config/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -78,6 +81,10 @@ import {
   ProfessionalItem,
   PlaceItem,
   EventItem,
+  NewsItem,
+  BloodDonorItem,
+  HouseRentalItem,
+  MarketplaceItem,
 } from '@/services/directoryService';
 
 type AdminTab =
@@ -89,7 +96,11 @@ type AdminTab =
   | 'events'
   | 'leads'
   | 'categories'
-  | 'notifications';
+  | 'notifications'
+  | 'news'
+  | 'blood_donors'
+  | 'house_rentals'
+  | 'marketplace';
 
 const ADMIN_PASSCODE = 'Kurnool@Admin2026'; // Master management passkey
 
@@ -117,6 +128,10 @@ export default function DedicatedAdminConsole() {
   const [leads, setLeads] = useState<LeadItem[]>([]);
   const [categoriesList, setCategoriesList] = useState<CategoryItem[]>(MASTER_CATEGORIES);
   const [notificationsList, setNotificationsList] = useState<BroadcastNotificationItem[]>([]);
+  const [newsList, setNewsList] = useState<NewsItem[]>([]);
+  const [bloodDonorsList, setBloodDonorsList] = useState<BloodDonorItem[]>([]);
+  const [rentalsList, setRentalsList] = useState<HouseRentalItem[]>([]);
+  const [marketplaceList, setMarketplaceList] = useState<MarketplaceItem[]>([]);
   const [sendingNotification, setSendingNotification] = useState(false);
   const [notificationForm, setNotificationForm] = useState({
     title: '',
@@ -316,6 +331,34 @@ export default function DedicatedAdminConsole() {
         const notifData = await fetchBroadcastNotifications();
         setNotificationsList(notifData);
       } catch (e) { console.warn('Could not load notifications:', e); }
+
+      // 9. News Stories & Citizen Submissions
+      try {
+        const newsSnap = await getDocs(query(collection(db, 'news'), limit(50)));
+        const items = newsSnap.docs.map(d => ({ id: d.id, ...d.data() } as NewsItem));
+        setNewsList(items);
+      } catch (e) { console.warn('Could not load news:', e); }
+
+      // 10. Blood Donors
+      try {
+        const donorsSnap = await getDocs(query(collection(db, 'blood_donors'), limit(100)));
+        const items = donorsSnap.docs.map(d => ({ id: d.id, ...d.data() } as BloodDonorItem));
+        setBloodDonorsList(items);
+      } catch (e) { console.warn('Could not load blood donors:', e); }
+
+      // 11. House Rentals
+      try {
+        const rentSnap = await getDocs(query(collection(db, 'house_rentals'), limit(100)));
+        const items = rentSnap.docs.map(d => ({ id: d.id, ...d.data() } as HouseRentalItem));
+        setRentalsList(items);
+      } catch (e) { console.warn('Could not load house rentals:', e); }
+
+      // 12. Marketplace Items
+      try {
+        const marketSnap = await getDocs(query(collection(db, 'marketplace'), limit(100)));
+        const items = marketSnap.docs.map(d => ({ id: d.id, ...d.data() } as MarketplaceItem));
+        setMarketplaceList(items);
+      } catch (e) { console.warn('Could not load marketplace:', e); }
     } catch (err) {
       console.error('Failed to load admin data:', err);
     } finally {
@@ -330,7 +373,108 @@ export default function DedicatedAdminConsole() {
     }
   }, [isAuthenticated]);
 
-    // ─── ACTIONS: CATEGORIES ──────────────────────────────────────────────────
+    // ─── ACTIONS: NEWS & CITIZEN JOURNALISM ─────────────────────────────────
+  const handleApproveNews = async (newsId: string) => {
+    try {
+      await updateDoc(doc(db, 'news', newsId), { status: 'published' });
+      setToast('News story approved and published live!');
+      loadData();
+    } catch (err: any) {
+      alert('Error approving news: ' + err.message);
+    }
+  };
+
+  const handleRejectNews = async (newsId: string) => {
+    if (!confirm('Reject and delete this news submission?')) return;
+    try {
+      await deleteDoc(doc(db, 'news', newsId));
+      setToast('News submission removed.');
+      loadData();
+    } catch (err: any) {
+      alert('Error rejecting news: ' + err.message);
+    }
+  };
+
+  // ─── ACTIONS: BLOOD DONORS ────────────────────────────────────────────────
+  const handleToggleDonorAvailability = async (donorId: string, currentAvail: string) => {
+    try {
+      const next = currentAvail === 'available' ? 'unavailable' : 'available';
+      await updateDoc(doc(db, 'blood_donors', donorId), { availability: next });
+      setToast('Donor availability status updated!');
+      loadData();
+    } catch (err: any) {
+      alert('Error updating donor: ' + err.message);
+    }
+  };
+
+  const handleDeleteDonor = async (donorId: string) => {
+    if (!confirm('Are you sure you want to remove this blood donor record?')) return;
+    try {
+      await deleteDoc(doc(db, 'blood_donors', donorId));
+      setToast('Blood donor record removed.');
+      loadData();
+    } catch (err: any) {
+      alert('Error deleting donor: ' + err.message);
+    }
+  };
+
+  // ─── ACTIONS: HOUSE RENTALS ───────────────────────────────────────────────
+  const handleApproveRental = async (rentalId: string) => {
+    try {
+      await updateDoc(doc(db, 'house_rentals', rentalId), { status: 'available' });
+      setToast('House rental listing approved & live!');
+      loadData();
+    } catch (err: any) {
+      alert('Error approving rental: ' + err.message);
+    }
+  };
+
+  const handleToggleRentalAvailability = async (rentalId: string, currentStatus: string) => {
+    try {
+      const next = currentStatus === 'available' ? 'rented' : 'available';
+      await updateDoc(doc(db, 'house_rentals', rentalId), { status: next });
+      setToast('Rental status updated!');
+      loadData();
+    } catch (err: any) {
+      alert('Error updating rental: ' + err.message);
+    }
+  };
+
+  const handleDeleteRental = async (rentalId: string) => {
+    if (!confirm('Are you sure you want to delete this house rental listing?')) return;
+    try {
+      await deleteDoc(doc(db, 'house_rentals', rentalId));
+      setToast('Rental listing removed.');
+      loadData();
+    } catch (err: any) {
+      alert('Error deleting rental: ' + err.message);
+    }
+  };
+
+  // ─── ACTIONS: MARKETPLACE ─────────────────────────────────────────────────
+  const handleToggleMarketplaceStatus = async (itemId: string, currentStatus: string) => {
+    try {
+      const next = currentStatus === 'active' ? 'suspended' : 'active';
+      await updateDoc(doc(db, 'marketplace', itemId), { status: next });
+      setToast('Marketplace status updated!');
+      loadData();
+    } catch (err: any) {
+      alert('Error updating marketplace status: ' + err.message);
+    }
+  };
+
+  const handleDeleteMarketplace = async (itemId: string) => {
+    if (!confirm('Are you sure you want to delete this marketplace listing?')) return;
+    try {
+      await deleteDoc(doc(db, 'marketplace', itemId));
+      setToast('Marketplace listing removed.');
+      loadData();
+    } catch (err: any) {
+      alert('Error deleting marketplace item: ' + err.message);
+    }
+  };
+
+  // ─── ACTIONS: CATEGORIES ──────────────────────────────────────────────────
   const handleSyncCategories = async () => {
     if (!confirm('This will sync all 36 Master Categories to Firestore so they can be managed dynamically. Proceed?')) return;
     setSyncingCategories(true);
@@ -1025,6 +1169,101 @@ export default function DedicatedAdminConsole() {
             </div>
             <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold">
               {notificationsList.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('news');
+              setSearchQuery('');
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
+              activeTab === 'news'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Megaphone className="w-4 h-4 text-blue-400" />
+              <div className="text-left">
+                <span className="block">City News & Submissions</span>
+                <span className="block text-[10px] text-blue-300 font-normal">Citizen Journalism</span>
+              </div>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 font-mono font-bold">
+              {newsList.filter(n => n.status === 'pending_approval').length > 0 ? `${newsList.filter(n => n.status === 'pending_approval').length} Pending` : newsList.length}
+            </span>
+          </button>
+
+          {/* Blood Donors Directory */}
+          <button
+            onClick={() => {
+              setActiveTab('blood_donors');
+              setSearchQuery('');
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
+              activeTab === 'blood_donors'
+                ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <HeartPulse className="w-4 h-4 text-red-400" />
+              <div className="text-left">
+                <span className="block">Blood Donors Hub</span>
+                <span className="block text-[10px] text-red-300 font-normal">Emergency Directory</span>
+              </div>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-red-500/20 text-red-300 border border-red-500/30 font-mono font-bold">
+              {bloodDonorsList.length}
+            </span>
+          </button>
+
+          {/* House Rentals */}
+          <button
+            onClick={() => {
+              setActiveTab('house_rentals');
+              setSearchQuery('');
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
+              activeTab === 'house_rentals'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Home className="w-4 h-4 text-emerald-400" />
+              <div className="text-left">
+                <span className="block">House Rentals (To-Let)</span>
+                <span className="block text-[10px] text-emerald-300 font-normal">Properties & Vacancies</span>
+              </div>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono font-bold">
+              {rentalsList.length}
+            </span>
+          </button>
+
+          {/* Marketplace Classifieds */}
+          <button
+            onClick={() => {
+              setActiveTab('marketplace');
+              setSearchQuery('');
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
+              activeTab === 'marketplace'
+                ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <ShoppingBag className="w-4 h-4 text-amber-400" />
+              <div className="text-left">
+                <span className="block">Marketplace Classifieds</span>
+                <span className="block text-[10px] text-amber-300 font-normal">Pre-owned & Deals</span>
+              </div>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold">
+              {marketplaceList.length}
             </span>
           </button>
         </nav>
@@ -2382,6 +2621,416 @@ export default function DedicatedAdminConsole() {
                     </table>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* ─── TAB: CITY NEWS & CITIZEN JOURNALISM ──────────────────────── */}
+          {activeTab === 'news' && (
+            <div className="space-y-6">
+              {/* Header Card */}
+              <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Megaphone className="w-5 h-5 text-blue-400" />
+                    <span>Citizen Journalism & News Desk</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Review and moderate local news submitted by citizens and local reporters across Kurnool.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+                    {newsList.filter(n => n.status === 'pending_approval').length} Pending Review
+                  </span>
+                  <span className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                    {newsList.filter(n => n.status === 'published' || !n.status).length} Published Live
+                  </span>
+                </div>
+              </div>
+
+              {/* Pending Approvals Section */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>Pending Citizen Submissions (Requires Action)</span>
+                </h4>
+
+                {newsList.filter(n => n.status === 'pending_approval').length === 0 ? (
+                  <div className="p-8 text-center bg-slate-900/60 rounded-2xl border border-slate-800 text-xs text-slate-500">
+                    🎉 No pending citizen news submissions awaiting review.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {newsList.filter(n => n.status === 'pending_approval').map(item => (
+                      <div key={item.id} className="p-5 rounded-2xl bg-slate-900 border border-amber-500/40 shadow-xl space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase">
+                              {item.category || 'Local'}
+                            </span>
+                            <h5 className="font-bold text-white text-sm mt-1">{item.title_en}</h5>
+                            {item.title_te && <p className="text-xs text-slate-400">{item.title_te}</p>}
+                          </div>
+                          {item.area && (
+                            <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 text-[10px]">
+                              {item.area}
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-xs text-slate-300 bg-slate-950 p-3 rounded-xl border border-slate-800/80 leading-relaxed line-clamp-4">
+                          {item.content_en}
+                        </p>
+
+                        <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                          <span>Reporter: <strong className="text-slate-200">{item.authorName || item.source}</strong> ({item.authorPhone || 'No Phone'})</span>
+                          <span>{item.publishedAt}</span>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-800 flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleRejectNews(item.id)}
+                            className="px-3.5 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold text-xs transition"
+                          >
+                            Reject & Delete
+                          </button>
+                          <button
+                            onClick={() => handleApproveNews(item.id)}
+                            className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-sm"
+                          >
+                            ✓ Approve & Publish Live
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Published Stories Section */}
+              <div className="space-y-3 pt-6 border-t border-slate-800">
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>Published Stories Live on Mobile App & Website</span>
+                </h4>
+
+                <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+                  <table className="w-full text-left text-xs text-slate-300">
+                    <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-bold">
+                      <tr>
+                        <th className="py-3 px-4">Headline</th>
+                        <th className="py-3 px-4">Category</th>
+                        <th className="py-3 px-4">Area</th>
+                        <th className="py-3 px-4">Date</th>
+                        <th className="py-3 px-4 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {newsList.filter(n => n.status !== 'pending_approval').map(item => (
+                        <tr key={item.id} className="hover:bg-slate-800/40 transition">
+                          <td className="py-3 px-4">
+                            <span className="font-bold text-white block">{item.title_en}</span>
+                            <span className="text-[11px] text-slate-500">{item.source}</span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] bg-blue-500/20 text-blue-300 font-bold">
+                              {item.category}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-slate-400">{item.area || 'Kurnool'}</td>
+                          <td className="py-3 px-4 text-slate-400 font-mono text-[11px]">{item.publishedAt}</td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              onClick={() => handleRejectNews(item.id)}
+                              className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition"
+                              title="Delete Story"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ─── TAB: BLOOD DONORS MANAGEMENT ─── */}
+          {activeTab === 'blood_donors' && (
+            <div className="space-y-6">
+              {/* Header Card */}
+              <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <HeartPulse className="w-5 h-5 text-red-500" />
+                    <span>Emergency Blood Donors Directory</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Manage voluntary blood donor registrations and availability across Kurnool district.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="px-3 py-1.5 rounded-xl bg-red-500/20 text-red-300 font-bold border border-red-500/30">
+                    {bloodDonorsList.length} Total Donors
+                  </span>
+                  <span className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                    {bloodDonorsList.filter(d => d.availability === 'available').length} Available Now
+                  </span>
+                </div>
+              </div>
+
+              {/* Donors Table */}
+              <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+                <table className="w-full text-left text-xs text-slate-300">
+                  <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-bold">
+                    <tr>
+                      <th className="py-3 px-4">Donor Name</th>
+                      <th className="py-3 px-4">Blood Group</th>
+                      <th className="py-3 px-4">Contact Phone</th>
+                      <th className="py-3 px-4">Area in Kurnool</th>
+                      <th className="py-3 px-4">Availability</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {bloodDonorsList.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="text-center py-8 text-slate-500">
+                          No blood donor registrations found.
+                        </td>
+                      </tr>
+                    ) : (
+                      bloodDonorsList.map((donor) => (
+                        <tr key={donor.id} className="hover:bg-slate-800/40 transition">
+                          <td className="py-3 px-4 font-bold text-white">
+                            {donor.displayName}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-red-500/20 text-red-300 border border-red-500/30">
+                              {donor.bloodGroup}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 font-mono text-slate-300">
+                            <a href={`tel:${donor.phone}`} className="hover:text-blue-400 hover:underline">
+                              {donor.phone}
+                            </a>
+                          </td>
+                          <td className="py-3 px-4 text-slate-400">
+                            {donor.area || 'Kurnool'}
+                          </td>
+                          <td className="py-3 px-4">
+                            <button
+                              onClick={() => handleToggleDonorAvailability(donor.id, donor.availability)}
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition ${
+                                donor.availability === 'available'
+                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                  : 'bg-slate-800 text-slate-400 border-slate-700'
+                              }`}
+                            >
+                              {donor.availability === 'available' ? '● Available' : '○ Unavailable'}
+                            </button>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              onClick={() => handleDeleteDonor(donor.id)}
+                              className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition"
+                              title="Delete Record"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ─── TAB: HOUSE RENTALS (TO-LET) MODERATION ─── */}
+          {activeTab === 'house_rentals' && (
+            <div className="space-y-6">
+              {/* Header Card */}
+              <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Home className="w-5 h-5 text-emerald-400" />
+                    <span>House Rentals & To-Let Portal Moderation</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Manage rental property listings and vacancy availability across Kurnool.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                    {rentalsList.filter(r => r.status === 'available').length} Vacant / Available
+                  </span>
+                  <span className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 font-bold border border-slate-700">
+                    {rentalsList.filter(r => r.status === 'rented').length} Rented
+                  </span>
+                </div>
+              </div>
+
+              {/* All Rental Listings Table */}
+              <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+                <table className="w-full text-left text-xs text-slate-300">
+                  <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-bold">
+                    <tr>
+                      <th className="py-3 px-4">Property Title</th>
+                      <th className="py-3 px-4">BHK</th>
+                      <th className="py-3 px-4">Monthly Rent</th>
+                      <th className="py-3 px-4">Area</th>
+                      <th className="py-3 px-4">Landlord Phone</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {rentalsList.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="text-center py-8 text-slate-500">
+                          No rental listings found.
+                        </td>
+                      </tr>
+                    ) : (
+                      rentalsList.map(rental => (
+                        <tr key={rental.id} className="hover:bg-slate-800/40 transition">
+                          <td className="py-3 px-4 font-bold text-white max-w-[200px] truncate">
+                            {rental.title_en}
+                          </td>
+                          <td className="py-3 px-4 font-bold text-emerald-400">{rental.bhk}</td>
+                          <td className="py-3 px-4 font-mono font-bold text-slate-200">
+                            ₹{rental.monthlyRent?.toLocaleString('en-IN') || rental.monthlyRent}
+                          </td>
+                          <td className="py-3 px-4 text-slate-400">{rental.area}</td>
+                          <td className="py-3 px-4 font-mono text-slate-300">
+                            <a href={`tel:${rental.ownerPhone}`} className="hover:underline hover:text-blue-400">
+                              {rental.ownerPhone}
+                            </a>
+                          </td>
+                          <td className="py-3 px-4">
+                            <button
+                              onClick={() => handleToggleRentalAvailability(rental.id, rental.status)}
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition ${
+                                rental.status === 'available'
+                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                  : 'bg-slate-800 text-slate-400 border-slate-700'
+                              }`}
+                            >
+                              {rental.status === 'available' ? '● Vacant' : '○ Rented'}
+                            </button>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              onClick={() => handleDeleteRental(rental.id)}
+                              className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition"
+                              title="Delete Listing"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ─── TAB: MARKETPLACE CLASSIFIEDS ─── */}
+          {activeTab === 'marketplace' && (
+            <div className="space-y-6">
+              {/* Header Card */}
+              <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <ShoppingBag className="w-5 h-5 text-amber-400" />
+                    <span>Citizen Classifieds & Marketplace</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Manage pre-owned electronics, vehicles, and furniture listed by citizens across Kurnool.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                    {marketplaceList.filter(m => m.status === 'active').length} Active
+                  </span>
+                  <span className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 font-bold border border-slate-700">
+                    {marketplaceList.filter(m => m.status === 'sold').length} Sold
+                  </span>
+                </div>
+              </div>
+
+              {/* All Marketplace Items Table */}
+              <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+                <table className="w-full text-left text-xs text-slate-300">
+                  <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-bold">
+                    <tr>
+                      <th className="py-3 px-4">Item Name</th>
+                      <th className="py-3 px-4">Price</th>
+                      <th className="py-3 px-4">Category</th>
+                      <th className="py-3 px-4">Seller Phone</th>
+                      <th className="py-3 px-4">Area</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {marketplaceList.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="text-center py-8 text-slate-500">
+                          No marketplace listings found.
+                        </td>
+                      </tr>
+                    ) : (
+                      marketplaceList.map(item => (
+                        <tr key={item.id} className="hover:bg-slate-800/40 transition">
+                          <td className="py-3 px-4 font-bold text-white max-w-[200px] truncate">
+                            {item.title_en}
+                          </td>
+                          <td className="py-3 px-4 font-mono font-bold text-amber-400">{item.price}</td>
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700">
+                              {item.category}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 font-mono text-slate-300">
+                            <a href={`tel:${item.sellerPhone}`} className="hover:underline hover:text-blue-400">
+                              {item.sellerPhone}
+                            </a>
+                          </td>
+                          <td className="py-3 px-4 text-slate-400">{item.area || 'Kurnool'}</td>
+                          <td className="py-3 px-4">
+                            <button
+                              onClick={() => handleToggleMarketplaceStatus(item.id, item.status)}
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition ${
+                                item.status === 'active'
+                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                  : 'bg-slate-800 text-slate-400 border-slate-700'
+                              }`}
+                            >
+                              {item.status === 'active' ? '● Active' : item.status === 'sold' ? '○ Sold' : '○ Suspended'}
+                            </button>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              onClick={() => handleDeleteMarketplace(item.id)}
+                              className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition"
+                              title="Delete Item"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}

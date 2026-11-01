@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, SafeAreaView, ScrollView, TextInput, TouchableOpacity,
+  View, Text, ScrollView, TextInput, TouchableOpacity,
   Image, Alert, ActivityIndicator, StyleSheet, StatusBar, Modal,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useLanguage } from '../context/LanguageContext';
@@ -99,7 +101,6 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
   const [whatsapp, setWhatsapp] = useState('');
   const [visitingCharges, setVisitingCharges] = useState('₹150');
   const [hourlyRate, setHourlyRate] = useState('');
-  const [avatarUrlText, setAvatarUrlText] = useState('');
   const [instagramUrl, setInstagramUrl] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
@@ -108,6 +109,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [description, setDescription] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [partnerCode, setPartnerCode] = useState('');
   const [loading, setLoading] = useState(false);
 
   // Daily Operating / Working Hours
@@ -202,7 +204,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
         .map(s => s.trim())
         .filter(Boolean);
 
-      const finalAvatar = uploadedAvatarUrl || avatarUrlText.trim() || undefined;
+      const finalAvatar = uploadedAvatarUrl || undefined;
 
       const effectiveUid = currentUser?.uid || localUser?.uid || localUser?.id || '';
 
@@ -231,6 +233,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
         status: 'active',
         userId: effectiveUid,
         planId: selectedPlan,
+        partnerCode: partnerCode.trim().toUpperCase() || undefined,
         paymentStatus: 'paid',
         paymentId: paymentData.razorpay_payment_id || `pay_${Date.now()}`,
       });
@@ -262,8 +265,11 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
         [{ text: 'Open My Dashboard', onPress: () => navigation.replace('ManageProfessional', { proId: createdProId }) }]
       );
     } catch (e: any) {
-      Alert.alert('Notice', 'Professional profile registered successfully.');
-      navigation.replace('ManageProfessional');
+      console.error('Professional registration error:', e);
+      Alert.alert(
+        'Registration Notice',
+        e?.message ? `Registration error: ${e.message}` : 'Could not complete professional registration. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -323,48 +329,20 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* User Identity Banner */}
-        <View style={styles.userBadge}>
-          <Ionicons name="person-circle" size={20} color="#0D9488" />
-          <Text style={styles.userBadgeText}>
-            Logged in as: <Text style={{ fontWeight: '800' }}>{currentUser?.displayName || localUser?.name || currentUser?.email || 'Verified Professional'}</Text>
-          </Text>
-        </View>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 130 }]} showsVerticalScrollIndicator={false}>
+          {/* User Identity Banner */}
+          <View style={styles.userBadge}>
+            <Ionicons name="person-circle" size={20} color="#0D9488" />
+            <Text style={styles.userBadgeText}>
+              Logged in as: <Text style={{ fontWeight: '800' }}>{currentUser?.displayName || localUser?.name || currentUser?.email || 'Verified Professional'}</Text>
+            </Text>
+          </View>
 
-        {/* Official Pricing Plan Selector */}
-        <Text style={styles.label}>Select Personal Profile Plan *</Text>
-        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-          {[
-            { id: 'monthly', name: 'Monthly', price: '₹99 / mo', desc: 'Standard Profile' },
-            { id: 'half_yearly', name: '6 Months', price: '₹500 / 6mo', desc: 'Popular Choice', popular: true },
-            { id: 'yearly', name: 'Yearly', price: '₹900 / yr', desc: 'Best Value' },
-          ].map(plan => (
-            <TouchableOpacity
-              key={plan.id}
-              onPress={() => setSelectedPlan(plan.id as any)}
-              style={[
-                styles.planCard,
-                selectedPlan === plan.id && styles.planCardActive,
-              ]}
-            >
-              {plan.popular && (
-                <View style={styles.popularBadge}>
-                  <Text style={styles.popularBadgeText}>POPULAR</Text>
-                </View>
-              )}
-              <Text style={[styles.planCardTitle, selectedPlan === plan.id && styles.planCardTitleActive]}>
-                {plan.name}
-              </Text>
-              <Text style={[styles.planCardPrice, selectedPlan === plan.id && styles.planCardPriceActive]}>
-                {plan.price}
-              </Text>
-              <Text style={styles.planCardDesc}>{plan.desc}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Registration Benefits & Inclusions */}
+          {/* Registration Benefits & Inclusions */}
         <View style={styles.benefitsBox}>
           <Text style={styles.benefitsTitle}>🎁 What You Get With Your Professional Listing:</Text>
           <View style={styles.benefitRow}>
@@ -389,11 +367,11 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* Avatar Picker & Photo URL */}
+        {/* Avatar / Profile Photo Picker */}
         <View style={styles.avatarSection}>
           <TouchableOpacity onPress={pickImage} style={styles.avatarWrap}>
-            {imageUri || avatarUrlText ? (
-              <Image source={{ uri: imageUri || avatarUrlText }} style={styles.avatarImg} />
+            {imageUri ? (
+              <Image source={{ uri: imageUri }} style={styles.avatarImg} />
             ) : (
               <View style={styles.avatarPlaceholder}>
                 <Ionicons name="camera" size={32} color="#9CA3AF" />
@@ -405,16 +383,8 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
             </View>
           </TouchableOpacity>
           <Text style={styles.avatarHint}>
-            {language === 'en' ? 'Upload your photo or enter image URL below' : 'మీ ఫోటో అప్‌లోడ్ చేయండి లేదా లింక్ నమోదు చేయండి'}
+            {language === 'en' ? 'Tap circle above to select your profile photo' : 'మీ ప్రొఫైల్ ఫోటోను ఎంచుకోవడానికి పైన నొక్కండి'}
           </Text>
-          <TextInput
-            style={[styles.input, { width: '100%', marginTop: 8, fontSize: 13 }]}
-            placeholder="Or paste profile photo URL (https://...)"
-            placeholderTextColor="#9CA3AF"
-            autoCapitalize="none"
-            value={avatarUrlText}
-            onChangeText={setAvatarUrlText}
-          />
         </View>
 
         {/* Category Dropdown Menu */}
@@ -466,6 +436,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
           style={styles.input}
           placeholder="e.g. Ramesh Kumar or Renu Vlogs"
           placeholderTextColor="#9CA3AF"
+          maxLength={60}
           value={fullName}
           onChangeText={setFullName}
         />
@@ -481,6 +452,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
               placeholder="e.g. 6"
               placeholderTextColor="#9CA3AF"
               keyboardType="numeric"
+              maxLength={2}
               value={experienceYears}
               onChangeText={setExperienceYears}
             />
@@ -493,6 +465,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
               style={styles.input}
               placeholder="e.g. Camp Area, City"
               placeholderTextColor="#9CA3AF"
+              maxLength={150}
               value={serviceAreas}
               onChangeText={setServiceAreas}
             />
@@ -515,6 +488,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
             style={[styles.input, { backgroundColor: '#FFFFFF' }]}
             placeholder="e.g. ₹150 or ₹1,000 / Collab"
             placeholderTextColor="#9CA3AF"
+            maxLength={40}
             value={visitingCharges}
             onChangeText={setVisitingCharges}
           />
@@ -526,6 +500,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
             style={[styles.input, { backgroundColor: '#FFFFFF' }]}
             placeholder="e.g. ₹250/hr or ₹12/sq.ft or Per Reel"
             placeholderTextColor="#9CA3AF"
+            maxLength={40}
             value={hourlyRate}
             onChangeText={setHourlyRate}
           />
@@ -537,29 +512,51 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
             <Text style={styles.label}>
               {language === 'en' ? 'Call Phone *' : 'ఫోన్ నంబర్ *'}
             </Text>
-            <TextInput
-              style={styles.input}
-              placeholder="9848012345"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="phone-pad"
-              maxLength={10}
-              value={phone}
-              onChangeText={handlePhoneInput}
-            />
+            <View style={{ position: 'relative', justifyContent: 'center' }}>
+              <TextInput
+                style={[styles.input, { paddingRight: phone ? 36 : 14 }]}
+                placeholder="9848012345"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="phone-pad"
+                maxLength={10}
+                value={phone}
+                onChangeText={handlePhoneInput}
+              />
+              {phone ? (
+                <TouchableOpacity
+                  onPress={() => setPhone('')}
+                  style={{ position: 'absolute', right: 10, padding: 4 }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close-circle" size={16} color="#9CA3AF" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>
               {language === 'en' ? 'WhatsApp' : 'వాట్సాప్ నంబర్'}
             </Text>
-            <TextInput
-              style={styles.input}
-              placeholder="9848012345"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="phone-pad"
-              maxLength={10}
-              value={whatsapp}
-              onChangeText={handleWhatsappInput}
-            />
+            <View style={{ position: 'relative', justifyContent: 'center' }}>
+              <TextInput
+                style={[styles.input, { paddingRight: whatsapp ? 36 : 14 }]}
+                placeholder="9848012345"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="phone-pad"
+                maxLength={10}
+                value={whatsapp}
+                onChangeText={handleWhatsappInput}
+              />
+              {whatsapp ? (
+                <TouchableOpacity
+                  onPress={() => setWhatsapp('')}
+                  style={{ position: 'absolute', right: 10, padding: 4 }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close-circle" size={16} color="#9CA3AF" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
           </View>
         </View>
 
@@ -576,6 +573,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
           placeholder="https://instagram.com/your_handle"
           placeholderTextColor="#9CA3AF"
           autoCapitalize="none"
+          maxLength={100}
           value={instagramUrl}
           onChangeText={setInstagramUrl}
         />
@@ -588,6 +586,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
           placeholder="https://youtube.com/@channel"
           placeholderTextColor="#9CA3AF"
           autoCapitalize="none"
+          maxLength={100}
           value={youtubeUrl}
           onChangeText={setYoutubeUrl}
         />
@@ -600,6 +599,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
           placeholder="https://linkedin.com/in/your_name"
           placeholderTextColor="#9CA3AF"
           autoCapitalize="none"
+          maxLength={100}
           value={linkedinUrl}
           onChangeText={setLinkedinUrl}
         />
@@ -612,6 +612,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
           placeholder="https://x.com/your_handle"
           placeholderTextColor="#9CA3AF"
           autoCapitalize="none"
+          maxLength={100}
           value={twitterUrl}
           onChangeText={setTwitterUrl}
         />
@@ -624,6 +625,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
           placeholder="https://facebook.com/your_profile"
           placeholderTextColor="#9CA3AF"
           autoCapitalize="none"
+          maxLength={100}
           value={facebookUrl}
           onChangeText={setFacebookUrl}
         />
@@ -636,19 +638,24 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
           placeholder="https://yourportfolio.com"
           placeholderTextColor="#9CA3AF"
           autoCapitalize="none"
+          maxLength={100}
           value={websiteUrl}
           onChangeText={setWebsiteUrl}
         />
 
         {/* Bio / Description */}
-        <Text style={styles.label}>
-          {language === 'en' ? 'About Your Skills & Work' : 'మీ నైపుణ్యాలు & అనుభవం'}
-        </Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+          <Text style={[styles.label, { marginBottom: 0 }]}>
+            {language === 'en' ? 'About Your Skills & Work' : 'మీ నైపుణ్యాలు & అనుభవం'}
+          </Text>
+          <Text style={{ fontSize: 11, color: '#64748B' }}>{description.length}/500</Text>
+        </View>
         <TextInput
-          style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+          style={[styles.input, { height: 80, textAlignVertical: 'top', marginTop: 4 }]}
           placeholder="Describe your expertise, past projects, awards, and why clients should choose you..."
           placeholderTextColor="#9CA3AF"
           multiline
+          maxLength={500}
           value={description}
           onChangeText={setDescription}
         />
@@ -660,6 +667,19 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
         <BusinessHoursSelector
           value={operatingHours}
           onChange={setOperatingHours}
+        />
+
+        {/* Partner Referral Code */}
+        <Text style={[styles.label, { marginTop: 14 }]}>
+          {language === 'en' ? 'Partner Referral Code (Optional)' : 'పార్ట్‌నర్ రెఫరల్ కోడ్ (ఐచ్ఛికం)'}
+        </Text>
+        <TextInput
+          style={[styles.input, { textTransform: 'uppercase' }]}
+          placeholder="e.g. KNL-7842 (if introduced by a partner)"
+          placeholderTextColor="#9CA3AF"
+          value={partnerCode}
+          onChangeText={(txt) => setPartnerCode(txt.toUpperCase())}
+          autoCapitalize="characters"
         />
 
         {/* Commercial Advertising & Directory Plan Selection */}
@@ -723,6 +743,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
           )}
         </TouchableOpacity>
       </ScrollView>
+    </KeyboardAvoidingView>
 
       {/* In-App Razorpay Checkout Modal */}
       <RazorpayModal

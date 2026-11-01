@@ -30,6 +30,21 @@ export default function Footer() {
             <h4 className="text-slate-900 font-bold text-sm tracking-wider uppercase mb-5">Quick Explore</h4>
             <ul className="space-y-3 text-sm">
               <li>
+                <Link href="/rent" className="text-teal-700 hover:text-teal-900 font-semibold transition">
+                  House Rentals (To-Let)
+                </Link>
+              </li>
+              <li>
+                <Link href="/blood-donors" className="text-rose-700 hover:text-rose-900 font-semibold transition">
+                  Emergency Blood Donors Network
+                </Link>
+              </li>
+              <li>
+                <Link href="/news" className="text-indigo-700 hover:text-indigo-900 font-semibold transition">
+                  Kurnool City News Bulletin
+                </Link>
+              </li>
+              <li>
                 <Link href="/directory" className="hover:text-blue-600 transition">
                   Browse Businesses
                 </Link>

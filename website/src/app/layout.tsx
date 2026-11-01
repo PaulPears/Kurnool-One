@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import LayoutWrapper from "@/components/LayoutWrapper";
 import { AuthProvider } from "@/context/AuthContext";
+import { LanguageProvider } from "@/context/LanguageContext";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -55,7 +56,9 @@ export default function RootLayout({
     <html lang="en" className={inter.variable}>
       <body className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans antialiased selection:bg-blue-600 selection:text-white">
         <AuthProvider>
-          <LayoutWrapper>{children}</LayoutWrapper>
+          <LanguageProvider>
+            <LayoutWrapper>{children}</LayoutWrapper>
+          </LanguageProvider>
         </AuthProvider>
       </body>
     </html>

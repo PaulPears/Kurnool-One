@@ -10,43 +10,48 @@ import {
   Tag,
   Calendar,
   Compass,
+  HeartPulse,
+  KeyRound,
+  Home as HomeIcon,
 } from 'lucide-react';
+import { useLanguage } from '@/context/LanguageContext';
 
 function MobileBottomNavContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentTab = searchParams.get('tab');
+  const { language, t } = useLanguage();
 
   const navItems = [
     {
-      label: 'Home',
+      label: t('Home', 'హోమ్'),
       href: '/',
       icon: Home,
       isActive: pathname === '/',
     },
     {
-      label: 'Businesses',
+      label: t('Directory', 'వ్యాపారాలు'),
       href: '/directory',
       icon: Building2,
-      isActive: pathname === '/directory' && currentTab !== 'professionals',
+      isActive: pathname === '/directory',
     },
     {
-      label: 'Pros & Leads',
-      href: '/directory?tab=professionals',
-      icon: UserCheck,
-      isActive: pathname === '/directory' && currentTab === 'professionals',
+      label: t('Rent', 'అద్దె ఇళ్ళు'),
+      href: '/rent',
+      icon: HomeIcon,
+      isActive: pathname === '/rent',
     },
     {
-      label: 'Offers',
+      label: t('Blood', 'రక్తదాతలు'),
+      href: '/blood-donors',
+      icon: HeartPulse,
+      isActive: pathname === '/blood-donors',
+    },
+    {
+      label: t('Offers', 'ఆఫర్లు'),
       href: '/offers',
       icon: Tag,
       isActive: pathname === '/offers',
-    },
-    {
-      label: 'Events',
-      href: '/events',
-      icon: Calendar,
-      isActive: pathname === '/events',
     },
   ];
 

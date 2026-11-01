@@ -17,7 +17,6 @@ import RegisterBusinessScreen from '../screens/RegisterBusinessScreen';
 import SearchScreen from '../screens/SearchScreen';
 import MobileFirebaseLogin from '../screens/MobileFirebaseLogin';
 import EditProfileScreen from '../screens/EditProfileScreen';
-import AdminBannerScreen from '../screens/AdminBannerScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import NotificationScreen from '../screens/NotificationScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
@@ -30,6 +29,7 @@ import TermsScreen from '../screens/TermsScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import HouseRentScreen from '../screens/HouseRentScreen';
 import BloodDonorsScreen from '../screens/BloodDonorsScreen';
+import PartnerProgramScreen from '../screens/PartnerProgramScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -105,7 +105,6 @@ export default function AppNavigator() {
         <Stack.Screen name="UserProfile" component={ProfileScreen} />
         <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-        <Stack.Screen name="AdminBanners" component={AdminBannerScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="ManageBusiness" component={ManageBusinessScreen} />
         <Stack.Screen name="RegisterProfessional" component={RegisterProfessionalScreen} />
@@ -115,6 +114,7 @@ export default function AppNavigator() {
         <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
         <Stack.Screen name="HouseRent" component={HouseRentScreen} />
         <Stack.Screen name="BloodDonors" component={BloodDonorsScreen} />
+        <Stack.Screen name="PartnerProgram" component={PartnerProgramScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

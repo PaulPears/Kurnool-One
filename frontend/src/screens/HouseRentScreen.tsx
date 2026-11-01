@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, SafeAreaView, FlatList, TouchableOpacity,
+  View, Text, FlatList, TouchableOpacity,
   Image, Linking, ActivityIndicator, StatusBar, StyleSheet, Modal, Share,
   TextInput, Alert, RefreshControl, ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -68,7 +69,7 @@ export default function HouseRentScreen({ navigation }: any) {
 
   const handleCall = (phoneNumber?: string) => {
     if (phoneNumber) {
-      Linking.openURL(`tel:${phoneNumber}`).catch(() => {});
+      Linking.openURL(`tel:${phoneNumber}`).catch(() => { });
     }
   };
 
@@ -78,7 +79,7 @@ export default function HouseRentScreen({ navigation }: any) {
     const waNumber = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
     const text = `Hi, I saw your rental listing "${houseTitle || 'House for Rent'}" on the Kurnool One App. Is it still available?`;
     Linking.openURL(`whatsapp://send?phone=${waNumber}&text=${encodeURIComponent(text)}`).catch(() => {
-      Linking.openURL(`https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`).catch(() => {});
+      Linking.openURL(`https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`).catch(() => { });
     });
   };
 
@@ -88,7 +89,7 @@ export default function HouseRentScreen({ navigation }: any) {
       await Share.share({
         message: `🏠 *TO-LET in Kurnool: ${item.title_en}*\n💰 Rent: ₹${item.monthlyRent.toLocaleString('en-IN')}/month\n📍 Location: ${item.area}\n🏷️ ${item.bhk} • ${item.tenantPreference}\n📞 Contact Owner: ${item.ownerPhone}\n\nExplore more rental houses on Kurnool One App:\n👉 ${appUrl}`,
       });
-    } catch {}
+    } catch { }
   };
 
   const openImageViewer = (imgs: string[], initialIdx = 0) => {
@@ -138,7 +139,7 @@ export default function HouseRentScreen({ navigation }: any) {
         const p = JSON.parse(stored);
         if (p.phone) userPhone = p.phone;
       }
-    } catch {}
+    } catch { }
     if (userPhone && !phone) setPhone(userPhone.replace('+91', ''));
     setPostModalVisible(true);
   };
@@ -254,7 +255,7 @@ export default function HouseRentScreen({ navigation }: any) {
             try {
               await updateHouseRental(item.id, { status: nextStatus });
               loadRentals();
-            } catch {}
+            } catch { }
           },
         },
       ]
@@ -541,6 +542,7 @@ export default function HouseRentScreen({ navigation }: any) {
               style={styles.input}
               placeholder="e.g. 2 BHK East Facing Flat with Car Parking"
               placeholderTextColor="#94A3B8"
+              maxLength={80}
               value={title}
               onChangeText={setTitle}
             />
@@ -554,6 +556,7 @@ export default function HouseRentScreen({ navigation }: any) {
                   placeholder="e.g. 9500"
                   placeholderTextColor="#94A3B8"
                   keyboardType="numeric"
+                  maxLength={8}
                   value={monthlyRent}
                   onChangeText={setMonthlyRent}
                 />
@@ -565,6 +568,7 @@ export default function HouseRentScreen({ navigation }: any) {
                   placeholder="e.g. 25000"
                   placeholderTextColor="#94A3B8"
                   keyboardType="numeric"
+                  maxLength={8}
                   value={deposit}
                   onChangeText={setDeposit}
                 />
@@ -605,6 +609,7 @@ export default function HouseRentScreen({ navigation }: any) {
               style={styles.input}
               placeholder="e.g. Gayatri Estate, B Camp, Joharapuram, etc."
               placeholderTextColor="#94A3B8"
+              maxLength={60}
               value={area}
               onChangeText={setArea}
             />
@@ -615,6 +620,7 @@ export default function HouseRentScreen({ navigation }: any) {
               style={styles.input}
               placeholder="e.g. Near Venkateswara Swamy Temple, 2nd Cross"
               placeholderTextColor="#94A3B8"
+              maxLength={150}
               value={addressDetails}
               onChangeText={setAddressDetails}
             />
@@ -628,6 +634,7 @@ export default function HouseRentScreen({ navigation }: any) {
                   placeholder="10-digit number"
                   placeholderTextColor="#94A3B8"
                   keyboardType="phone-pad"
+                  maxLength={10}
                   value={phone}
                   onChangeText={setPhone}
                 />
@@ -639,6 +646,7 @@ export default function HouseRentScreen({ navigation }: any) {
                   placeholder="Optional"
                   placeholderTextColor="#94A3B8"
                   keyboardType="phone-pad"
+                  maxLength={10}
                   value={whatsapp}
                   onChangeText={setWhatsapp}
                 />
@@ -653,6 +661,7 @@ export default function HouseRentScreen({ navigation }: any) {
                   style={styles.input}
                   placeholder="e.g. 24/7 Borewell"
                   placeholderTextColor="#94A3B8"
+                  maxLength={50}
                   value={waterFacility}
                   onChangeText={setWaterFacility}
                 />
@@ -663,6 +672,7 @@ export default function HouseRentScreen({ navigation }: any) {
                   style={styles.input}
                   placeholder="e.g. Car & Bike"
                   placeholderTextColor="#94A3B8"
+                  maxLength={50}
                   value={parking}
                   onChangeText={setParking}
                 />
@@ -670,12 +680,16 @@ export default function HouseRentScreen({ navigation }: any) {
             </View>
 
             {/* Description */}
-            <Text style={styles.label}>Description & Rules</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={[styles.label, { marginBottom: 0 }]}>Description & Rules</Text>
+              <Text style={{ fontSize: 11, color: '#64748B' }}>{description.length}/500</Text>
+            </View>
             <TextInput
-              style={[styles.input, { height: 75, textAlignVertical: 'top' }]}
+              style={[styles.input, { height: 75, textAlignVertical: 'top', marginTop: 4 }]}
               placeholder="Mention rules, flooring, balcony, maintenance charges, etc."
               placeholderTextColor="#94A3B8"
               multiline
+              maxLength={500}
               value={description}
               onChangeText={setDescription}
             />

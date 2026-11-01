@@ -15,7 +15,7 @@ import { fetchNews, createNews, deleteNews, NewsItem } from '../services/directo
 import { auth, db } from '../config/firebase';
 import { collection, query, where, getDocs, updateDoc, doc, orderBy, limit, deleteDoc } from 'firebase/firestore';
 
-type Tab = 'overview' | 'businesses' | 'promotions' | 'posts' | 'reports' | 'banners' | 'users' | 'news' | 'blood_donors' | 'marketplace' | 'grants';
+type Tab = 'overview' | 'businesses' | 'promotions' | 'posts' | 'reports' | 'users' | 'news' | 'blood_donors' | 'marketplace' | 'grants';
 
 export default function AdminDashboardScreen({ navigation }: any) {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -55,8 +55,6 @@ export default function AdminDashboardScreen({ navigation }: any) {
       } else if (activeTab === 'users') {
         const res = await fetchAllUsers();
         setData(res);
-      } else if (activeTab === 'banners') {
-        setData([]);
       } else if (activeTab === 'news') {
         const res = await fetchNews();
         setData(res);
@@ -787,7 +785,7 @@ export default function AdminDashboardScreen({ navigation }: any) {
 
       <View className="flex-row px-4 py-4 space-x-2">
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {(['overview', 'businesses', 'promotions', 'posts', 'reports', 'banners', 'users', 'news', 'blood_donors', 'marketplace', 'grants'] as Tab[]).map((t) => (
+          {(['overview', 'businesses', 'promotions', 'posts', 'reports', 'users', 'news', 'blood_donors', 'marketplace', 'grants'] as Tab[]).map((t) => (
             <TouchableOpacity
               key={t}
               onPress={() => setActiveTab(t)}
@@ -810,17 +808,6 @@ export default function AdminDashboardScreen({ navigation }: any) {
           {activeTab === 'promotions'   && renderPromotions()}
           {activeTab === 'posts'        && renderModeration()}
           {activeTab === 'reports'      && renderReports()}
-          {activeTab === 'banners'      && (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={{ color: '#6B7280', marginBottom: 16 }}>Manage promotion banners</Text>
-              <TouchableOpacity
-                onPress={() => navigation.navigate('AdminBanners')}
-                style={{ backgroundColor: '#2563EB', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
-              >
-                <Text style={{ color: '#fff', fontWeight: '700' }}>Open Banner Manager</Text>
-              </TouchableOpacity>
-            </View>
-          )}
           {activeTab === 'users'        && renderUsers()}
           {activeTab === 'news'         && renderNews()}
           {activeTab === 'blood_donors' && renderBloodDonors()}

@@ -293,6 +293,32 @@ export default function ProfileScreen({ route, navigation }: any) {
             </View>
             <Ionicons name="chevron-forward" size={18} color="#0D9488" />
           </TouchableOpacity>
+
+          {/* Kurnool One Partner Program Action Card */}
+          <TouchableOpacity
+            style={[styles.menuCard, { borderColor: '#FDE68A', backgroundColor: '#FFFBEB' }]}
+            onPress={() => navigation.navigate('PartnerProgram')}
+          >
+            <View style={[styles.menuIconContainer, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="sparkles" size={24} color="#D97706" />
+            </View>
+            <View style={styles.menuContent}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[styles.menuTitle, { color: '#B45309' }]}>
+                  {language === 'en' ? '🤝 Kurnool One Partner Program' : '🤝 కర్నూలు వన్ పార్ట్‌నర్ ప్రోగ్రామ్'}
+                </Text>
+                <View style={[styles.activeBadge, { backgroundColor: '#FDE68A' }]}>
+                  <Text style={[styles.activeBadgeText, { color: '#92400E' }]}>EARN</Text>
+                </View>
+              </View>
+              <Text style={styles.menuSubtitle}>
+                {language === 'en'
+                  ? 'Onboard local shops & pros. Earn up to ₹500 instant UPI payout per listing!'
+                  : 'స్థానిక దుకాణాలు & నిపుణులను చేర్పించి UPI ద్వారా కమిషన్ పొందండి!'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#D97706" />
+          </TouchableOpacity>
         </View>
 
         {/* ─── CONNECT & SUPPORT ──────────────────────────────────────────────── */}

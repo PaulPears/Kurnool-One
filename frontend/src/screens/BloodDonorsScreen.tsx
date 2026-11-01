@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, SafeAreaView, FlatList, TouchableOpacity,
+  View, Text, FlatList, TouchableOpacity,
   Linking, ActivityIndicator, StatusBar, StyleSheet, Modal, Share,
   TextInput, Alert, RefreshControl, ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
@@ -513,6 +514,7 @@ export default function BloodDonorsScreen({ navigation }: any) {
               style={styles.input}
               placeholder="e.g. Praveen Kumar"
               placeholderTextColor="#94A3B8"
+              maxLength={60}
               value={donorName}
               onChangeText={setDonorName}
             />
@@ -524,6 +526,7 @@ export default function BloodDonorsScreen({ navigation }: any) {
               placeholder="10-digit mobile number for emergency calls"
               placeholderTextColor="#94A3B8"
               keyboardType="phone-pad"
+              maxLength={10}
               value={donorPhone}
               onChangeText={setDonorPhone}
             />
@@ -534,6 +537,7 @@ export default function BloodDonorsScreen({ navigation }: any) {
               style={styles.input}
               placeholder="e.g. Gayatri Estate, B Camp, Nandyal Checkpost"
               placeholderTextColor="#94A3B8"
+              maxLength={60}
               value={donorArea}
               onChangeText={setDonorArea}
             />
@@ -563,12 +567,16 @@ export default function BloodDonorsScreen({ navigation }: any) {
             </View>
 
             {/* Notes */}
-            <Text style={styles.label}>Notes / Timing Preferences (Optional)</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={[styles.label, { marginBottom: 0 }]}>Notes / Timing Preferences (Optional)</Text>
+              <Text style={{ fontSize: 11, color: '#64748B' }}>{donorNotes.length}/150</Text>
+            </View>
             <TextInput
-              style={[styles.input, { height: 60, textAlignVertical: 'top' }]}
+              style={[styles.input, { height: 60, textAlignVertical: 'top', marginTop: 4 }]}
               placeholder="e.g. Available after 5 PM, or at General Hospital"
               placeholderTextColor="#94A3B8"
               multiline
+              maxLength={150}
               value={donorNotes}
               onChangeText={setDonorNotes}
             />

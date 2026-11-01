@@ -14,32 +14,32 @@ import { auth } from '../config/firebase';
 const { width } = Dimensions.get('window');
 
 export default function SplashScreen({ navigation }: any) {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.85)).current;
+  const fadeAnim = useRef(new Animated.Value(0.4)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // 1. Entrance animation (fade + scale)
+    // 1. Snappy entrance animation
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 800,
+        duration: 300,
         useNativeDriver: true,
       }),
       Animated.spring(scaleAnim, {
         toValue: 1,
-        friction: 6,
+        friction: 7,
         tension: 40,
         useNativeDriver: true,
       }),
       Animated.timing(progressAnim, {
         toValue: 1,
-        duration: 3000,
+        duration: 1200,
         useNativeDriver: false,
       }),
     ]).start();
 
-    // 2. Check session and navigate after 3.2 seconds
+    // 2. Check session and navigate smoothly after 1.3 seconds
     const timer = setTimeout(async () => {
       try {
         const storedUser = await AsyncStorage.getItem('user');
@@ -50,19 +50,9 @@ export default function SplashScreen({ navigation }: any) {
             const user = JSON.parse(storedUser);
             const role = user?.role || 'user';
 
-            if (role === 'business') {
-              navigation.replace('ManageBusiness');
-              return;
-            } else if (role === 'professional') {
-              navigation.replace('ManageProfessional');
-              return;
-            } else if (role === 'admin' || role === 'super_admin') {
-              navigation.replace('AdminDashboard');
-              return;
-            } else {
-              navigation.replace('Main');
-              return;
-            }
+            // All authenticated users land directly on the Home Screen ('Main')
+            navigation.replace('Main');
+            return;
           } catch {}
         }
         
@@ -76,7 +66,7 @@ export default function SplashScreen({ navigation }: any) {
       } catch (err) {
         navigation.replace('MobileFirebaseLogin');
       }
-    }, 3200);
+    }, 1300);
 
     return () => clearTimeout(timer);
   }, []);

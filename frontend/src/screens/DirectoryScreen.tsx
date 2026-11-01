@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, SafeAreaView, FlatList, TouchableOpacity,
-  TextInput, Image, ActivityIndicator, StatusBar, Linking, StyleSheet, Modal, ScrollView,
+  TextInput, Image, ActivityIndicator, StatusBar, Linking, StyleSheet, Modal, ScrollView, RefreshControl,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
 import {
   MASTER_CATEGORIES, PROFESSIONAL_CATEGORIES, fetchBusinesses, fetchProfessionals,
@@ -42,6 +43,12 @@ export default function DirectoryScreen({ route, navigation }: any) {
   useEffect(() => {
     loadData();
   }, [selectedCategory, activeTab]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [selectedCategory, activeTab])
+  );
 
   const loadData = async () => {
     setLoading(true);
@@ -225,7 +232,14 @@ export default function DirectoryScreen({ route, navigation }: any) {
                     : { backgroundColor: catBg, borderColor: `${catColor}30` }
                 ]}
               >
-                {(item as any).icon && item.id !== 'all' ? (
+                {item.id === 'chicken_mutton_center' ? (
+                  <MaterialCommunityIcons
+                    name="food-drumstick"
+                    size={13}
+                    color={isSelected ? '#FFFFFF' : catColor}
+                    style={{ marginRight: 5 }}
+                  />
+                ) : (item as any).icon && item.id !== 'all' ? (
                   <Ionicons
                     name={(item as any).icon}
                     size={13}
@@ -258,6 +272,7 @@ export default function DirectoryScreen({ route, navigation }: any) {
         <FlatList
           data={businesses}
           keyExtractor={item => item.id}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} colors={['#2563EB']} />}
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => {
@@ -310,8 +325,8 @@ export default function DirectoryScreen({ route, navigation }: any) {
                 <View style={styles.bizMetaRow}>
                   <View style={styles.ratingPill}>
                     <Ionicons name="star" size={12} color="#F59E0B" />
-                    <Text style={styles.ratingText}>{item.ratingAvg.toFixed(1)}</Text>
-                    <Text style={{ fontSize: 11, color: '#6B7280' }}>({item.ratingCount})</Text>
+                    <Text style={styles.ratingText}>{Number(item.ratingAvg || 5.0).toFixed(1)}</Text>
+                    <Text style={{ fontSize: 11, color: '#6B7280' }}>({item.ratingCount || 1})</Text>
                   </View>
                   {item.timing && (
                     <Text style={styles.bizTiming} numberOfLines={1}>
@@ -367,6 +382,7 @@ export default function DirectoryScreen({ route, navigation }: any) {
         <FlatList
           data={professionals}
           keyExtractor={item => item.id}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} colors={['#0D9488']} />}
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => {
@@ -403,7 +419,7 @@ export default function DirectoryScreen({ route, navigation }: any) {
                       </Text>
                     </View>
                     <Text style={styles.proExp}>
-                      {item.experienceYears} Years Experience • Rating {item.ratingAvg.toFixed(1)} ★
+                      {item.experienceYears} Years Experience • Rating {Number(item.ratingAvg || 5.0).toFixed(1)} ★
                     </Text>
                   </View>
                 </View>

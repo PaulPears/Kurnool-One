@@ -31,16 +31,16 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
   }, []);
 
   useEffect(() => {
-    if (!pro && proId) {
-      setLoading(true);
-      fetchProfessionalById(proId).then(data => {
-        setPro(data);
+    const targetId = proId || initialPro?.id;
+    if (targetId && (!pro || !pro.description || !pro.serviceAreas)) {
+      fetchProfessionalById(targetId).then(data => {
+        if (data) setPro(prev => ({ ...(prev || {}), ...data }));
         setLoading(false);
       }).catch(() => {
         setLoading(false);
       });
     }
-  }, [proId]);
+  }, [proId, initialPro?.id]);
 
   const isOwner = Boolean(
     pro && (
@@ -198,10 +198,10 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
 
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={16} color="#F59E0B" />
-            <Text style={styles.ratingScore}>{pro.ratingAvg.toFixed(1)}</Text>
-            <Text style={styles.ratingCount}>({pro.ratingCount} ratings)</Text>
+            <Text style={styles.ratingScore}>{Number(pro.ratingAvg || 5.0).toFixed(1)}</Text>
+            <Text style={styles.ratingCount}>({pro.ratingCount || 1} ratings)</Text>
             <Text style={{ color: '#D1D5DB' }}>•</Text>
-            <Text style={styles.expText}>{pro.experienceYears} Years Experience</Text>
+            <Text style={styles.expText}>{pro.experienceYears != null ? pro.experienceYears : 2}+ Years Experience</Text>
           </View>
 
           {/* Owner Manage Banner */}
@@ -260,7 +260,12 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Service Locations Covered</Text>
           <View style={styles.areasWrap}>
-            {pro.serviceAreas.map((area, idx) => (
+            {(Array.isArray(pro.serviceAreas) && pro.serviceAreas.length > 0
+              ? pro.serviceAreas
+              : typeof (pro.serviceAreas as any) === 'string' && (pro.serviceAreas as any).trim()
+              ? [(pro.serviceAreas as any).trim()]
+              : ['Kurnool City & Surrounding Areas']
+            ).map((area: string, idx: number) => (
               <View key={idx} style={styles.areaPill}>
                 <Ionicons name="location-outline" size={14} color="#2563EB" />
                 <Text style={styles.areaPillText}>{area}</Text>

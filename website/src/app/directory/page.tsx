@@ -261,20 +261,20 @@ export default async function DirectoryPage({
               >
                 <div className="space-y-4">
                   {/* Top Avatar & Name */}
-                  <div className="flex items-start gap-4">
+                  <Link href={`/professional/${pro.id}`} className="group/pro flex items-start gap-4">
                     {pro.avatarUrl ? (
-                      <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-xs shrink-0 border border-slate-200">
+                      <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-xs shrink-0 border border-slate-200 group-hover/pro:ring-2 ring-teal-500 transition">
                         <img src={pro.avatarUrl} alt={pro.fullName} className="w-full h-full object-cover" />
                       </div>
                     ) : (
-                      <div className="w-14 h-14 rounded-2xl bg-teal-600 text-white flex items-center justify-center font-black text-2xl shadow-xs shrink-0">
+                      <div className="w-14 h-14 rounded-2xl bg-teal-600 group-hover/pro:bg-teal-700 text-white flex items-center justify-center font-black text-2xl shadow-xs shrink-0 transition">
                         {pro.fullName.charAt(0)}
                       </div>
                     )}
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <h2 className="text-base sm:text-lg font-bold text-slate-900 truncate">
+                        <h2 className="text-base sm:text-lg font-bold text-slate-900 group-hover/pro:text-teal-700 truncate transition">
                           {pro.fullName}
                         </h2>
                         {pro.verifiedProfessional && (
@@ -292,13 +292,13 @@ export default async function DirectoryPage({
                         </span>
                       )}
                     </div>
-                  </div>
+                  </Link>
 
                   {/* Ratings & Experience */}
                   <div className="flex items-center gap-3 text-xs">
                     <div className="flex items-center gap-1 text-amber-500 font-bold">
                       <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                      <span className="text-slate-900">{pro.ratingAvg.toFixed(1)}</span>
+                      <span className="text-slate-900">{Number(pro.ratingAvg || 5.0).toFixed(1)}</span>
                       <span className="text-slate-500 font-medium">({pro.reviewCount || pro.ratingCount || 1} reviews)</span>
                     </div>
                     <span className="text-slate-300">•</span>
@@ -380,24 +380,34 @@ export default async function DirectoryPage({
                 </div>
 
                 {/* Direct Action Buttons */}
-                <div className="pt-5 border-t border-slate-100 grid grid-cols-2 gap-2 mt-4">
-                  <a
-                    href={`tel:${pro.phone}`}
-                    className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition"
-                  >
-                    <Phone className="w-3.5 h-3.5" />
-                    <span>Call Now</span>
-                  </a>
+                <div className="pt-4 border-t border-slate-100 space-y-2 mt-4">
+                  <div className="grid grid-cols-2 gap-2">
+                    <a
+                      href={`tel:${pro.phone}`}
+                      className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition"
+                    >
+                      <Phone className="w-3.5 h-3.5" />
+                      <span>Call</span>
+                    </a>
 
-                  <a
-                    href={`https://wa.me/91${(pro.whatsapp || pro.phone).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hello ${pro.fullName}, I found your profile on Kurnool One and need your service.`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition"
+                    <a
+                      href={`https://wa.me/91${(pro.whatsapp || pro.phone).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hello ${pro.fullName}, I found your profile on Kurnool One and need your service.`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      <span>WhatsApp</span>
+                    </a>
+                  </div>
+
+                  <Link
+                    href={`/professional/${pro.id}`}
+                    className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold text-xs transition"
                   >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    <span>WhatsApp</span>
-                  </a>
+                    <span>View Full Profile</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
                 </div>
               </div>
             ))}
@@ -467,7 +477,7 @@ export default async function DirectoryPage({
                     <div className="flex items-center gap-2 text-xs font-bold">
                       <div className="flex items-center gap-1 text-amber-500">
                         <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                        <span className="text-slate-900">{b.ratingAvg.toFixed(1)}</span>
+                        <span className="text-slate-900">{Number(b.ratingAvg || 5.0).toFixed(1)}</span>
                       </div>
                       <span className="text-slate-500 font-medium">({b.ratingCount} reviews)</span>
                       {b.priceRange && (

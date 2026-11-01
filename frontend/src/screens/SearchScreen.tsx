@@ -47,7 +47,7 @@ export default function SearchScreen({ navigation }: any) {
             id: `biz_${b.id}`,
             type: 'business',
             title: language === 'en' ? b.name_en : (b.name_te || b.name_en),
-            subtitle: `${b.address} • Rating ${b.ratingAvg.toFixed(1)} ★`,
+            subtitle: `${b.address} • Rating ${Number(b.ratingAvg || 5.0).toFixed(1)} ★`,
             image: b.images?.[0],
             raw: b,
           });

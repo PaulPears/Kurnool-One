@@ -14,6 +14,7 @@ import {
   uploadBusinessCover,
   uploadOfferImage,
   fetchMyLeads,
+  deleteBusiness,
   BusinessItem,
   LeadItem,
 } from '../services/directoryService';
@@ -51,6 +52,43 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
   const [coverImageUrl, setCoverImageUrl] = useState('');
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+
+  const toggleAmenity = (name: string) => {
+    setSelectedAmenities(prev =>
+      prev.includes(name) ? prev.filter(a => a !== name) : [...prev, name]
+    );
+  };
+
+  const handleDeleteBusinessListing = () => {
+    Alert.alert(
+      language === 'en' ? 'Delete Business Listing?' : 'వ్యాపార జాబితాను తొలగించాలా?',
+      language === 'en'
+        ? `Are you sure you want to permanently delete "${business?.name_en}"? All offers, ratings, and customer leads will be removed.`
+        : `"${business?.name_en}" వివరాలను శాశ్వతంగా తొలగించాలనుకుంటున్నారా?`,
+      [
+        { text: language === 'en' ? 'Cancel' : 'రద్దు', style: 'cancel' },
+        {
+          text: language === 'en' ? 'Yes, Delete' : 'అవును, తొలగించు',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (business?.id) {
+                await deleteBusiness(business.id);
+                Alert.alert(
+                  language === 'en' ? 'Deleted' : 'తొలగించబడింది',
+                  language === 'en' ? 'Your business listing has been removed.' : 'మీ వ్యాపార జాబితా తొలగించబడింది.',
+                  [{ text: 'OK', onPress: () => navigation.navigate('Main') }]
+                );
+              }
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Failed to delete business');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   // Offer Modal
   const [offerModalVisible, setOfferModalVisible] = useState(false);
@@ -125,6 +163,7 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
     setDescription(b.description_en || '');
     setLogoUrl(b.logoUrl || '');
     setCoverImageUrl(b.coverImage || b.bannerUrl || (b.images && b.images[0]) || '');
+    setSelectedAmenities(Array.isArray(b.amenities) ? b.amenities : []);
 
     const leadsList = await fetchMyLeads(b.ownerUid || uid, b.id);
     setLeads(leadsList);
@@ -203,6 +242,7 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
           linkedin: linkedin.trim() || undefined,
         },
         description_en: description.trim(),
+        amenities: selectedAmenities,
       });
 
       Alert.alert('Success', 'Business details updated live on Kurnool One!');
@@ -399,10 +439,37 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
                 {business.tier === 'featured' ? '👑 PREMIUM LISTING' : 'STORE LISTING'}
               </Text>
             </View>
-            <Text style={{ fontSize: 11, color: '#DBEAFE', fontWeight: 'bold' }}>365 Days Active</Text>
+            <Text style={{ fontSize: 11, color: '#DBEAFE', fontWeight: 'bold' }}>
+              {business.planExpiresAt ? `Expires: ${business.planExpiresAt}` : '365 Days Active'}
+            </Text>
           </View>
           <Text style={styles.heroTitle}>{business.name_en}</Text>
           <Text style={styles.heroSub}>{business.address}</Text>
+        </View>
+
+        {/* Quick Action: Add Another Business */}
+        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('RegisterBusiness')}
+            style={{
+              flex: 1,
+              backgroundColor: '#EFF6FF',
+              borderWidth: 1,
+              borderColor: '#BFDBFE',
+              paddingVertical: 10,
+              paddingHorizontal: 14,
+              borderRadius: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+            }}
+          >
+            <Ionicons name="add-circle" size={18} color="#2563EB" />
+            <Text style={{ fontSize: 12, fontWeight: '800', color: '#2563EB' }}>
+              {language === 'en' ? '+ Register Another Business' : '+ మరొక దుకాణాన్ని నమోదు చేయండి'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Multi-Store Switcher */}
@@ -500,7 +567,7 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
 
           <View style={styles.kpiCard}>
             <Ionicons name="star" size={22} color="#F59E0B" />
-            <Text style={styles.kpiValue}>{business.ratingAvg.toFixed(1)} ★</Text>
+            <Text style={styles.kpiValue}>{Number(business.ratingAvg || 5.0).toFixed(1)} ★</Text>
             <Text style={styles.kpiLabel}>Rating Score</Text>
           </View>
         </View>
@@ -668,13 +735,70 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
           onChangeText={setWhatsapp}
         />
 
-        <Text style={styles.label}>Operating Hours / Timings</Text>
+        <Text style={styles.label}>Operating Hours / Timings *</Text>
         <TextInput
           style={styles.input}
-          placeholder="e.g. 10:00 AM - 10:00 PM"
+          placeholder="e.g. 10:00 AM - 10:00 PM (All 7 Days)"
           value={timing}
           onChangeText={setTiming}
         />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+          {['9:00 AM - 9:00 PM', '10:00 AM - 10:00 PM', '8:00 AM - 11:00 PM', '24 Hours Open', 'Mon - Sat', 'All 7 Days'].map(preset => (
+            <TouchableOpacity
+              key={preset}
+              onPress={() => {
+                if (!timing) setTiming(preset);
+                else if (timing.includes(preset)) setTiming(timing.replace(preset, '').trim());
+                else setTiming(`${timing} • ${preset}`);
+              }}
+              style={{
+                backgroundColor: timing.includes(preset) ? '#DBEAFE' : '#F1F5F9',
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: timing.includes(preset) ? '#2563EB' : '#E2E8F0',
+              }}
+            >
+              <Text style={{ fontSize: 11, fontWeight: '700', color: timing.includes(preset) ? '#1E40AF' : '#475569' }}>
+                {preset}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.label}>Amenities & Features</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+          {[
+            { id: 'AC', label: '❄️ AC' },
+            { id: 'Wi-Fi', label: '📶 Free Wi-Fi' },
+            { id: 'UPI', label: '📱 UPI / QR Accepted' },
+            { id: 'Cards', label: '💳 Cards Accepted' },
+            { id: 'Parking', label: '🚗 Parking' },
+            { id: 'Delivery', label: '🛵 Home Delivery' },
+            { id: 'Wheelchair', label: '♿ Wheelchair Access' },
+          ].map(amenity => {
+            const isSelected = selectedAmenities.includes(amenity.id);
+            return (
+              <TouchableOpacity
+                key={amenity.id}
+                onPress={() => toggleAmenity(amenity.id)}
+                style={{
+                  backgroundColor: isSelected ? '#ECFDF5' : '#F8FAFC',
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 20,
+                  borderWidth: 1,
+                  borderColor: isSelected ? '#059669' : '#CBD5E1',
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: '700', color: isSelected ? '#065F46' : '#64748B' }}>
+                  {amenity.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
         <Text style={styles.label}>Full Address in Kurnool *</Text>
         <TextInput
@@ -782,6 +906,26 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
             <Text style={styles.saveBtnText}>Save Updates</Text>
           )}
         </TouchableOpacity>
+
+        {/* ─── DANGER ZONE: DELETE BUSINESS ─── */}
+        <View style={{ marginTop: 32, padding: 16, backgroundColor: '#FEF2F2', borderRadius: 16, borderWidth: 1, borderColor: '#FEE2E2' }}>
+          <Text style={{ fontSize: 14, fontWeight: '800', color: '#DC2626', marginBottom: 4 }}>
+            {language === 'en' ? 'Delete Business Listing' : 'వ్యాపార జాబితాను తొలగించండి'}
+          </Text>
+          <Text style={{ fontSize: 12, color: '#991B1B', lineHeight: 18, marginBottom: 14 }}>
+            {language === 'en'
+              ? 'Permanently delete your business listing and storefront from Kurnool One. This action cannot be undone.'
+              : 'కర్నూలు వన్ నుండి మీ వ్యాపార వివరాలను శాశ్వతంగా తొలగిస్తుంది. ఈ చర్యను రద్దు చేయలేరు.'}
+          </Text>
+          <TouchableOpacity
+            onPress={handleDeleteBusinessListing}
+            style={{ backgroundColor: '#DC2626', paddingVertical: 12, borderRadius: 10, alignItems: 'center' }}
+          >
+            <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>
+              {language === 'en' ? '🗑️ Permanently Delete My Business' : '🗑️ నా వ్యాపారాన్ని తొలగించు'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {/* ─── OFFER MODAL ────────────────────────────────────────────────── */}

@@ -83,6 +83,7 @@ export interface BusinessItem {
   paymentId?: string;
   orderId?: string;
   planExpiresAt?: string;
+  partnerCode?: string;
   viewCount?: number;
   callCount?: number;
   whatsappCount?: number;
@@ -106,6 +107,7 @@ export interface LeadItem {
   citizenPhone: string;
   citizenArea?: string;
   citizenGender?: string;
+  metadata?: any;
   createdAt?: any;
 }
 
@@ -146,6 +148,7 @@ export interface ProfessionalItem {
   orderId?: string;
   operatingHours?: any;
   planExpiresAt?: string;
+  partnerCode?: string;
   status: 'active' | 'pending' | 'suspended';
 }
 
@@ -162,7 +165,9 @@ export interface ProfessionalCategory {
 export const PROFESSIONAL_CATEGORIES: ProfessionalCategory[] = [
   { id: 'influencer', name_en: 'Influencer & Content Creator', name_te: 'ఇన్‌ఫ్లుయెన్సర్లు & కంటెంట్ క్రియేటర్స్', icon: 'videocam', color: '#E11D48', bgLight: '#FFE4E6', placeholderRate: 'Brand Collaboration / Shoot Quote' },
   { id: 'plumbers', name_en: 'Plumbers', name_te: 'ప్లంబర్లు', icon: 'water', color: '#0284C7', bgLight: '#E0F2FE', placeholderRate: '₹150 - ₹300 (Visit / Work)' },
+  { id: 'doctors_healthcare', name_en: 'Doctors & Health Experts', name_te: 'వైద్యులు & ఆరోగ్య నిపుణులు', icon: 'medkit', color: '#0284C7', bgLight: '#E0F2FE', placeholderRate: '₹300 - ₹500 (Consultation)' },
   { id: 'electricians', name_en: 'Electricians', name_te: 'ఎలక్ట్రీషియన్లు', icon: 'flash', color: '#D97706', bgLight: '#FEF3C7', placeholderRate: '₹150 - ₹350 (Wiring & Fittings)' },
+  { id: 'advocates_legal', name_en: 'Advocates & Legal Advisors', name_te: 'న్యాయవాదులు & లీగల్ అడ్వైజర్లు', icon: 'scale', color: '#334155', bgLight: '#F1F5F9', placeholderRate: '₹300 - ₹1,000 (Consultation)' },
   { id: 'carpenters', name_en: 'Carpenters & Wood Work', name_te: 'వడ్రంగులు & వుడ్ వర్కర్స్', icon: 'hammer', color: '#92400E', bgLight: '#FEF3C7', placeholderRate: '₹300 - ₹600 (Furniture / Repair)' },
   { id: 'painters', name_en: 'House & Wall Painters', name_te: 'పెయింటర్లు & డిస్టెంపర్', icon: 'color-palette', color: '#BE185D', bgLight: '#FCE7F3', placeholderRate: 'Per Sq.Ft / Day Wage' },
   { id: 'ac_appliance_repair', name_en: 'AC & Refrigerator Technicians', name_te: 'ఏసీ & ఫ్రిడ్జ్ టెక్నీషియన్లు', icon: 'snow', color: '#0891B2', bgLight: '#CFFAFE', placeholderRate: '₹350 - ₹500 (Service / Gas Refill)' },
@@ -177,8 +182,6 @@ export const PROFESSIONAL_CATEGORIES: ProfessionalCategory[] = [
   { id: 'drivers', name_en: 'Car, Auto & Heavy Drivers', name_te: 'కార్, ఆటో & హెవీ డ్రైవర్లు', icon: 'car', color: '#0D9488', bgLight: '#CCFBF1', placeholderRate: '₹500 - ₹800 / Day' },
   { id: 'cooks_caterers', name_en: 'Cooks & Catering Chefs', name_te: 'వంట మాస్టర్లు & క్యాటరింగ్', icon: 'restaurant', color: '#EA580C', bgLight: '#FFEDD5', placeholderRate: 'Per Day / Event Rates' },
   { id: 'home_tutors', name_en: 'Home Tutors & Academic Teachers', name_te: 'హోమ్ ట్యూటర్లు & ఉపాధ్యాయులు', icon: 'book', color: '#4338CA', bgLight: '#E0E7FF', placeholderRate: '₹2,500 - ₹5,000 / Month' },
-  { id: 'doctors_healthcare', name_en: 'Doctors & Health Experts', name_te: 'వైద్యులు & ఆరోగ్య నిపుణులు', icon: 'medkit', color: '#0284C7', bgLight: '#E0F2FE', placeholderRate: '₹300 - ₹500 (Consultation)' },
-  { id: 'advocates_legal', name_en: 'Advocates & Legal Advisors', name_te: 'న్యాయవాదులు & లీగల్ అడ్వైజర్లు', icon: 'scale', color: '#334155', bgLight: '#F1F5F9', placeholderRate: '₹300 - ₹1,000 (Consultation)' },
   { id: 'ca_tax_accountants', name_en: 'Chartered Accountants & GST Consultants', name_te: 'సీఏ & జీఎస్టీ ఫైలింగ్ నిపుణులు', icon: 'calculator', color: '#047857', bgLight: '#ECFDF5', placeholderRate: 'Tax Filing & Audit Rates' },
   { id: 'real_estate_agents', name_en: 'Real Estate Agents & Brokers', name_te: 'రియల్ ఎస్టేట్ ఏజెంట్లు & బ్రోకర్లు', icon: 'home', color: '#1D4ED8', bgLight: '#DBEAFE', placeholderRate: 'Standard Advisory / Brokerage' },
   { id: 'pandits_purohits', name_en: 'Pandits, Purohits & Astrologers', name_te: 'పండితులు, పురోహితులు & జ్యోతిష్యులు', icon: 'flame', color: '#C2410C', bgLight: '#FFEDD5', placeholderRate: 'Pooja & Muhurtham Dakshina' },
@@ -255,24 +258,38 @@ export interface BusinessReview {
 
 export const MASTER_CATEGORIES: CategoryItem[] = [
   {
-    id: 'restaurants_cafes',
-    name_en: 'Restaurants & Cafes',
-    name_te: 'రెస్టారెంట్లు & కేఫ్‌లు',
+    id: 'restaurants_dining',
+    name_en: 'Restaurants & Dining',
+    name_te: 'రెస్టారెంట్లు & ఫ్యామిలీ డైనింగ్',
     icon: 'restaurant',
     color: '#EA580C',
     bgLight: '#FFEDD5',
     subcategories: [
       { id: 'family_restaurant', name_en: 'Family Restaurant', name_te: 'ఫ్యామిలీ రెస్టారెంట్' },
-      { id: 'cafes', name_en: 'Cafes & Coffee Shops', name_te: 'కేఫ్‌లు & కాఫీ షాపులు' },
-      { id: 'fast_food', name_en: 'Fast Food & Chaat', name_te: 'ఫాస్ట్ ఫుడ్ & చాట్' },
       { id: 'biryani_special', name_en: 'Biryani Centers', name_te: 'బిర్యానీ సెంటర్లు' },
+      { id: 'veg_nonveg_mess', name_en: 'Veg & Non-Veg Mess', name_te: 'వెజ్ & నాన్-వెజ్ మెస్' },
+      { id: 'tiffin_breakfast', name_en: 'Tiffin & Breakfast Centers', name_te: 'టిఫిన్ & బ్రేక్‌ఫాస్ట్' },
+    ],
+  },
+  {
+    id: 'cafes_bakeries',
+    name_en: 'Cafes, Bakeries & Fast Food',
+    name_te: 'కేఫ్‌లు & బేకరీలు',
+    icon: 'cafe',
+    color: '#D97706',
+    bgLight: '#FEF3C7',
+    subcategories: [
+      { id: 'cafes', name_en: 'Cafes & Coffee Shops', name_te: 'కేఫ్‌లు & కాఫీ షాపులు' },
+      { id: 'bakeries_pastries', name_en: 'Bakeries & Cake Shops', name_te: 'బేకరీలు & కేక్ షాపులు' },
+      { id: 'fast_food', name_en: 'Fast Food & Chaat', name_te: 'ఫాస్ట్ ఫుడ్ & చాట్' },
+      { id: 'juice_icecream', name_en: 'Juice Centers & Ice Cream', name_te: 'జ్యూస్ & ఐస్ క్రీమ్' },
     ],
   },
   {
     id: 'chicken_mutton_center',
     name_en: 'Chicken and Mutton Center',
     name_te: 'చికెన్ మరియు మటన్ సెంటర్',
-    icon: 'nutrition',
+    icon: 'flame',
     color: '#DC2626',
     bgLight: '#FEF2F2',
     subcategories: [
@@ -922,7 +939,8 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
 
 // Legacy mapping support for seamless query backward compatibility
 export const LEGACY_BUSINESS_CATEGORY_MAP: Record<string, string> = {
-  food_dining: 'restaurants_cafes',
+  food_dining: 'restaurants_dining',
+  restaurants_cafes: 'restaurants_dining',
   health_wellness: 'hospitals_clinics',
   shopping: 'clothing_fashion',
   home_services: 'home_services_repairs',
@@ -936,9 +954,131 @@ export const LEGACY_BUSINESS_CATEGORY_MAP: Record<string, string> = {
 
 // ─── INITIAL SEED DATA (KURNOOL ATTRACTIONS & HERITAGE) ─────────────────────
 
-export const SEED_PLACES: PlaceItem[] = [];
+export const SEED_PLACES: PlaceItem[] = [
+  {
+    id: 'place_konda_reddy_fort',
+    type: 'tourist',
+    name_en: 'Konda Reddy Buruju (Fort)',
+    name_te: 'కొండారెడ్డి బురుజు (కోట)',
+    description_en: 'Iconic historic fort bastion built during the Vijayanagara empire, named after the valiant ruler Konda Reddy. Features underground tunnels, historic cannons, and an evening sound and light show.',
+    description_te: 'విజయనగర సామ్రాజ్య కాలంలో నిర్మించిన చారిత్రక కోట బురుజు. కర్నూలు నగర నడిబొడ్డున ఉన్న అత్యంత ప్రసిద్ధ పర్యాటక ప్రదేశం.',
+    address: 'Old Bus Stand Road, Kurnool, AP 518001',
+    timings: '09:00 AM - 06:00 PM (Daily)',
+    entryFee: 'Free Entry',
+    photos: ['https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?w=800&auto=format&fit=crop&q=80'],
+    latitude: 15.8281,
+    longitude: 78.0373,
+    isPromoted: true,
+  },
+  {
+    id: 'place_orvakal_rock_garden',
+    type: 'tourist',
+    name_en: 'Orvakal Rock Garden',
+    name_te: 'ఓర్వకల్లు రాక్ గార్డెన్',
+    description_en: 'Ancient natural quartz and silica rock formations spread over 1000 acres around a serene water body. Famous for film shootings, trekking, cave paths, and boating.',
+    description_te: 'సహజసిద్ధమైన శిలాజాలు మరియు జలాశయాలతో కూడిన అందమైన రాక్ గార్డెన్. సినిమాల షూటింగ్‌లకు ప్రసిద్ధి.',
+    address: 'NH 44, Orvakal, Kurnool, AP 518010',
+    timings: '08:00 AM - 06:00 PM',
+    entryFee: '₹20 per adult',
+    photos: ['https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80'],
+    latitude: 15.6888,
+    longitude: 78.2144,
+    isPromoted: true,
+  },
+  {
+    id: 'place_rollapadu_sanctuary',
+    type: 'tourist',
+    name_en: 'Rollapadu Bird & Wildlife Sanctuary',
+    name_te: 'రోళ్లపాడు పక్షుల అభయారణ్యం',
+    description_en: 'Protected wildlife sanctuary famous for the endangered Great Indian Bustard, blackbucks, foxes, migratory birds, and grassland biodiversity.',
+    description_te: 'అరుదైన బట్టమేక పక్షులు మరియు కృష్ణజింకలకు ఆవాసమైన ప్రముఖ వన్యప్రాణుల అభయారణ్యం.',
+    address: 'Rollapadu, Near Nandikotkur, Kurnool District, AP',
+    timings: '07:00 AM - 05:30 PM',
+    entryFee: '₹30 per person',
+    photos: ['https://images.unsplash.com/photo-1534567153574-2b12153a87f0?w=800&auto=format&fit=crop&q=80'],
+    latitude: 15.7533,
+    longitude: 78.3667,
+    isPromoted: false,
+  },
+  {
+    id: 'place_belum_caves',
+    type: 'tourist',
+    name_en: 'Belum Caves',
+    name_te: 'బెలూమ్ గుహలు',
+    description_en: 'Second longest cave network in the Indian subcontinent, renowned for speleothems, stalactites, stalagmites, freshwater chambers, and underground streams.',
+    description_te: 'భారతదేశంలోనే రెండవ అతిపెద్ద సహజ సున్నపురాయి గుహలు. అద్భుతమైన స్టాలక్టైట్ మరియు స్టాలగ్మైట్ నిర్మాణాలు.',
+    address: 'Belum Village, Kolimigundla Mandal, Kurnool District, AP',
+    timings: '10:00 AM - 05:00 PM',
+    entryFee: '₹65 per person',
+    photos: ['https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800&auto=format&fit=crop&q=80'],
+    latitude: 15.1031,
+    longitude: 78.1136,
+    isPromoted: true,
+  },
+];
 
-export const SEED_WORSHIP_PLACES: PlaceItem[] = [];
+export const SEED_WORSHIP_PLACES: PlaceItem[] = [
+  {
+    id: 'worship_jagannatha_gattu',
+    type: 'temple',
+    name_en: 'Jagannatha Gattu Temple & Giant Shiva',
+    name_te: 'జగన్నాథ గట్టు శివాలయం',
+    description_en: 'Perched atop a hillock overlooking Kurnool city, featuring a historic temple of Lord Shiva and a towering colossal Shiva statue visible from miles away.',
+    description_te: 'కొండపై కొలువైన పురాతన శివాలయం మరియు నగరమంతా కనిపించే భారీ శివుని విగ్రహం.',
+    address: 'Jagannatha Gattu Hill, Dinnedevarapadu, Kurnool, AP 518002',
+    timings: '06:00 AM - 08:00 PM',
+    entryFee: 'Free Darshan',
+    photos: ['https://images.unsplash.com/photo-1545232979-8bf68ee9b1af?w=800&auto=format&fit=crop&q=80'],
+    latitude: 15.7891,
+    longitude: 78.0212,
+    isPromoted: true,
+  },
+  {
+    id: 'worship_yaganti_temple',
+    type: 'temple',
+    name_en: 'Yaganti Sri Uma Maheshwara Temple',
+    name_te: 'యాగంటి శ్రీ ఉమామహేశ్వర స్వామి దేవస్థానం',
+    description_en: 'Famous 15th-century Vijayanagara Shiva temple where the stone Nandi statue is believed to grow continuously. Known for the Agastya cave and perpetual natural pushkarini.',
+    description_te: 'నిరంతరం పెరుగుతుందని ప్రతీతి ఉన్న రాతి నంది మరియు అగస్త్య గుహలకు ప్రసిద్ధి చెందిన పుణ్యక్షేత్రం.',
+    address: 'Yaganti, Banaganapalle Mandal, Kurnool District, AP',
+    timings: '06:00 AM - 01:00 PM, 03:00 PM - 08:00 PM',
+    entryFee: 'Free Entry',
+    photos: ['https://images.unsplash.com/photo-1609766857041-ed402ea8069a?w=800&auto=format&fit=crop&q=80'],
+    latitude: 15.3496,
+    longitude: 78.1408,
+    isPromoted: true,
+  },
+  {
+    id: 'worship_mahanandi',
+    type: 'temple',
+    name_en: 'Mahanandi Temple & Sacred Pushkarini',
+    name_te: 'మహానంది క్షేత్రం & రుద్రగుండం',
+    description_en: 'Ancient Nava Nandi temple surrounded by lush Nallamala forest hills, famous for crystalline natural warm spring pushkarini flowing perpetually beneath the Shiva Lingam.',
+    description_te: 'స్వచ్ఛమైన సహజ ఉష్ణోదక పుష్కరిణి గల ప్రసిద్ధ నవనందులలో ఒకటైన మహానంది పుణ్యక్షేత్రం.',
+    address: 'Mahanandi, Kurnool / Nandyal, AP 518502',
+    timings: '05:30 AM - 08:30 PM',
+    entryFee: 'Free Darshan',
+    photos: ['https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=800&auto=format&fit=crop&q=80'],
+    latitude: 15.4833,
+    longitude: 78.6167,
+    isPromoted: true,
+  },
+  {
+    id: 'worship_kurnool_jamia_masjid',
+    type: 'masjid',
+    name_en: 'Kurnool Historic Jamia Masjid',
+    name_te: 'కర్నూలు చారిత్రక జామియా మసీదు',
+    description_en: 'Centuries-old central grand mosque with imposing stone minarets, serene ablution courtyard, and historic Islamic architectural heritage in the heart of Kurnool old town.',
+    description_te: 'చారిత్రక కట్టడం మరియు కర్నూలు పాత నగరంలోని ప్రధాన ఆధ్యాత్మిక కేంద్రం.',
+    address: 'One Town, Near Fort Road, Kurnool, AP 518001',
+    timings: '05:00 AM - 09:30 PM',
+    entryFee: 'Open for Prayers',
+    photos: ['https://images.unsplash.com/photo-1564769625905-50e93615e769?w=800&auto=format&fit=crop&q=80'],
+    latitude: 15.8315,
+    longitude: 78.0401,
+    isPromoted: false,
+  },
+];
 
 export const SEED_PROFESSIONALS: ProfessionalItem[] = [
   {
@@ -1021,7 +1161,7 @@ export const SEED_BUSINESSES: BusinessItem[] = [
     id: 'biz_kurnool_ruchulu',
     name_en: 'Kurnool Ruchulu Restaurant',
     name_te: 'కర్నూలు రుచులు రెస్టారెంట్',
-    categoryId: 'restaurants_cafes',
+    categoryId: 'restaurants_dining',
     address: 'Collectorate Complex Road, Kurnool, AP 518002',
     landmark: 'Opp. ZP Office',
     phone: '+919440054321',
@@ -1097,7 +1237,7 @@ export const SEED_BUSINESSES: BusinessItem[] = [
     id: 'biz_raghavendra_sweets',
     name_en: 'Sri Raghavendra Sweets & Bakery',
     name_te: 'శ్రీ రాఘవేంద్ర స్వీట్స్',
-    categoryId: 'restaurants_cafes',
+    categoryId: 'cafes_bakeries',
     address: 'Mourya Inn Circle, Kurnool, AP 518001',
     landmark: 'Mourya Circle',
     phone: '+919849123789',
@@ -1141,7 +1281,7 @@ export const SEED_OFFERS: OfferItem[] = [
     discountText: 'COMPLIMENTARY DISH',
     businessName: 'Kurnool Ruchulu Restaurant',
     validUntil: 'Valid this Month',
-    category: 'restaurants_cafes',
+    category: 'restaurants_dining',
     phone: '+919440054321',
     bannerUrl: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=800&auto=format&fit=crop&q=80',
     images: [
@@ -1187,36 +1327,31 @@ export const fetchBusinesses = async (
 ): Promise<BusinessItem[]> => {
   try {
     const coll = collection(db, 'businesses');
-    let q = query(coll, where('status', '==', 'published'), limit(50));
-    let targetCategory = categoryId;
-    if (categoryId && categoryId !== 'all') {
-      const mapped = LEGACY_BUSINESS_CATEGORY_MAP[categoryId];
-      if (mapped) targetCategory = mapped;
-      q = query(coll, where('status', '==', 'published'), where('categoryId', 'in', [categoryId, targetCategory]), limit(50));
-    }
+    const q = query(coll, where('status', 'in', ['active', 'published', 'approved']), limit(100));
     const snap = await getDocs(q);
-    if (snap.empty) {
-      let filtered = [...SEED_BUSINESSES];
-      if (categoryId && categoryId !== 'all') {
-        filtered = filtered.filter(b => b.categoryId === categoryId);
-      }
-      if (searchQuery) {
-        const queryLower = searchQuery.toLowerCase();
-        filtered = filtered.filter(b => 
-          b.name_en.toLowerCase().includes(queryLower) ||
-          b.name_te?.includes(searchQuery) ||
-          b.description_en?.toLowerCase().includes(queryLower)
-        );
-      }
-      return filtered;
+
+    let results: BusinessItem[] = [];
+    if (!snap.empty) {
+      const liveItems = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessItem));
+      const liveIds = new Set(liveItems.map(b => b.id));
+      const nonDuplicateSeeds = SEED_BUSINESSES.filter(s => !liveIds.has(s.id));
+      results = [...liveItems, ...nonDuplicateSeeds];
+    } else {
+      results = [...SEED_BUSINESSES];
     }
 
-    let results = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessItem));
+    if (categoryId && categoryId !== 'all') {
+      const mapped = LEGACY_BUSINESS_CATEGORY_MAP[categoryId];
+      const matchCats = [categoryId, mapped].filter(Boolean);
+      results = results.filter(b => matchCats.includes(b.categoryId));
+    }
+
     if (searchQuery) {
       const queryLower = searchQuery.toLowerCase();
       results = results.filter(b => 
-        b.name_en.toLowerCase().includes(queryLower) ||
+        b.name_en?.toLowerCase().includes(queryLower) ||
         b.name_te?.includes(searchQuery) ||
+        b.address?.toLowerCase().includes(queryLower) ||
         b.description_en?.toLowerCase().includes(queryLower)
       );
     }
@@ -1357,10 +1492,33 @@ export const uploadOfferImage = async (uri: string): Promise<string> => {
   return await getDownloadURL(task.ref);
 };
 
+export function sanitizeFirestoreData<T>(obj: T): T {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) {
+    return (obj as any[])
+      .filter((item) => item !== undefined)
+      .map((item) => sanitizeFirestoreData(item)) as unknown as T;
+  }
+  if (typeof obj === 'object') {
+    const proto = Object.getPrototypeOf(obj);
+    if (proto && proto.constructor && proto.constructor.name !== 'Object') {
+      return obj;
+    }
+    const clean: any = {};
+    for (const [k, v] of Object.entries(obj)) {
+      if (v !== undefined) {
+        clean[k] = sanitizeFirestoreData(v);
+      }
+    }
+    return clean as T;
+  }
+  return obj;
+}
+
 export const registerBusiness = async (data: Partial<BusinessItem>): Promise<string> => {
   const user = auth.currentUser;
   const coll = collection(db, 'businesses');
-  const docRef = await addDoc(coll, {
+  const payload = sanitizeFirestoreData({
     ...data,
     ownerUid: data.ownerUid || user?.uid || '',
     claimStatus: (data.ownerUid || user) ? 'claimed' : 'unclaimed',
@@ -1371,6 +1529,7 @@ export const registerBusiness = async (data: Partial<BusinessItem>): Promise<str
     status: data.status || 'active',
     createdAt: serverTimestamp(),
   });
+  const docRef = await addDoc(coll, payload);
   return docRef.id;
 };
 
@@ -1388,7 +1547,7 @@ export const registerProfessional = async (
 ): Promise<string> => {
   const user = auth.currentUser;
   const coll = collection(db, 'professionals');
-  const docRef = await addDoc(coll, {
+  const payload = sanitizeFirestoreData({
     ...data,
     userId: data.userId || user?.uid || '',
     ratingAvg: 5.0,
@@ -1397,6 +1556,7 @@ export const registerProfessional = async (
     status: data.status || 'active',
     createdAt: serverTimestamp(),
   });
+  const docRef = await addDoc(coll, payload);
   return docRef.id;
 };
 
@@ -1560,10 +1720,20 @@ export const fetchMyBusinesses = async (ownerUid?: string, phone?: string): Prom
 export const recordCustomerLead = async (lead: Omit<LeadItem, 'createdAt' | 'id'>): Promise<void> => {
   try {
     const leadsColl = collection(db, 'leads');
-    await addDoc(leadsColl, {
-      ...lead,
+    const sanitizedLead: Record<string, any> = {
+      targetId: lead.targetId,
+      targetType: lead.targetType,
+      actionType: lead.actionType,
+      targetName: lead.targetName || '',
       createdAt: serverTimestamp(),
-    });
+    };
+    if (lead.targetOwnerUid) sanitizedLead.targetOwnerUid = lead.targetOwnerUid;
+    if (lead.citizenUid) sanitizedLead.citizenUid = lead.citizenUid;
+    if (lead.citizenName) sanitizedLead.citizenName = lead.citizenName;
+    if (lead.citizenPhone) sanitizedLead.citizenPhone = lead.citizenPhone;
+    if (lead.metadata) sanitizedLead.metadata = lead.metadata;
+
+    await addDoc(leadsColl, sanitizedLead);
 
     // In-app notification to business / pro owner if targetOwnerUid exists
     if (lead.targetOwnerUid) {
@@ -1817,6 +1987,11 @@ export interface NewsItem {
   publishedAt: string;
   dateStr?: string;
   category?: string;
+  area?: string;
+  authorUid?: string;
+  authorName?: string;
+  authorPhone?: string;
+  status?: string;
   createdAt?: any;
 }
 
@@ -1867,6 +2042,16 @@ export async function fetchNews(): Promise<NewsItem[]> {
     console.warn('fetchNews Firestore error, returning seed news:', err);
   }
   return SEED_NEWS;
+}
+
+export async function submitNewsStory(newsData: Omit<NewsItem, 'id' | 'createdAt'> & { status?: string; authorUid?: string; authorName?: string; authorPhone?: string }): Promise<string> {
+  const colRef = collection(db, 'news');
+  const docRef = await addDoc(colRef, {
+    ...newsData,
+    status: newsData.status || 'pending_approval',
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
 }
 
 export async function createNews(newsData: Omit<NewsItem, 'id'>): Promise<string> {
@@ -1923,19 +2108,23 @@ export async function fetchMarketplaceItems(): Promise<MarketplaceItem[]> {
 
 export async function createMarketplaceItem(item: Omit<MarketplaceItem, 'id' | 'createdAt'>): Promise<string> {
   const colRef = collection(db, 'marketplace');
-  const docRef = await addDoc(colRef, {
+  const uid = item.sellerUid || auth.currentUser?.uid || '';
+  const cleanData = sanitizeFirestoreData({
     ...item,
+    sellerUid: uid,
     status: item.status || 'active',
     createdAt: serverTimestamp(),
   });
+  const docRef = await addDoc(colRef, cleanData);
   return docRef.id;
 }
 
 export async function updateMarketplaceItem(id: string, updates: Partial<MarketplaceItem>): Promise<void> {
-  await updateDoc(doc(db, 'marketplace', id), {
+  const cleanUpdates = sanitizeFirestoreData({
     ...updates,
     updatedAt: serverTimestamp(),
   });
+  await updateDoc(doc(db, 'marketplace', id), cleanUpdates);
 }
 
 export async function deleteMarketplaceItem(id: string): Promise<void> {
@@ -1978,20 +2167,22 @@ export async function fetchBloodDonors(bloodGroup?: string): Promise<BloodDonorI
 
 export async function registerBloodDonor(donor: Omit<BloodDonorItem, 'id' | 'createdAt'>): Promise<string> {
   const colRef = collection(db, 'blood_donors');
-  const docRef = await addDoc(colRef, {
+  const payload = sanitizeFirestoreData({
     ...donor,
     status: 'active',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  const docRef = await addDoc(colRef, payload);
   return docRef.id;
 }
 
 export async function updateBloodDonor(id: string, updates: Partial<BloodDonorItem>): Promise<void> {
-  await updateDoc(doc(db, 'blood_donors', id), {
+  const payload = sanitizeFirestoreData({
     ...updates,
     updatedAt: serverTimestamp(),
   });
+  await updateDoc(doc(db, 'blood_donors', id), payload);
 }
 
 export async function deleteBloodDonor(id: string): Promise<void> {
@@ -2227,20 +2418,22 @@ export async function fetchHouseRentals(bhkFilter?: string): Promise<HouseRental
 
 export async function createHouseRental(rental: Omit<HouseRentalItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
   const colRef = collection(db, 'house_rentals');
-  const docRef = await addDoc(colRef, {
+  const payload = sanitizeFirestoreData({
     ...rental,
     status: 'available',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  const docRef = await addDoc(colRef, payload);
   return docRef.id;
 }
 
 export async function updateHouseRental(id: string, updates: Partial<HouseRentalItem>): Promise<void> {
-  await updateDoc(doc(db, 'house_rentals', id), {
+  const payload = sanitizeFirestoreData({
     ...updates,
     updatedAt: serverTimestamp(),
   });
+  await updateDoc(doc(db, 'house_rentals', id), payload);
 }
 
 export async function deleteHouseRental(id: string): Promise<void> {

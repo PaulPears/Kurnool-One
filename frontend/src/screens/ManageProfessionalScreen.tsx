@@ -12,6 +12,7 @@ import {
   createBusinessOffer,
   uploadOfferImage,
   fetchMyLeads,
+  deleteProfessional,
   ProfessionalItem,
   LeadItem,
 } from '../services/directoryService';
@@ -51,6 +52,36 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
   const [validUntil, setValidUntil] = useState('Valid for next 15 days');
   const [offerImages, setOfferImages] = useState<string[]>([]);
   const [publishingOffer, setPublishingOffer] = useState(false);
+
+  const handleDeleteProListing = () => {
+    Alert.alert(
+      language === 'en' ? 'Delete Professional Profile?' : 'వృత్తి ప్రొఫైల్‌ను తొలగించాలా?',
+      language === 'en'
+        ? `Are you sure you want to permanently delete your professional profile? This action cannot be undone.`
+        : `మీ ప్రొఫైల్ వివరాలను శాశ్వతంగా తొలగించాలనుకుంటున్నారా?`,
+      [
+        { text: language === 'en' ? 'Cancel' : 'రద్దు', style: 'cancel' },
+        {
+          text: language === 'en' ? 'Yes, Delete' : 'అవును, తొలగించు',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (profile?.id) {
+                await deleteProfessional(profile.id);
+                Alert.alert(
+                  language === 'en' ? 'Deleted' : 'తొలగించబడింది',
+                  language === 'en' ? 'Your professional profile has been removed.' : 'మీ ప్రొఫైల్ తొలగించబడింది.',
+                  [{ text: 'OK', onPress: () => navigation.navigate('Main') }]
+                );
+              }
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Failed to delete profile');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   useEffect(() => {
     loadData();
@@ -714,6 +745,26 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
             <Text style={styles.saveBtnText}>Save & Publish Changes</Text>
           )}
         </TouchableOpacity>
+
+        {/* ─── DANGER ZONE: DELETE PROFESSIONAL PROFILE ─── */}
+        <View style={{ marginTop: 32, padding: 16, backgroundColor: '#FEF2F2', borderRadius: 16, borderWidth: 1, borderColor: '#FEE2E2' }}>
+          <Text style={{ fontSize: 14, fontWeight: '800', color: '#DC2626', marginBottom: 4 }}>
+            {language === 'en' ? 'Delete Professional Profile' : 'వృత్తి ప్రొఫైల్‌ను తొలగించండి'}
+          </Text>
+          <Text style={{ fontSize: 12, color: '#991B1B', lineHeight: 18, marginBottom: 14 }}>
+            {language === 'en'
+              ? 'Permanently delete your professional listing from Kurnool One. This action cannot be undone.'
+              : 'కర్నూలు వన్ నుండి మీ ప్రొఫైల్‌ను శాశ్వతంగా తొలగిస్తుంది. ఈ చర్యను రద్దు చేయలేరు.'}
+          </Text>
+          <TouchableOpacity
+            onPress={handleDeleteProListing}
+            style={{ backgroundColor: '#DC2626', paddingVertical: 12, borderRadius: 10, alignItems: 'center' }}
+          >
+            <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>
+              {language === 'en' ? '🗑️ Permanently Delete My Profile' : '🗑️ నా ప్రొఫైల్‌ను తొలగించు'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {/* ─── OFFER MODAL ────────────────────────────────────────────────── */}
