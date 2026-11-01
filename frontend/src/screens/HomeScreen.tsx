@@ -62,20 +62,21 @@ export default function HomeScreen({ navigation }: any) {
       {/* Top Header */}
       <View style={styles.topHeader}>
         <View style={styles.brandRow}>
+          <TouchableOpacity
+            onPress={() => setShowMenuDrawer(true)}
+            style={{ padding: 6, backgroundColor: '#EFF6FF', borderRadius: 10, borderWidth: 1, borderColor: '#BFDBFE', marginRight: 4 }}
+          >
+            <Ionicons name="menu-outline" size={22} color="#1D4ED8" />
+          </TouchableOpacity>
+
           <Image
             source={require('../../assets/logo.png')}
             style={styles.logoImg}
             resizeMode="contain"
           />
-          <View>
-            <Text style={styles.brandTitle}>
-              {language === 'en' ? 'Kurnool One' : 'కర్నూలు వన్'}
-            </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Ionicons name="location" size={11} color="#2563EB" />
-              <Text style={styles.cityText}>Kurnool City, AP</Text>
-            </View>
-          </View>
+          <Text style={styles.brandTitle}>
+            {language === 'en' ? 'Kurnool One' : 'కర్నూలు వన్'}
+          </Text>
         </View>
 
         <View style={styles.headerRight}>
@@ -87,10 +88,10 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => setShowMenuDrawer(true)}
-            style={{ padding: 6, backgroundColor: '#EFF6FF', borderRadius: 10, borderWidth: 1, borderColor: '#BFDBFE' }}
+            onPress={() => navigation.navigate('Profile')}
+            style={{ padding: 6, backgroundColor: '#F1F5F9', borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0' }}
           >
-            <Ionicons name="menu-outline" size={22} color="#1D4ED8" />
+            <Ionicons name="person-circle-outline" size={22} color="#475569" />
           </TouchableOpacity>
         </View>
       </View>

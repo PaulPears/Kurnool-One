@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useLanguage } from '../context/LanguageContext';
+import { pickImageWithFreeStyleCrop } from '../utils/imageUploadHelper';
 import {
   MASTER_CATEGORIES,
   BUSINESS_PRICING_PLANS,
@@ -53,22 +54,17 @@ export default function RegisterBusinessScreen({ navigation }: any) {
         setCurrentUser(auth.currentUser);
       }
       AsyncStorage.getItem('user').then(async (val) => {
-        let p = phone;
         if (val) {
           try {
             const parsed = JSON.parse(val);
             setLocalUser(parsed);
-            if (parsed.phone && !phone) {
-              setPhone(parsed.phone);
-              p = parsed.phone;
-            }
           } catch {}
         }
 
         const uid = auth.currentUser?.uid;
-        if (uid || p) {
+        if (uid) {
           try {
-            const list = await fetchMyBusinesses(uid, p);
+            const list = await fetchMyBusinesses(uid, '');
             if (list && list.length > 0) {
               setExistingBusinesses(list);
               setShowExistingModal(true);
@@ -82,13 +78,13 @@ export default function RegisterBusinessScreen({ navigation }: any) {
   }, [isFocused]);
 
   const isUserAuthenticated = !!(currentUser || localUser);
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'half_yearly' | 'yearly'>('half_yearly');
+  const [selectedPlan, setSelectedPlan] = useState<'biz_free' | 'biz_standard' | 'biz_premium'>('biz_standard');
   const [showRazorpayModal, setShowRazorpayModal] = useState(false);
 
   const getPlanDetails = () => {
-    if (selectedPlan === 'monthly') return { amount: 199, name: 'Business Listing (Monthly - ₹199)' };
-    if (selectedPlan === 'yearly') return { amount: 2000, name: 'Business Listing (1 Year - ₹2,000)' };
-    return { amount: 999, name: 'Business Listing (6 Months - ₹999)' };
+    if (selectedPlan === 'biz_free') return { amount: 0, name: 'Free Basic Listing (₹0)' };
+    if (selectedPlan === 'biz_premium') return { amount: 999, name: 'Premium Featured (1 Year - ₹999)' };
+    return { amount: 399, name: 'Standard Verified (6 Months - ₹399)' };
   };
   const [nameEn, setNameEn] = useState('');
   const [nameTe, setNameTe] = useState('');
@@ -145,26 +141,16 @@ export default function RegisterBusinessScreen({ navigation }: any) {
   };
 
   const pickLogo = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!res.canceled && res.assets[0]?.uri) {
-      setLogoUri(res.assets[0].uri);
+    const res = await pickImageWithFreeStyleCrop();
+    if (res?.uri) {
+      setLogoUri(res.uri);
     }
   };
 
   const pickCover = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [16, 9],
-      quality: 0.8,
-    });
-    if (!res.canceled && res.assets[0]?.uri) {
-      setCoverUri(res.assets[0].uri);
+    const res = await pickImageWithFreeStyleCrop();
+    if (res?.uri) {
+      setCoverUri(res.uri);
     }
   };
 
@@ -191,6 +177,11 @@ export default function RegisterBusinessScreen({ navigation }: any) {
         Alert.alert('Invalid WhatsApp Number', 'Please enter a valid 10-digit WhatsApp number.');
         return;
       }
+    }
+
+    if (selectedPlan === 'biz_free') {
+      handlePaymentSuccess({ id: 'free_basic', amount: 0, status: 'free' });
+      return;
     }
 
     setShowRazorpayModal(true);
@@ -260,7 +251,7 @@ export default function RegisterBusinessScreen({ navigation }: any) {
           youtube: youtube.trim() || undefined,
           linkedin: linkedin.trim() || undefined,
         },
-        planId: selectedPlan,
+        planId: selectedPlan === 'biz_free' ? 'free' : selectedPlan === 'biz_premium' ? 'yearly' : 'half_yearly',
         paymentStatus: 'paid',
         paymentId: paymentData.razorpay_payment_id || `pay_${Date.now()}`,
         tier: 'featured',
@@ -724,11 +715,11 @@ export default function RegisterBusinessScreen({ navigation }: any) {
 
           <View style={{ gap: 10, marginBottom: 16 }}>
             {BUSINESS_PRICING_PLANS.map((plan) => {
-              const isSelected = selectedPlan === (plan.id === 'biz_monthly' ? 'monthly' : plan.id === 'biz_yearly' ? 'yearly' : 'half_yearly');
+              const isSelected = selectedPlan === plan.id;
               return (
                 <TouchableOpacity
                   key={plan.id}
-                  onPress={() => setSelectedPlan(plan.id === 'biz_monthly' ? 'monthly' : plan.id === 'biz_yearly' ? 'yearly' : 'half_yearly')}
+                  onPress={() => setSelectedPlan(plan.id as any)}
                   style={[
                     styles.planOptionCard,
                     isSelected && styles.planOptionCardActive
@@ -744,7 +735,7 @@ export default function RegisterBusinessScreen({ navigation }: any) {
                       <Text style={[styles.planOptionTitle, isSelected && { color: '#1D4ED8' }]}>{plan.name}</Text>
                     </View>
                     <View style={styles.priceBadge}>
-                      <Text style={styles.priceBadgeText}>₹{plan.price}</Text>
+                      <Text style={styles.priceBadgeText}>{plan.price === 0 ? 'FREE' : `₹${plan.price}`}</Text>
                     </View>
                   </View>
                   <Text style={styles.planOptionSub}>{plan.badge} • {plan.period}</Text>
@@ -762,8 +753,10 @@ export default function RegisterBusinessScreen({ navigation }: any) {
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="card-outline" size={18} color="#FFFFFF" />
-                <Text style={styles.submitBtnText}>Pay ₹{getPlanDetails().amount} & Activate via Razorpay</Text>
+                <Ionicons name={selectedPlan === 'biz_free' ? 'checkmark-circle-outline' : 'card-outline'} size={18} color="#FFFFFF" />
+                <Text style={styles.submitBtnText}>
+                  {selectedPlan === 'biz_free' ? 'Register Business for Free' : `Pay ₹${getPlanDetails().amount} & Activate via Razorpay`}
+                </Text>
               </View>
             )}
           </TouchableOpacity>

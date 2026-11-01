@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useLanguage } from '../context/LanguageContext';
+import { pickImageWithFreeStyleCrop } from '../utils/imageUploadHelper';
 import {
   PROFESSIONAL_CATEGORIES,
   PROFESSIONAL_PRICING_PLANS,
@@ -54,22 +55,17 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
         setCurrentUser(auth.currentUser);
       }
       AsyncStorage.getItem('user').then(async (val) => {
-        let p = phone;
         if (val) {
           try {
             const parsed = JSON.parse(val);
             setLocalUser(parsed);
-            if (parsed.phone && !phone) {
-              setPhone(parsed.phone);
-              p = parsed.phone;
-            }
           } catch {}
         }
 
         const uid = auth.currentUser?.uid;
-        if (uid || p) {
+        if (uid) {
           try {
-            const prof = await fetchMyProfessionalProfile(uid, p);
+            const prof = await fetchMyProfessionalProfile(uid, '');
             if (prof) {
               setExistingProfile(prof);
               setShowExistingModal(true);
@@ -83,12 +79,12 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
   }, [isFocused]);
 
   const isUserAuthenticated = !!(currentUser || localUser);
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'half_yearly' | 'yearly'>('half_yearly');
+  const [selectedPlan, setSelectedPlan] = useState<'pro_free' | 'pro_standard' | 'pro_elite'>('pro_standard');
 
   const getPlanDetails = () => {
-    if (selectedPlan === 'monthly') return { amount: 99, name: 'Personal Profile (Monthly - ₹99)' };
-    if (selectedPlan === 'yearly') return { amount: 900, name: 'Personal Profile (1 Year - ₹900)' };
-    return { amount: 500, name: 'Personal Profile (6 Months - ₹500)' };
+    if (selectedPlan === 'pro_free') return { amount: 0, name: 'Free Basic Profile (₹0)' };
+    if (selectedPlan === 'pro_elite') return { amount: 499, name: 'Elite Pro (1 Year - ₹499)' };
+    return { amount: 199, name: 'Standard Verified (6 Months - ₹199)' };
   };
   const [fullName, setFullName] = useState('');
   const [selectedCatId, setSelectedCatId] = useState(PROFESSIONAL_CATEGORIES[0]?.id || 'influencers_creators');
@@ -144,14 +140,9 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
   };
 
   const pickImage = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
-    if (!res.canceled) {
-      setImageUri(res.assets[0].uri);
+    const res = await pickImageWithFreeStyleCrop();
+    if (res?.uri) {
+      setImageUri(res.uri);
     }
   };
 
@@ -174,6 +165,11 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
         language === 'en' ? 'Required Field' : 'తప్పనిసరి ఫీల్డ్',
         language === 'en' ? 'Please enter a valid 10-digit Phone Number.' : 'దయచేసి సరైన 10 అంకెల ఫోన్ నంబర్‌ను నమోదు చేయండి.'
       );
+      return;
+    }
+
+    if (selectedPlan === 'pro_free') {
+      handlePaymentSuccess({ id: 'free_basic', amount: 0, status: 'free' });
       return;
     }
 
@@ -694,11 +690,11 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
 
         <View style={{ gap: 10, marginBottom: 16 }}>
           {PROFESSIONAL_PRICING_PLANS.map((plan) => {
-            const isSelected = selectedPlan === (plan.id === 'pro_monthly' ? 'monthly' : plan.id === 'pro_yearly' ? 'yearly' : 'half_yearly');
+            const isSelected = selectedPlan === plan.id;
             return (
               <TouchableOpacity
                 key={plan.id}
-                onPress={() => setSelectedPlan(plan.id === 'pro_monthly' ? 'monthly' : plan.id === 'pro_yearly' ? 'yearly' : 'half_yearly')}
+                onPress={() => setSelectedPlan(plan.id as any)}
                 style={[
                   styles.planItemCard,
                   isSelected && styles.planItemCardActive
@@ -714,7 +710,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
                     <Text style={[styles.planItemTitle, isSelected && { color: '#0F766E' }]}>{plan.name}</Text>
                   </View>
                   <View style={styles.proPriceBadge}>
-                    <Text style={styles.proPriceBadgeText}>₹{plan.price}</Text>
+                    <Text style={styles.proPriceBadgeText}>{plan.price === 0 ? 'FREE' : `₹${plan.price}`}</Text>
                   </View>
                 </View>
                 <Text style={styles.planItemSub}>{plan.badge} • {plan.period}</Text>
@@ -733,11 +729,11 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <>
-              <Ionicons name="card-outline" size={18} color="#FFFFFF" />
+              <Ionicons name={selectedPlan === 'pro_free' ? 'checkmark-circle-outline' : 'card-outline'} size={18} color="#FFFFFF" />
               <Text style={styles.submitBtnText}>
-                {language === 'en'
-                  ? `Pay ₹${getPlanDetails().amount} & Publish Profile`
-                  : `₹${getPlanDetails().amount} చెల్లించి ప్రచురించు`}
+                {selectedPlan === 'pro_free'
+                  ? (language === 'en' ? 'Register Profile for Free' : 'ఉచితంగా ప్రొఫైల్ నమోదు చేయండి')
+                  : (language === 'en' ? `Pay ₹${getPlanDetails().amount} & Publish Profile` : `₹${getPlanDetails().amount} చెల్లించి ప్రచురించు`)}
               </Text>
             </>
           )}

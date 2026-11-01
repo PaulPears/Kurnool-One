@@ -100,7 +100,8 @@ type AdminTab =
   | 'news'
   | 'blood_donors'
   | 'house_rentals'
-  | 'marketplace';
+  | 'marketplace'
+  | 'partners';
 
 const ADMIN_PASSCODE = 'Kurnool@Admin2026'; // Master management passkey
 
@@ -132,6 +133,10 @@ export default function DedicatedAdminConsole() {
   const [bloodDonorsList, setBloodDonorsList] = useState<BloodDonorItem[]>([]);
   const [rentalsList, setRentalsList] = useState<HouseRentalItem[]>([]);
   const [marketplaceList, setMarketplaceList] = useState<MarketplaceItem[]>([]);
+  const [partnersList, setPartnersList] = useState<any[]>([]);
+  const [payoutModalPartner, setPayoutModalPartner] = useState<any | null>(null);
+  const [payoutUtr, setPayoutUtr] = useState('');
+  const [processingPayout, setProcessingPayout] = useState(false);
   const [sendingNotification, setSendingNotification] = useState(false);
   const [notificationForm, setNotificationForm] = useState({
     title: '',
@@ -359,6 +364,13 @@ export default function DedicatedAdminConsole() {
         const items = marketSnap.docs.map(d => ({ id: d.id, ...d.data() } as MarketplaceItem));
         setMarketplaceList(items);
       } catch (e) { console.warn('Could not load marketplace:', e); }
+
+      // 13. Partner Program & Payouts
+      try {
+        const partnerSnap = await getDocs(collection(db, 'partners'));
+        const pItems = partnerSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setPartnersList(pItems);
+      } catch (e) { console.warn('Could not load partners:', e); }
     } catch (err) {
       console.error('Failed to load admin data:', err);
     } finally {
@@ -1266,6 +1278,30 @@ export default function DedicatedAdminConsole() {
               {marketplaceList.length}
             </span>
           </button>
+
+          {/* Kurnool One Partners & Payouts */}
+          <button
+            onClick={() => {
+              setActiveTab('partners');
+              setSearchQuery('');
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
+              activeTab === 'partners'
+                ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-4 h-4 text-purple-400" />
+              <div className="text-left">
+                <span className="block">Partner Payouts</span>
+                <span className="block text-[10px] text-purple-300 font-normal">Earn & Referrals Hub</span>
+              </div>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 font-mono font-bold">
+              {partnersList.length}
+            </span>
+          </button>
         </nav>
 
 
@@ -1686,6 +1722,245 @@ export default function DedicatedAdminConsole() {
             </div>
           )}
 
+          {/* ─── PARTNERS & PAYOUTS TAB ─── */}
+          {activeTab === 'partners' && (
+            <div className="space-y-6">
+              {/* Top Banner */}
+              <div className="p-6 rounded-2xl bg-gradient-to-r from-purple-900/40 via-indigo-900/30 to-slate-900 border border-purple-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 text-[11px] font-black uppercase tracking-wider mb-2">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Kurnool One Partner Program
+                  </div>
+                  <h2 className="text-xl font-black text-white">Partner Commission & UPI Payouts</h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Partners earn ₹150 for every Verified Merchant (₹399/₹999) onboarded with their referral code. Transfer via UPI & record UTR below.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={loadData}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition flex items-center gap-2"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Stat Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Partners</span>
+                  <span className="text-2xl font-black text-white mt-1 block">{partnersList.length}</span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">Pending Payouts</span>
+                  <span className="text-2xl font-black text-amber-400 mt-1 block">
+                    ₹{partnersList.reduce((sum, p) => sum + (p.pendingCommission || 0), 0)}
+                  </span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Total Paid Out</span>
+                  <span className="text-2xl font-black text-emerald-400 mt-1 block">
+                    ₹{partnersList.reduce((sum, p) => sum + (p.earnedCommission || 0), 0)}
+                  </span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">Total Onboarded Shops</span>
+                  <span className="text-2xl font-black text-blue-400 mt-1 block">
+                    {partnersList.reduce((sum, p) => sum + (p.onboardedCount || 0), 0)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Partners Table */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-950/80 border-b border-slate-800 text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                      <tr>
+                        <th className="py-3.5 px-4">Partner Details</th>
+                        <th className="py-3.5 px-4">Referral Code</th>
+                        <th className="py-3.5 px-4">UPI VPA</th>
+                        <th className="py-3.5 px-4">Shops Onboarded</th>
+                        <th className="py-3.5 px-4">Pending (₹)</th>
+                        <th className="py-3.5 px-4">Total Paid (₹)</th>
+                        <th className="py-3.5 px-4">Status</th>
+                        <th className="py-3.5 px-4 text-right">Payout Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800 text-slate-300">
+                      {partnersList.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="py-12 text-center text-slate-500">
+                            No partners registered yet. Citizens join via Partner Program in mobile app.
+                          </td>
+                        </tr>
+                      ) : (
+                        partnersList.map((partner) => {
+                          const pendingAmt = partner.pendingCommission || 0;
+                          return (
+                            <tr key={partner.id} className="hover:bg-slate-800/40 transition">
+                              <td className="py-3 px-4">
+                                <span className="font-bold text-white block">{partner.fullName || 'Citizen Partner'}</span>
+                                <span className="text-[11px] text-slate-400 font-mono">{partner.phone}</span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono font-bold text-purple-300">
+                                  {partner.partnerCode || `KNL-${partner.phone?.slice(-4)}`}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="font-mono text-emerald-400 font-bold">{partner.upiId || 'Pending Setup'}</span>
+                              </td>
+                              <td className="py-3 px-4 font-mono font-bold text-white">
+                                {partner.onboardedCount || 0}
+                              </td>
+                              <td className="py-3 px-4 font-mono font-bold text-amber-400">
+                                ₹{pendingAmt}
+                              </td>
+                              <td className="py-3 px-4 font-mono text-slate-400">
+                                ₹{partner.earnedCommission || 0}
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  pendingAmt > 0
+                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                }`}>
+                                  {pendingAmt > 0 ? 'Payout Due' : 'All Clear'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <button
+                                  onClick={() => {
+                                    setPayoutModalPartner(partner);
+                                    setPayoutUtr('');
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow transition active:scale-95"
+                                >
+                                  Process UPI Payout
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+      {/* ─── MODAL: PROCESS PARTNER PAYOUT ─── */}
+      {payoutModalPartner && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-black text-white">Process Partner Payout (UPI)</h3>
+              </div>
+              <button
+                onClick={() => setPayoutModalPartner(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-800/40 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Partner:</span>
+                  <span className="font-bold text-white text-sm">{payoutModalPartner.fullName || payoutModalPartner.phone}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Mobile:</span>
+                  <span className="font-mono text-slate-200">{payoutModalPartner.phone}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Transfer UPI ID:</span>
+                  <span className="font-mono text-emerald-400 font-black text-sm">{payoutModalPartner.upiId}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-purple-800/40">
+                  <span className="text-slate-400 font-bold">Payout Amount Due:</span>
+                  <span className="font-mono text-amber-400 font-black text-base">
+                    ₹{payoutModalPartner.pendingCommission || 0}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 space-y-1">
+                <span className="font-bold block">Manual Payout Instructions:</span>
+                <p className="text-[11px] leading-relaxed">
+                  1. Open PhonePe, Google Pay, or Paytm on your mobile.<br />
+                  2. Send ₹{payoutModalPartner.pendingCommission || 0} directly to <strong>{payoutModalPartner.upiId}</strong>.<br />
+                  3. Copy the 12-digit Bank UTR / Reference ID from payment receipt and paste below.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5">
+                  Bank UTR / Transaction Reference Number *
+                </label>
+                <input
+                  type="text"
+                  value={payoutUtr}
+                  onChange={(e) => setPayoutUtr(e.target.value)}
+                  placeholder="e.g. 430512849021 (12 digits)"
+                  className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-sm outline-none focus:border-purple-500"
+                  required
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPayoutModalPartner(null)}
+                  className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={processingPayout || !payoutUtr.trim()}
+                  onClick={async () => {
+                    if (!payoutModalPartner) return;
+                    setProcessingPayout(true);
+                    try {
+                      const due = payoutModalPartner.pendingCommission || 0;
+                      await updateDoc(doc(db, 'partners', payoutModalPartner.id), {
+                        payoutStatus: 'paid',
+                        lastPayoutUtr: payoutUtr.trim(),
+                        lastPayoutAt: new Date().toISOString(),
+                        earnedCommission: (payoutModalPartner.earnedCommission || 0) + due,
+                        pendingCommission: 0,
+                      });
+                      setToast(`₹${due} marked as PAID with UTR ${payoutUtr.trim()}`);
+                      setPayoutModalPartner(null);
+                      setPayoutUtr('');
+                      await loadData();
+                    } catch (e: any) {
+                      alert('Error: ' + e.message);
+                    } finally {
+                      setProcessingPayout(false);
+                    }
+                  }}
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow transition"
+                >
+                  {processingPayout ? 'Recording Payout...' : 'Confirm & Mark Paid'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
           {/* ─── TAB 3: PROFESSIONALS ────────────────────────────────────────── */}
           {activeTab === 'professionals' && (
             <div className="space-y-4">
@@ -1817,6 +2092,245 @@ export default function DedicatedAdminConsole() {
               </div>
             </div>
           )}
+
+          {/* ─── PARTNERS & PAYOUTS TAB ─── */}
+          {activeTab === 'partners' && (
+            <div className="space-y-6">
+              {/* Top Banner */}
+              <div className="p-6 rounded-2xl bg-gradient-to-r from-purple-900/40 via-indigo-900/30 to-slate-900 border border-purple-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 text-[11px] font-black uppercase tracking-wider mb-2">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Kurnool One Partner Program
+                  </div>
+                  <h2 className="text-xl font-black text-white">Partner Commission & UPI Payouts</h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Partners earn ₹150 for every Verified Merchant (₹399/₹999) onboarded with their referral code. Transfer via UPI & record UTR below.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={loadData}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition flex items-center gap-2"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Stat Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Partners</span>
+                  <span className="text-2xl font-black text-white mt-1 block">{partnersList.length}</span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">Pending Payouts</span>
+                  <span className="text-2xl font-black text-amber-400 mt-1 block">
+                    ₹{partnersList.reduce((sum, p) => sum + (p.pendingCommission || 0), 0)}
+                  </span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Total Paid Out</span>
+                  <span className="text-2xl font-black text-emerald-400 mt-1 block">
+                    ₹{partnersList.reduce((sum, p) => sum + (p.earnedCommission || 0), 0)}
+                  </span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">Total Onboarded Shops</span>
+                  <span className="text-2xl font-black text-blue-400 mt-1 block">
+                    {partnersList.reduce((sum, p) => sum + (p.onboardedCount || 0), 0)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Partners Table */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-950/80 border-b border-slate-800 text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                      <tr>
+                        <th className="py-3.5 px-4">Partner Details</th>
+                        <th className="py-3.5 px-4">Referral Code</th>
+                        <th className="py-3.5 px-4">UPI VPA</th>
+                        <th className="py-3.5 px-4">Shops Onboarded</th>
+                        <th className="py-3.5 px-4">Pending (₹)</th>
+                        <th className="py-3.5 px-4">Total Paid (₹)</th>
+                        <th className="py-3.5 px-4">Status</th>
+                        <th className="py-3.5 px-4 text-right">Payout Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800 text-slate-300">
+                      {partnersList.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="py-12 text-center text-slate-500">
+                            No partners registered yet. Citizens join via Partner Program in mobile app.
+                          </td>
+                        </tr>
+                      ) : (
+                        partnersList.map((partner) => {
+                          const pendingAmt = partner.pendingCommission || 0;
+                          return (
+                            <tr key={partner.id} className="hover:bg-slate-800/40 transition">
+                              <td className="py-3 px-4">
+                                <span className="font-bold text-white block">{partner.fullName || 'Citizen Partner'}</span>
+                                <span className="text-[11px] text-slate-400 font-mono">{partner.phone}</span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono font-bold text-purple-300">
+                                  {partner.partnerCode || `KNL-${partner.phone?.slice(-4)}`}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="font-mono text-emerald-400 font-bold">{partner.upiId || 'Pending Setup'}</span>
+                              </td>
+                              <td className="py-3 px-4 font-mono font-bold text-white">
+                                {partner.onboardedCount || 0}
+                              </td>
+                              <td className="py-3 px-4 font-mono font-bold text-amber-400">
+                                ₹{pendingAmt}
+                              </td>
+                              <td className="py-3 px-4 font-mono text-slate-400">
+                                ₹{partner.earnedCommission || 0}
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  pendingAmt > 0
+                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                }`}>
+                                  {pendingAmt > 0 ? 'Payout Due' : 'All Clear'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <button
+                                  onClick={() => {
+                                    setPayoutModalPartner(partner);
+                                    setPayoutUtr('');
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow transition active:scale-95"
+                                >
+                                  Process UPI Payout
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+      {/* ─── MODAL: PROCESS PARTNER PAYOUT ─── */}
+      {payoutModalPartner && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-black text-white">Process Partner Payout (UPI)</h3>
+              </div>
+              <button
+                onClick={() => setPayoutModalPartner(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-800/40 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Partner:</span>
+                  <span className="font-bold text-white text-sm">{payoutModalPartner.fullName || payoutModalPartner.phone}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Mobile:</span>
+                  <span className="font-mono text-slate-200">{payoutModalPartner.phone}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Transfer UPI ID:</span>
+                  <span className="font-mono text-emerald-400 font-black text-sm">{payoutModalPartner.upiId}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-purple-800/40">
+                  <span className="text-slate-400 font-bold">Payout Amount Due:</span>
+                  <span className="font-mono text-amber-400 font-black text-base">
+                    ₹{payoutModalPartner.pendingCommission || 0}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 space-y-1">
+                <span className="font-bold block">Manual Payout Instructions:</span>
+                <p className="text-[11px] leading-relaxed">
+                  1. Open PhonePe, Google Pay, or Paytm on your mobile.<br />
+                  2. Send ₹{payoutModalPartner.pendingCommission || 0} directly to <strong>{payoutModalPartner.upiId}</strong>.<br />
+                  3. Copy the 12-digit Bank UTR / Reference ID from payment receipt and paste below.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5">
+                  Bank UTR / Transaction Reference Number *
+                </label>
+                <input
+                  type="text"
+                  value={payoutUtr}
+                  onChange={(e) => setPayoutUtr(e.target.value)}
+                  placeholder="e.g. 430512849021 (12 digits)"
+                  className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-sm outline-none focus:border-purple-500"
+                  required
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPayoutModalPartner(null)}
+                  className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={processingPayout || !payoutUtr.trim()}
+                  onClick={async () => {
+                    if (!payoutModalPartner) return;
+                    setProcessingPayout(true);
+                    try {
+                      const due = payoutModalPartner.pendingCommission || 0;
+                      await updateDoc(doc(db, 'partners', payoutModalPartner.id), {
+                        payoutStatus: 'paid',
+                        lastPayoutUtr: payoutUtr.trim(),
+                        lastPayoutAt: new Date().toISOString(),
+                        earnedCommission: (payoutModalPartner.earnedCommission || 0) + due,
+                        pendingCommission: 0,
+                      });
+                      setToast(`₹${due} marked as PAID with UTR ${payoutUtr.trim()}`);
+                      setPayoutModalPartner(null);
+                      setPayoutUtr('');
+                      await loadData();
+                    } catch (e: any) {
+                      alert('Error: ' + e.message);
+                    } finally {
+                      setProcessingPayout(false);
+                    }
+                  }}
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow transition"
+                >
+                  {processingPayout ? 'Recording Payout...' : 'Confirm & Mark Paid'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
           {/* ─── TAB 4: TOURIST PLACES ───────────────────────────────────────── */}
           {activeTab === 'places' && (
@@ -2851,6 +3365,245 @@ export default function DedicatedAdminConsole() {
             </div>
           )}
 
+          {/* ─── PARTNERS & PAYOUTS TAB ─── */}
+          {activeTab === 'partners' && (
+            <div className="space-y-6">
+              {/* Top Banner */}
+              <div className="p-6 rounded-2xl bg-gradient-to-r from-purple-900/40 via-indigo-900/30 to-slate-900 border border-purple-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 text-[11px] font-black uppercase tracking-wider mb-2">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Kurnool One Partner Program
+                  </div>
+                  <h2 className="text-xl font-black text-white">Partner Commission & UPI Payouts</h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Partners earn ₹150 for every Verified Merchant (₹399/₹999) onboarded with their referral code. Transfer via UPI & record UTR below.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={loadData}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition flex items-center gap-2"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Stat Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Partners</span>
+                  <span className="text-2xl font-black text-white mt-1 block">{partnersList.length}</span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">Pending Payouts</span>
+                  <span className="text-2xl font-black text-amber-400 mt-1 block">
+                    ₹{partnersList.reduce((sum, p) => sum + (p.pendingCommission || 0), 0)}
+                  </span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Total Paid Out</span>
+                  <span className="text-2xl font-black text-emerald-400 mt-1 block">
+                    ₹{partnersList.reduce((sum, p) => sum + (p.earnedCommission || 0), 0)}
+                  </span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">Total Onboarded Shops</span>
+                  <span className="text-2xl font-black text-blue-400 mt-1 block">
+                    {partnersList.reduce((sum, p) => sum + (p.onboardedCount || 0), 0)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Partners Table */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-950/80 border-b border-slate-800 text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                      <tr>
+                        <th className="py-3.5 px-4">Partner Details</th>
+                        <th className="py-3.5 px-4">Referral Code</th>
+                        <th className="py-3.5 px-4">UPI VPA</th>
+                        <th className="py-3.5 px-4">Shops Onboarded</th>
+                        <th className="py-3.5 px-4">Pending (₹)</th>
+                        <th className="py-3.5 px-4">Total Paid (₹)</th>
+                        <th className="py-3.5 px-4">Status</th>
+                        <th className="py-3.5 px-4 text-right">Payout Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800 text-slate-300">
+                      {partnersList.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="py-12 text-center text-slate-500">
+                            No partners registered yet. Citizens join via Partner Program in mobile app.
+                          </td>
+                        </tr>
+                      ) : (
+                        partnersList.map((partner) => {
+                          const pendingAmt = partner.pendingCommission || 0;
+                          return (
+                            <tr key={partner.id} className="hover:bg-slate-800/40 transition">
+                              <td className="py-3 px-4">
+                                <span className="font-bold text-white block">{partner.fullName || 'Citizen Partner'}</span>
+                                <span className="text-[11px] text-slate-400 font-mono">{partner.phone}</span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono font-bold text-purple-300">
+                                  {partner.partnerCode || `KNL-${partner.phone?.slice(-4)}`}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="font-mono text-emerald-400 font-bold">{partner.upiId || 'Pending Setup'}</span>
+                              </td>
+                              <td className="py-3 px-4 font-mono font-bold text-white">
+                                {partner.onboardedCount || 0}
+                              </td>
+                              <td className="py-3 px-4 font-mono font-bold text-amber-400">
+                                ₹{pendingAmt}
+                              </td>
+                              <td className="py-3 px-4 font-mono text-slate-400">
+                                ₹{partner.earnedCommission || 0}
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  pendingAmt > 0
+                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                }`}>
+                                  {pendingAmt > 0 ? 'Payout Due' : 'All Clear'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <button
+                                  onClick={() => {
+                                    setPayoutModalPartner(partner);
+                                    setPayoutUtr('');
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow transition active:scale-95"
+                                >
+                                  Process UPI Payout
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+      {/* ─── MODAL: PROCESS PARTNER PAYOUT ─── */}
+      {payoutModalPartner && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-black text-white">Process Partner Payout (UPI)</h3>
+              </div>
+              <button
+                onClick={() => setPayoutModalPartner(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-800/40 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Partner:</span>
+                  <span className="font-bold text-white text-sm">{payoutModalPartner.fullName || payoutModalPartner.phone}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Mobile:</span>
+                  <span className="font-mono text-slate-200">{payoutModalPartner.phone}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Transfer UPI ID:</span>
+                  <span className="font-mono text-emerald-400 font-black text-sm">{payoutModalPartner.upiId}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-purple-800/40">
+                  <span className="text-slate-400 font-bold">Payout Amount Due:</span>
+                  <span className="font-mono text-amber-400 font-black text-base">
+                    ₹{payoutModalPartner.pendingCommission || 0}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 space-y-1">
+                <span className="font-bold block">Manual Payout Instructions:</span>
+                <p className="text-[11px] leading-relaxed">
+                  1. Open PhonePe, Google Pay, or Paytm on your mobile.<br />
+                  2. Send ₹{payoutModalPartner.pendingCommission || 0} directly to <strong>{payoutModalPartner.upiId}</strong>.<br />
+                  3. Copy the 12-digit Bank UTR / Reference ID from payment receipt and paste below.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5">
+                  Bank UTR / Transaction Reference Number *
+                </label>
+                <input
+                  type="text"
+                  value={payoutUtr}
+                  onChange={(e) => setPayoutUtr(e.target.value)}
+                  placeholder="e.g. 430512849021 (12 digits)"
+                  className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-sm outline-none focus:border-purple-500"
+                  required
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPayoutModalPartner(null)}
+                  className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={processingPayout || !payoutUtr.trim()}
+                  onClick={async () => {
+                    if (!payoutModalPartner) return;
+                    setProcessingPayout(true);
+                    try {
+                      const due = payoutModalPartner.pendingCommission || 0;
+                      await updateDoc(doc(db, 'partners', payoutModalPartner.id), {
+                        payoutStatus: 'paid',
+                        lastPayoutUtr: payoutUtr.trim(),
+                        lastPayoutAt: new Date().toISOString(),
+                        earnedCommission: (payoutModalPartner.earnedCommission || 0) + due,
+                        pendingCommission: 0,
+                      });
+                      setToast(`₹${due} marked as PAID with UTR ${payoutUtr.trim()}`);
+                      setPayoutModalPartner(null);
+                      setPayoutUtr('');
+                      await loadData();
+                    } catch (e: any) {
+                      alert('Error: ' + e.message);
+                    } finally {
+                      setProcessingPayout(false);
+                    }
+                  }}
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow transition"
+                >
+                  {processingPayout ? 'Recording Payout...' : 'Confirm & Mark Paid'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
           {/* ─── TAB: HOUSE RENTALS (TO-LET) MODERATION ─── */}
           {activeTab === 'house_rentals' && (
             <div className="space-y-6">
@@ -2941,6 +3694,245 @@ export default function DedicatedAdminConsole() {
               </div>
             </div>
           )}
+
+          {/* ─── PARTNERS & PAYOUTS TAB ─── */}
+          {activeTab === 'partners' && (
+            <div className="space-y-6">
+              {/* Top Banner */}
+              <div className="p-6 rounded-2xl bg-gradient-to-r from-purple-900/40 via-indigo-900/30 to-slate-900 border border-purple-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 text-[11px] font-black uppercase tracking-wider mb-2">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Kurnool One Partner Program
+                  </div>
+                  <h2 className="text-xl font-black text-white">Partner Commission & UPI Payouts</h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Partners earn ₹150 for every Verified Merchant (₹399/₹999) onboarded with their referral code. Transfer via UPI & record UTR below.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={loadData}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition flex items-center gap-2"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Stat Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Partners</span>
+                  <span className="text-2xl font-black text-white mt-1 block">{partnersList.length}</span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">Pending Payouts</span>
+                  <span className="text-2xl font-black text-amber-400 mt-1 block">
+                    ₹{partnersList.reduce((sum, p) => sum + (p.pendingCommission || 0), 0)}
+                  </span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Total Paid Out</span>
+                  <span className="text-2xl font-black text-emerald-400 mt-1 block">
+                    ₹{partnersList.reduce((sum, p) => sum + (p.earnedCommission || 0), 0)}
+                  </span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">Total Onboarded Shops</span>
+                  <span className="text-2xl font-black text-blue-400 mt-1 block">
+                    {partnersList.reduce((sum, p) => sum + (p.onboardedCount || 0), 0)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Partners Table */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-950/80 border-b border-slate-800 text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                      <tr>
+                        <th className="py-3.5 px-4">Partner Details</th>
+                        <th className="py-3.5 px-4">Referral Code</th>
+                        <th className="py-3.5 px-4">UPI VPA</th>
+                        <th className="py-3.5 px-4">Shops Onboarded</th>
+                        <th className="py-3.5 px-4">Pending (₹)</th>
+                        <th className="py-3.5 px-4">Total Paid (₹)</th>
+                        <th className="py-3.5 px-4">Status</th>
+                        <th className="py-3.5 px-4 text-right">Payout Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800 text-slate-300">
+                      {partnersList.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="py-12 text-center text-slate-500">
+                            No partners registered yet. Citizens join via Partner Program in mobile app.
+                          </td>
+                        </tr>
+                      ) : (
+                        partnersList.map((partner) => {
+                          const pendingAmt = partner.pendingCommission || 0;
+                          return (
+                            <tr key={partner.id} className="hover:bg-slate-800/40 transition">
+                              <td className="py-3 px-4">
+                                <span className="font-bold text-white block">{partner.fullName || 'Citizen Partner'}</span>
+                                <span className="text-[11px] text-slate-400 font-mono">{partner.phone}</span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono font-bold text-purple-300">
+                                  {partner.partnerCode || `KNL-${partner.phone?.slice(-4)}`}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="font-mono text-emerald-400 font-bold">{partner.upiId || 'Pending Setup'}</span>
+                              </td>
+                              <td className="py-3 px-4 font-mono font-bold text-white">
+                                {partner.onboardedCount || 0}
+                              </td>
+                              <td className="py-3 px-4 font-mono font-bold text-amber-400">
+                                ₹{pendingAmt}
+                              </td>
+                              <td className="py-3 px-4 font-mono text-slate-400">
+                                ₹{partner.earnedCommission || 0}
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  pendingAmt > 0
+                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                }`}>
+                                  {pendingAmt > 0 ? 'Payout Due' : 'All Clear'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <button
+                                  onClick={() => {
+                                    setPayoutModalPartner(partner);
+                                    setPayoutUtr('');
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow transition active:scale-95"
+                                >
+                                  Process UPI Payout
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+      {/* ─── MODAL: PROCESS PARTNER PAYOUT ─── */}
+      {payoutModalPartner && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-black text-white">Process Partner Payout (UPI)</h3>
+              </div>
+              <button
+                onClick={() => setPayoutModalPartner(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-800/40 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Partner:</span>
+                  <span className="font-bold text-white text-sm">{payoutModalPartner.fullName || payoutModalPartner.phone}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Mobile:</span>
+                  <span className="font-mono text-slate-200">{payoutModalPartner.phone}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Transfer UPI ID:</span>
+                  <span className="font-mono text-emerald-400 font-black text-sm">{payoutModalPartner.upiId}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-purple-800/40">
+                  <span className="text-slate-400 font-bold">Payout Amount Due:</span>
+                  <span className="font-mono text-amber-400 font-black text-base">
+                    ₹{payoutModalPartner.pendingCommission || 0}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 space-y-1">
+                <span className="font-bold block">Manual Payout Instructions:</span>
+                <p className="text-[11px] leading-relaxed">
+                  1. Open PhonePe, Google Pay, or Paytm on your mobile.<br />
+                  2. Send ₹{payoutModalPartner.pendingCommission || 0} directly to <strong>{payoutModalPartner.upiId}</strong>.<br />
+                  3. Copy the 12-digit Bank UTR / Reference ID from payment receipt and paste below.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5">
+                  Bank UTR / Transaction Reference Number *
+                </label>
+                <input
+                  type="text"
+                  value={payoutUtr}
+                  onChange={(e) => setPayoutUtr(e.target.value)}
+                  placeholder="e.g. 430512849021 (12 digits)"
+                  className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-sm outline-none focus:border-purple-500"
+                  required
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPayoutModalPartner(null)}
+                  className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={processingPayout || !payoutUtr.trim()}
+                  onClick={async () => {
+                    if (!payoutModalPartner) return;
+                    setProcessingPayout(true);
+                    try {
+                      const due = payoutModalPartner.pendingCommission || 0;
+                      await updateDoc(doc(db, 'partners', payoutModalPartner.id), {
+                        payoutStatus: 'paid',
+                        lastPayoutUtr: payoutUtr.trim(),
+                        lastPayoutAt: new Date().toISOString(),
+                        earnedCommission: (payoutModalPartner.earnedCommission || 0) + due,
+                        pendingCommission: 0,
+                      });
+                      setToast(`₹${due} marked as PAID with UTR ${payoutUtr.trim()}`);
+                      setPayoutModalPartner(null);
+                      setPayoutUtr('');
+                      await loadData();
+                    } catch (e: any) {
+                      alert('Error: ' + e.message);
+                    } finally {
+                      setProcessingPayout(false);
+                    }
+                  }}
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow transition"
+                >
+                  {processingPayout ? 'Recording Payout...' : 'Confirm & Mark Paid'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
           {/* ─── TAB: MARKETPLACE CLASSIFIEDS ─── */}
           {activeTab === 'marketplace' && (
@@ -3034,6 +4026,245 @@ export default function DedicatedAdminConsole() {
               </div>
             </div>
           )}
+
+          {/* ─── PARTNERS & PAYOUTS TAB ─── */}
+          {activeTab === 'partners' && (
+            <div className="space-y-6">
+              {/* Top Banner */}
+              <div className="p-6 rounded-2xl bg-gradient-to-r from-purple-900/40 via-indigo-900/30 to-slate-900 border border-purple-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 text-[11px] font-black uppercase tracking-wider mb-2">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Kurnool One Partner Program
+                  </div>
+                  <h2 className="text-xl font-black text-white">Partner Commission & UPI Payouts</h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Partners earn ₹150 for every Verified Merchant (₹399/₹999) onboarded with their referral code. Transfer via UPI & record UTR below.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={loadData}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition flex items-center gap-2"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Stat Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Partners</span>
+                  <span className="text-2xl font-black text-white mt-1 block">{partnersList.length}</span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">Pending Payouts</span>
+                  <span className="text-2xl font-black text-amber-400 mt-1 block">
+                    ₹{partnersList.reduce((sum, p) => sum + (p.pendingCommission || 0), 0)}
+                  </span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Total Paid Out</span>
+                  <span className="text-2xl font-black text-emerald-400 mt-1 block">
+                    ₹{partnersList.reduce((sum, p) => sum + (p.earnedCommission || 0), 0)}
+                  </span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">Total Onboarded Shops</span>
+                  <span className="text-2xl font-black text-blue-400 mt-1 block">
+                    {partnersList.reduce((sum, p) => sum + (p.onboardedCount || 0), 0)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Partners Table */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-950/80 border-b border-slate-800 text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                      <tr>
+                        <th className="py-3.5 px-4">Partner Details</th>
+                        <th className="py-3.5 px-4">Referral Code</th>
+                        <th className="py-3.5 px-4">UPI VPA</th>
+                        <th className="py-3.5 px-4">Shops Onboarded</th>
+                        <th className="py-3.5 px-4">Pending (₹)</th>
+                        <th className="py-3.5 px-4">Total Paid (₹)</th>
+                        <th className="py-3.5 px-4">Status</th>
+                        <th className="py-3.5 px-4 text-right">Payout Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800 text-slate-300">
+                      {partnersList.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="py-12 text-center text-slate-500">
+                            No partners registered yet. Citizens join via Partner Program in mobile app.
+                          </td>
+                        </tr>
+                      ) : (
+                        partnersList.map((partner) => {
+                          const pendingAmt = partner.pendingCommission || 0;
+                          return (
+                            <tr key={partner.id} className="hover:bg-slate-800/40 transition">
+                              <td className="py-3 px-4">
+                                <span className="font-bold text-white block">{partner.fullName || 'Citizen Partner'}</span>
+                                <span className="text-[11px] text-slate-400 font-mono">{partner.phone}</span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono font-bold text-purple-300">
+                                  {partner.partnerCode || `KNL-${partner.phone?.slice(-4)}`}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="font-mono text-emerald-400 font-bold">{partner.upiId || 'Pending Setup'}</span>
+                              </td>
+                              <td className="py-3 px-4 font-mono font-bold text-white">
+                                {partner.onboardedCount || 0}
+                              </td>
+                              <td className="py-3 px-4 font-mono font-bold text-amber-400">
+                                ₹{pendingAmt}
+                              </td>
+                              <td className="py-3 px-4 font-mono text-slate-400">
+                                ₹{partner.earnedCommission || 0}
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  pendingAmt > 0
+                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                }`}>
+                                  {pendingAmt > 0 ? 'Payout Due' : 'All Clear'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <button
+                                  onClick={() => {
+                                    setPayoutModalPartner(partner);
+                                    setPayoutUtr('');
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow transition active:scale-95"
+                                >
+                                  Process UPI Payout
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+      {/* ─── MODAL: PROCESS PARTNER PAYOUT ─── */}
+      {payoutModalPartner && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-black text-white">Process Partner Payout (UPI)</h3>
+              </div>
+              <button
+                onClick={() => setPayoutModalPartner(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-800/40 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Partner:</span>
+                  <span className="font-bold text-white text-sm">{payoutModalPartner.fullName || payoutModalPartner.phone}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Mobile:</span>
+                  <span className="font-mono text-slate-200">{payoutModalPartner.phone}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Transfer UPI ID:</span>
+                  <span className="font-mono text-emerald-400 font-black text-sm">{payoutModalPartner.upiId}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-purple-800/40">
+                  <span className="text-slate-400 font-bold">Payout Amount Due:</span>
+                  <span className="font-mono text-amber-400 font-black text-base">
+                    ₹{payoutModalPartner.pendingCommission || 0}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 space-y-1">
+                <span className="font-bold block">Manual Payout Instructions:</span>
+                <p className="text-[11px] leading-relaxed">
+                  1. Open PhonePe, Google Pay, or Paytm on your mobile.<br />
+                  2. Send ₹{payoutModalPartner.pendingCommission || 0} directly to <strong>{payoutModalPartner.upiId}</strong>.<br />
+                  3. Copy the 12-digit Bank UTR / Reference ID from payment receipt and paste below.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5">
+                  Bank UTR / Transaction Reference Number *
+                </label>
+                <input
+                  type="text"
+                  value={payoutUtr}
+                  onChange={(e) => setPayoutUtr(e.target.value)}
+                  placeholder="e.g. 430512849021 (12 digits)"
+                  className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-sm outline-none focus:border-purple-500"
+                  required
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPayoutModalPartner(null)}
+                  className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={processingPayout || !payoutUtr.trim()}
+                  onClick={async () => {
+                    if (!payoutModalPartner) return;
+                    setProcessingPayout(true);
+                    try {
+                      const due = payoutModalPartner.pendingCommission || 0;
+                      await updateDoc(doc(db, 'partners', payoutModalPartner.id), {
+                        payoutStatus: 'paid',
+                        lastPayoutUtr: payoutUtr.trim(),
+                        lastPayoutAt: new Date().toISOString(),
+                        earnedCommission: (payoutModalPartner.earnedCommission || 0) + due,
+                        pendingCommission: 0,
+                      });
+                      setToast(`₹${due} marked as PAID with UTR ${payoutUtr.trim()}`);
+                      setPayoutModalPartner(null);
+                      setPayoutUtr('');
+                      await loadData();
+                    } catch (e: any) {
+                      alert('Error: ' + e.message);
+                    } finally {
+                      setProcessingPayout(false);
+                    }
+                  }}
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow transition"
+                >
+                  {processingPayout ? 'Recording Payout...' : 'Confirm & Mark Paid'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
         </div>
       </main>
 

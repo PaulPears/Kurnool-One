@@ -1078,6 +1078,21 @@ export const SEED_WORSHIP_PLACES: PlaceItem[] = [
     longitude: 78.0401,
     isPromoted: false,
   },
+  {
+    id: 'worship_coles_church',
+    type: 'church',
+    name_en: 'Coles Memorial Church (Historic Heritage)',
+    name_te: 'కోల్స్ మెమోరియల్ చర్చ్ (చారిత్రక చర్చి)',
+    description_en: 'Centenary Gothic-architectural Christian sanctuary founded in Kurnool, noted for serene prayer hall, vintage stained glass panels, and peaceful community worship.',
+    description_te: 'గోథిక్ నిర్మాణ శైలి కలిగిన శతాబ్దాల నాటి ప్రార్థనా మందిరం మరియు పవిత్ర క్షేత్రం.',
+    address: 'Near Collectorate & Coles College Road, Kurnool, AP 518002',
+    timings: '06:00 AM - 08:30 PM (Sunday Service: 09:00 AM)',
+    entryFee: 'Free Entry',
+    photos: ['https://images.unsplash.com/photo-1548625361-19598285903b?w=800&auto=format&fit=crop&q=80'],
+    latitude: 15.8285,
+    longitude: 78.0345,
+    isPromoted: false,
+  },
 ];
 
 export const SEED_PROFESSIONALS: ProfessionalItem[] = [
@@ -1857,98 +1872,96 @@ export interface PricingPlan {
 
 export const BUSINESS_PRICING_PLANS: PricingPlan[] = [
   {
-    id: 'biz_monthly',
-    name: 'Monthly Plan',
-    name_te: 'నెలవారీ ప్లాన్',
-    price: 199,
-    period: 'per month',
-    badge: 'Flexible',
+    id: 'biz_free',
+    name: 'Free Basic',
+    name_te: 'ఉచిత బేసిక్',
+    price: 0,
+    period: 'always free',
+    badge: 'Free Forever',
     features: [
-      'Full business listing in 50 Categories',
-      'Monday to Sunday operating hours',
-      'Direct Call & WhatsApp lead buttons',
-      'Google Maps directions embed',
-      'Basic search visibility',
+      'Basic listing in selected category',
+      'Address & basic contact details',
+      'Operating hours display',
+      'Standard civic search visibility',
     ],
   },
   {
-    id: 'biz_half_yearly',
-    name: '6 Months Plan',
-    name_te: '6 నెలల ప్లాన్',
-    price: 999,
+    id: 'biz_standard',
+    name: 'Standard Verified',
+    name_te: 'స్టాండర్డ్ వెరిఫైడ్',
+    price: 399,
     period: 'for 6 months',
     badge: 'Popular Choice',
+    recommended: true,
     features: [
-      'Everything in Monthly plan',
-      'Verified Merchant badge',
-      'Full Photo Gallery & Video embed',
-      'Offers & Festival Deals publishing',
-      'Lead and call click analytics',
+      'Official Verified Merchant checkmark',
+      'Direct Call & WhatsApp lead buttons',
+      'Google Maps directions link',
+      'Logo & storefront cover photo',
+      'Priority ranking above free listings',
     ],
   },
   {
-    id: 'biz_yearly',
-    name: 'Yearly Plan',
-    name_te: 'సంవత్సర ప్లాన్',
-    price: 2000,
-    period: 'per year',
-    badge: 'Best Value (Save ₹388)',
-    recommended: true,
+    id: 'biz_premium',
+    name: 'Premium Featured',
+    name_te: 'ప్రీమియం ఫీచర్డ్',
+    price: 999,
+    period: 'for 1 year',
+    badge: 'Best Value (1 Year)',
     features: [
-      'All features for full 12 Months',
-      'Top priority category ranking',
-      'Homepage Featured showcase',
-      'Social media boost on Kurnool One handles',
-      'Dedicated manager support',
+      'Top priority category ranking for 1 Full Year',
+      'Homepage Featured showcase placement',
+      'Hot Deals & Offers publishing privileges',
+      'Complete photo gallery & social media links',
+      'Verified Merchant trust badge',
     ],
   },
 ];
 
 export const PROFESSIONAL_PRICING_PLANS: PricingPlan[] = [
   {
-    id: 'pro_monthly',
-    name: 'Monthly Plan',
-    name_te: 'నెలవారీ ప్లాన్',
-    price: 99,
-    period: 'per month',
-    badge: 'Flexible',
+    id: 'pro_free',
+    name: 'Free Basic',
+    name_te: 'ఉచిత బేసిక్',
+    price: 0,
+    period: 'always free',
+    badge: 'Free Forever',
     features: [
-      'Profile in 30 Personal Categories',
-      'Direct Call & WhatsApp lead buttons',
-      'Visiting / consultation charge display',
+      'Personal profile in 1 skill category',
+      'Direct contact phone number',
       'Service area coverage listing',
-      'Direct client contact',
+      'Standard search visibility',
     ],
   },
   {
-    id: 'pro_half_yearly',
-    name: '6 Months Plan',
-    name_te: '6 నెలల ప్లాన్',
-    price: 500,
+    id: 'pro_standard',
+    name: 'Standard Verified',
+    name_te: 'స్టాండర్డ్ వెరిఫైడ్',
+    price: 199,
     period: 'for 6 months',
-    badge: 'Popular',
-    features: [
-      'Everything in Monthly plan',
-      'Official verified pro checkmark',
-      'Instagram & YouTube handle links',
-      'Priority ranking in professional search',
-      'Customer reviews and rating badge',
-    ],
-  },
-  {
-    id: 'pro_yearly',
-    name: 'Yearly Plan',
-    name_te: 'సంవత్సర ప్లాన్',
-    price: 900,
-    period: 'per year',
-    badge: 'Best Value (Save ₹288)',
+    badge: 'Most Popular',
     recommended: true,
     features: [
-      'Full 12 Months pro listing',
-      'Top placement in category search',
-      'Featured Spotlight on Kurnool One homepage',
-      'Social media showcase on Kurnool One channels',
-      'Direct verified lead inquiries',
+      'Official Verified Pro checkmark',
+      'Direct 1-tap Call & WhatsApp inquiry buttons',
+      'Visiting charges & experience display',
+      'Priority ranking above unverified profiles',
+      'Customer review ratings badge',
+    ],
+  },
+  {
+    id: 'pro_elite',
+    name: 'Elite Pro',
+    name_te: 'ఎలైట్ ప్రో',
+    price: 499,
+    period: 'for 1 year',
+    badge: 'Best Value (1 Year)',
+    features: [
+      'Top placement in category search for 12 Months',
+      'Featured Pro Spotlight on Kurnool One homepage',
+      'Portfolio photos & social media handle links',
+      'Direct citizen booking inquiries',
+      'Elite badge & maximum leads',
     ],
   },
 ];
@@ -2448,5 +2461,15 @@ export const uploadRentalImage = async (uri: string): Promise<string> => {
   const task = await uploadBytesResumable(storageRef, blob);
   return await getDownloadURL(task.ref);
 };
+
+export const uploadNewsImage = async (uri: string): Promise<string> => {
+  const filename = `news_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+  const storageRef = ref(storage, `news/${filename}`);
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  const task = await uploadBytesResumable(storageRef, blob);
+  return await getDownloadURL(task.ref);
+};
+
 
 

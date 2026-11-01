@@ -9,6 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
 import { useLanguage } from '../context/LanguageContext';
+import { pickImageWithFreeStyleCrop } from '../utils/imageUploadHelper';
 import {
   fetchOffers,
   fetchEvents,
@@ -204,6 +205,8 @@ export default function OffersScreen({ route, navigation }: any) {
 
   // Marketplace Post State
   const [postModalVisible, setPostModalVisible] = useState(false);
+  const [selectedDeal, setSelectedDeal] = useState<OfferItem | null>(null);
+  const [selectedMarketItem, setSelectedMarketItem] = useState<MarketItem | null>(null);
   const [postTitle, setPostTitle] = useState('');
   const [postCategory, setPostCategory] = useState('Two-Wheelers');
   const [postPrice, setPostPrice] = useState('');
@@ -321,16 +324,6 @@ export default function OffersScreen({ route, navigation }: any) {
       );
       return;
     }
-    const stored = await AsyncStorage.getItem('user');
-    if (stored) {
-      try {
-        const u = JSON.parse(stored);
-        if (u.phone && !postPhone) setPostPhone(u.phone);
-      } catch {}
-    }
-    if (!postPhone && auth.currentUser.phoneNumber) {
-      setPostPhone(auth.currentUser.phoneNumber.replace(/\D/g, '').slice(-10));
-    }
     setPostModalVisible(true);
   };
 
@@ -341,14 +334,12 @@ export default function OffersScreen({ route, navigation }: any) {
     }
     const pickImage = async () => {
       try {
-        const res = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
-          aspect: [4, 3],
-          quality: 0.7,
+        const res = await pickImageWithFreeStyleCrop({
+          title: language === 'en' ? 'Classified Photo' : 'వస్తువు ఫోటో',
+          message: language === 'en' ? 'Select photo source with free-style crop:' : 'ఫోటోను ఎంచుకుని మీకు కావలసినట్లు క్రాప్ చేయండి:',
         });
-        if (!res.canceled && res.assets?.[0]?.uri) {
-          setPostImages(prev => [...prev, res.assets[0].uri]);
+        if (res?.uri) {
+          setPostImages(prev => [...prev, res.uri]);
         }
       } catch (e: any) {
         Alert.alert('Error', e.message || 'Could not pick image');
@@ -372,8 +363,22 @@ export default function OffersScreen({ route, navigation }: any) {
   };
 
   const handleSubmitPost = async () => {
-    if (!postTitle.trim() || !postPrice.trim() || !postPhone.trim()) {
-      Alert.alert('Required Fields', 'Please enter Title, Price, and Phone number.');
+    if (!postTitle.trim() || !postPrice.trim() || !postPhone.trim() || !postDesc.trim()) {
+      Alert.alert(
+        language === 'en' ? 'Required Fields' : 'తప్పనిసరి వివరాలు',
+        language === 'en'
+          ? 'Please enter Title, Price, Phone number, and Item Description.'
+          : 'దయచేసి శీర్షిక, ధర, ఫోన్ నంబర్ మరియు వస్తువు పూర్తి వివరాలను నమోదు చేయండి.'
+      );
+      return;
+    }
+    if (postDesc.trim().length < 15) {
+      Alert.alert(
+        language === 'en' ? 'Description Too Short' : 'వివరాలు అసంపూర్ణం',
+        language === 'en'
+          ? 'Please write at least 15 characters describing the item condition, usage, and details.'
+          : 'దయచేసి వస్తువు పరిస్థితి మరియు వివరాలను కనీసం 15 అక్షరాలలో వివరించండి.'
+      );
       return;
     }
     const cleanPhone = postPhone.replace(/[^0-9]/g, '');
@@ -548,9 +553,12 @@ export default function OffersScreen({ route, navigation }: any) {
         </View>
       ) : activeTab === 'offers' ? (
         <FlatList
+          key="deals_grid_2"
           data={displayedOffers}
           keyExtractor={item => item.id}
-          contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+          numColumns={2}
+          columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 12 }}
+          contentContainerStyle={{ padding: 12, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
@@ -570,97 +578,66 @@ export default function OffersScreen({ route, navigation }: any) {
           renderItem={({ item }) => {
             const offerImages = item.images && item.images.length > 0 ? item.images : item.bannerUrl ? [item.bannerUrl] : [];
             return (
-              <View style={styles.offerCard}>
-                {offerImages.length > 0 && (
-                  <TouchableOpacity
-                    activeOpacity={0.9}
-                    onPress={() => openImageViewer(offerImages)}
-                    style={styles.dealImageWrap}
-                  >
-                    <Image source={{ uri: offerImages[0] }} style={styles.dealBannerImg} resizeMode="cover" />
-                    <View style={styles.imageZoomBadge}>
-                      <Ionicons name="expand-outline" size={12} color="#FFFFFF" />
-                      <Text style={styles.imageZoomBadgeText}>
-                        {offerImages.length > 1 ? `${offerImages.length} Photos` : 'View Photo'}
-                      </Text>
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => setSelectedDeal(item)}
+                style={styles.gridCard}
+              >
+                <View style={styles.gridImageWrap}>
+                  {offerImages.length > 0 ? (
+                    <Image source={{ uri: offerImages[0] }} style={styles.gridImg} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.gridImg, { backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center' }]}>
+                      <Ionicons name="pricetag" size={28} color="#DC2626" />
                     </View>
-                  </TouchableOpacity>
-                )}
-
-                <View style={styles.offerHeader}>
-                  <View style={styles.discountBadge}>
-                    <Text style={styles.discountText}>{item.discountText}</Text>
+                  )}
+                  <View style={styles.gridDiscountBadge}>
+                    <Text style={styles.gridDiscountBadgeText}>{item.discountText}</Text>
                   </View>
-                  <Text style={styles.validUntil}>{item.validUntil}</Text>
                 </View>
-
-                <Text style={styles.offerTitle}>
-                  {language === 'en' ? item.title_en : (item.title_te || item.title_en)}
-                </Text>
-
-                <Text style={styles.bizName}>
-                  <Ionicons name="storefront-outline" size={13} color="#2563EB" /> {item.businessName}
-                </Text>
-
-                <Text style={styles.offerDesc}>
-                  {language === 'en' ? item.description_en : (item.description_te || item.description_en)}
-                </Text>
-
-                <View style={styles.cardActionsRow}>
-                  {item.phone && (
-                    <TouchableOpacity
-                      onPress={() => handleCall(item.phone)}
-                      style={styles.actionBtnCall}
-                    >
-                      <Ionicons name="call" size={14} color="#FFFFFF" />
-                      <Text style={styles.actionBtnTextCall}>Call Merchant</Text>
-                    </TouchableOpacity>
-                  )}
-                  {item.phone && (
-                    <TouchableOpacity
-                      onPress={() => handleWhatsApp(item.phone, item.title_en)}
-                      style={styles.actionBtnWa}
-                    >
-                      <Ionicons name="logo-whatsapp" size={15} color="#FFFFFF" />
-                      <Text style={styles.actionBtnTextWa}>WhatsApp</Text>
-                    </TouchableOpacity>
-                  )}
-                  <TouchableOpacity
-                    onPress={() => handleShareOffer(item)}
-                    style={styles.actionBtnShare}
-                  >
-                    <Ionicons name="share-social-outline" size={15} color="#4B5563" />
-                    <Text style={styles.actionBtnTextShare}>Share</Text>
-                  </TouchableOpacity>
+                <View style={styles.gridBody}>
+                  <Text style={styles.gridTitle} numberOfLines={2}>
+                    {language === 'en' ? item.title_en : (item.title_te || item.title_en)}
+                  </Text>
+                  <Text style={styles.gridSub} numberOfLines={1}>
+                    <Ionicons name="storefront-outline" size={11} color="#2563EB" /> {item.businessName}
+                  </Text>
+                  <View style={styles.gridTapCue}>
+                    <Text style={styles.gridTapCueText}>{language === 'en' ? 'View Deal' : 'ఆఫర్ చూడండి'}</Text>
+                    <Ionicons name="arrow-forward" size={11} color="#DC2626" />
+                  </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           }}
         />
       ) : activeTab === 'marketplace' ? (
         <FlatList
+          key="market_grid_2"
           data={displayedMarketItems}
           keyExtractor={item => item.id}
-          contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+          numColumns={2}
+          columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 12 }}
+          contentContainerStyle={{ padding: 12, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} colors={['#059669']} />}
           ListHeaderComponent={
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, backgroundColor: '#ECFDF5', borderRadius: 16, marginBottom: 14, borderWidth: 1, borderColor: '#A7F3D0' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, backgroundColor: '#ECFDF5', borderRadius: 14, marginBottom: 12, borderWidth: 1, borderColor: '#A7F3D0' }}>
               <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={{ fontSize: 13, fontWeight: '800', color: '#065F46' }}>
-                  {language === 'en' ? 'Kurnool Bazaar (Second-Hand)' : 'కర్నూలు బజార్ (సెకండ్ హ్యాండ్)'}
+                  {language === 'en' ? 'Kurnool Bazaar' : 'కర్నూలు బజార్'}
                 </Text>
-                <Text style={{ fontSize: 11, color: '#047857', marginTop: 1 }}>
-                  {language === 'en' ? 'Buy & sell pre-owned items directly with zero commission' : 'ఎలాంటి కమీషన్ లేకుండా సెకండ్ హ్యాండ్ వస్తువులు కొనండి & అమ్మండి'}
+                <Text style={{ fontSize: 10, color: '#047857', marginTop: 1 }}>
+                  {language === 'en' ? 'Buy & sell pre-owned items directly' : 'సెకండ్ హ్యాండ్ వస్తువులు కొనండి & అమ్మండి'}
                 </Text>
               </View>
               <TouchableOpacity
                 onPress={handleOpenPostModal}
-                style={{ backgroundColor: '#059669', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                style={{ backgroundColor: '#059669', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 4 }}
               >
-                <Ionicons name="add-circle" size={16} color="#FFFFFF" />
+                <Ionicons name="add-circle" size={15} color="#FFFFFF" />
                 <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 12 }}>
-                  {language === 'en' ? '+ Sell Item' : '+ అమ్మండి'}
+                  {language === 'en' ? '+ Sell' : '+ అమ్మండి'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -682,206 +659,49 @@ export default function OffersScreen({ route, navigation }: any) {
           }
           renderItem={({ item }) => {
             const itemImages = item.images && item.images.length > 0 ? item.images : item.imageUrl ? [item.imageUrl] : [];
-            const isMyItem = item.sellerUid && auth.currentUser?.uid && item.sellerUid === auth.currentUser.uid;
             const isSold = item.status === 'sold';
             return (
-              <View style={[styles.marketCard, isSold && { opacity: 0.88 }]}>
-                {itemImages.length > 0 && (
-                  <TouchableOpacity
-                    activeOpacity={0.9}
-                    onPress={() => openImageViewer(itemImages)}
-                    style={styles.marketImgWrap}
-                  >
-                    <Image source={{ uri: itemImages[0] }} style={styles.marketImg} resizeMode="cover" />
-                    {isSold && (
-                      <View style={styles.soldOverlay}>
-                        <View style={styles.soldOverlayBadge}>
-                          <Text style={styles.soldOverlayText}>🔴 SOLD OUT</Text>
-                        </View>
-                      </View>
-                    )}
-                    <View style={styles.imageZoomBadge}>
-                      <Ionicons name="scan-outline" size={12} color="#FFFFFF" />
-                      <Text style={styles.imageZoomBadgeText}>
-                        {itemImages.length > 1 ? `${itemImages.length} Photos` : 'Tap to View'}
-                      </Text>
+              <TouchableOpacity
+                activeOpacity={0.88}
+                onPress={() => setSelectedMarketItem(item)}
+                style={[styles.gridCard, isSold && { opacity: 0.8 }]}
+              >
+                <View style={styles.gridImageWrap}>
+                  {itemImages.length > 0 ? (
+                    <Image source={{ uri: itemImages[0] }} style={styles.gridImg} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.gridImg, { backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' }]}>
+                      <Ionicons name="cart-outline" size={28} color="#94A3B8" />
                     </View>
-                  </TouchableOpacity>
-                )}
-                <View style={styles.marketBody}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <View style={[styles.priceBadge, isSold && { backgroundColor: '#6B7280' }]}>
-                        <Text style={styles.priceBadgeText}>{item.price}</Text>
-                      </View>
-                      {isSold && (
-                        <View style={styles.soldPill}>
-                          <Text style={styles.soldPillText}>SOLD</Text>
-                        </View>
-                      )}
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      {isMyItem && (
-                        <View style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#BFDBFE' }}>
-                          <Text style={{ fontSize: 9, fontWeight: '900', color: '#2563EB' }}>MY ITEM</Text>
-                        </View>
-                      )}
-                      <View style={styles.marketCatPill}>
-                        <Text style={styles.marketCatText}>{item.category}</Text>
-                      </View>
-                    </View>
+                  )}
+                  <View style={styles.gridPriceBadge}>
+                    <Text style={styles.gridPriceBadgeText}>{item.price}</Text>
                   </View>
-
-                  <Text style={styles.marketTitle}>
+                  {isSold && (
+                    <View style={styles.soldOverlay}>
+                      <View style={styles.soldOverlayBadge}>
+                        <Text style={[styles.soldOverlayText, { fontSize: 11 }]}>SOLD</Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.gridBody}>
+                  <Text style={styles.gridTitle} numberOfLines={2}>
                     {language === 'en' ? item.title_en : (item.title_te || item.title_en)}
                   </Text>
-
-                  <View style={styles.marketMetaRow}>
-                    <Ionicons name="location-outline" size={13} color="#6B7280" />
-                    <Text style={styles.marketMetaText}>{item.area}</Text>
-                    <Text style={{ color: '#D1D5DB' }}>•</Text>
-                    <Text style={styles.marketMetaText}>{item.condition}</Text>
-                  </View>
-
-                  <Text style={styles.marketDesc} numberOfLines={2}>
-                    {item.description}
+                  <Text style={styles.gridSub} numberOfLines={1}>
+                    <Ionicons name="location-outline" size={11} color="#6B7280" /> {item.area}
                   </Text>
-
-                  <View style={styles.sellerRow}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                      <Ionicons name="person-circle-outline" size={16} color="#6B7280" />
-                      <Text style={styles.sellerName} numberOfLines={1}>{item.sellerName}</Text>
-                    </View>
-
-                    <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                      {isMyItem && (
-                        <TouchableOpacity
-                          onPress={() => handleToggleSold(item)}
-                          style={[styles.soldToggleBtn, isSold ? styles.soldToggleBtnReactivate : styles.soldToggleBtnMark]}
-                        >
-                          <Ionicons name={isSold ? 'refresh-outline' : 'checkmark-done'} size={12} color="#FFFFFF" />
-                          <Text style={styles.soldToggleText}>
-                            {isSold ? 'Available' : 'Mark Sold'}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-
-                      {!isSold ? (
-                        <>
-                          <TouchableOpacity
-                            onPress={() => handleCall(item.sellerPhone)}
-                            style={styles.actionBtnCallSmall}
-                          >
-                            <Ionicons name="call" size={12} color="#FFFFFF" />
-                            <Text style={styles.actionBtnTextCallSmall}>Call</Text>
-                          </TouchableOpacity>
-
-                          <TouchableOpacity
-                            onPress={() => handleWhatsApp(item.sellerWhatsapp || item.sellerPhone, item.title_en)}
-                            style={styles.actionBtnWaSmall}
-                          >
-                            <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
-                            <Text style={styles.actionBtnTextWaSmall}>WhatsApp</Text>
-                          </TouchableOpacity>
-                        </>
-                      ) : (
-                        <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
-                          <Text style={{ color: '#DC2626', fontWeight: '800', fontSize: 11 }}>Sold Out</Text>
-                        </View>
-                      )}
-
-                      <TouchableOpacity
-                        onPress={() => handleShareMarketItem(item)}
-                        style={styles.actionBtnShareSmall}
-                      >
-                        <Ionicons name="share-social-outline" size={13} color="#374151" />
-                      </TouchableOpacity>
-
-                      {isMyItem && (
-                        <TouchableOpacity
-                          onPress={() => handleDeleteMyItem(item.id)}
-                          style={{ padding: 6, backgroundColor: '#FEE2E2', borderRadius: 8 }}
-                        >
-                          <Ionicons name="trash-outline" size={13} color="#DC2626" />
-                        </TouchableOpacity>
-                      )}
-                    </View>
+                  <View style={styles.gridTapCue}>
+                    <Text style={[styles.gridTapCueText, { color: '#059669' }]}>{language === 'en' ? 'View Details' : 'వివరాలు'}</Text>
+                    <Ionicons name="arrow-forward" size={11} color="#059669" />
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           }}
         />
-      ) : (
-        <FlatList
-          data={events}
-          keyExtractor={item => item.id}
-          contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} colors={['#2563EB']} />}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconCircle}>
-                <Ionicons name="calendar-outline" size={36} color="#2563EB" />
-              </View>
-              <Text style={styles.emptyTitle}>
-                {language === 'en' ? 'No Upcoming Events' : 'రాబోయే నగర కార్యక్రమాలు లేవు'}
-              </Text>
-              <Text style={styles.emptySubtitle}>
-                {language === 'en'
-                  ? 'City cultural festivals, expo fairs, and meetups will appear here.'
-                  : 'నగర ఉత్సవాలు మరియు కార్యక్రమాలు ఇక్కడ కనిపిస్తాయి.'}
-              </Text>
-            </View>
-          }
-          renderItem={({ item }) => (
-            <View style={styles.eventCard}>
-              {item.posterUrl ? (
-                <Image source={{ uri: item.posterUrl }} style={styles.eventPoster} resizeMode="cover" />
-              ) : null}
-
-              <View style={styles.eventBody}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View style={styles.eventDatePill}>
-                    <Ionicons name="calendar-outline" size={13} color="#1E40AF" />
-                    <Text style={styles.eventDateText}>{item.dateStr}</Text>
-                  </View>
-                  <View style={styles.entryPill}>
-                    <Text style={styles.entryText}>{item.entryType.toUpperCase()}</Text>
-                  </View>
-                </View>
-
-                <Text style={styles.eventTitle}>
-                  {language === 'en' ? item.title_en : (item.title_te || item.title_en)}
-                </Text>
-
-                <View style={styles.eventInfoRow}>
-                  <Ionicons name="time-outline" size={14} color="#6B7280" />
-                  <Text style={styles.eventInfoText}>{item.timeStr}</Text>
-                </View>
-
-                <View style={styles.eventInfoRow}>
-                  <Ionicons name="location-outline" size={14} color="#6B7280" />
-                  <Text style={styles.eventInfoText} numberOfLines={1}>{item.venue}</Text>
-                </View>
-
-                <View style={styles.organizerRow}>
-                  <Text style={styles.organizerText}>Organizer: {item.organizerName}</Text>
-                  {item.contactPhone ? (
-                    <TouchableOpacity
-                      onPress={() => handleCall(item.contactPhone)}
-                      style={styles.contactOrgBtn}
-                    >
-                      <Ionicons name="call" size={12} color="#FFFFFF" />
-                      <Text style={styles.contactOrgText}>Contact</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-              </View>
-            </View>
-          )}
-        />
-      )}
+      ) : null}
 
       {/* Sticky Bottom Community Disclaimer Banner */}
       <View style={styles.stickyDisclaimerWrap}>
@@ -947,6 +767,281 @@ export default function OffersScreen({ route, navigation }: any) {
             )}
           </View>
         </SafeAreaView>
+      </Modal>
+
+      {/* Deal Details Modal */}
+      <Modal
+        visible={!!selectedDeal}
+        animationType="slide"
+        onRequestClose={() => setSelectedDeal(null)}
+      >
+        {selectedDeal && (
+          <SafeAreaView style={styles.detailsModalContainer}>
+            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+            <View style={styles.detailsModalHeader}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={styles.detailsModalTitle} numberOfLines={1}>
+                  {selectedDeal.businessName}
+                </Text>
+                <Text style={styles.detailsModalSub}>
+                  {language === 'en' ? 'Hot Deal Details' : 'ఆఫర్ పూర్తి వివరాలు'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setSelectedDeal(null)}
+                style={styles.detailsModalCloseBtn}
+              >
+                <Ionicons name="close" size={24} color="#1E293B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+              showsVerticalScrollIndicator={false}
+            >
+              {(() => {
+                const dealImages = selectedDeal.images && selectedDeal.images.length > 0
+                  ? selectedDeal.images
+                  : selectedDeal.bannerUrl ? [selectedDeal.bannerUrl] : [];
+                if (dealImages.length === 0) return null;
+                return (
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => openImageViewer(dealImages)}
+                    style={styles.detailsModalImageWrap}
+                  >
+                    <Image source={{ uri: dealImages[0] }} style={styles.detailsModalImage} resizeMode="cover" />
+                    <View style={styles.imageZoomBadge}>
+                      <Ionicons name="scan-outline" size={12} color="#FFFFFF" />
+                      <Text style={styles.imageZoomBadgeText}>
+                        {dealImages.length > 1 ? `${dealImages.length} Photos (Tap to Zoom)` : 'Tap to Zoom'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })()}
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 8 }}>
+                <View style={styles.gridDiscountBadge}>
+                  <Text style={styles.gridDiscountBadgeText}>{selectedDeal.discountText}</Text>
+                </View>
+                <Text style={{ fontSize: 11, color: '#64748B', fontWeight: '600' }}>
+                  {language === 'en' ? `Valid until: ${selectedDeal.validUntil}` : `చెల్లుబాటు: ${selectedDeal.validUntil}`}
+                </Text>
+              </View>
+
+              <Text style={{ fontSize: 20, fontWeight: '900', color: '#0F172A', marginTop: 4 }}>
+                {language === 'en' ? selectedDeal.title_en : (selectedDeal.title_te || selectedDeal.title_en)}
+              </Text>
+
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#2563EB', marginTop: 4 }}>
+                <Ionicons name="storefront-outline" size={14} color="#2563EB" /> {selectedDeal.businessName}
+              </Text>
+
+              <View style={{ marginTop: 16 }}>
+                <Text style={styles.detailsSectionTitle}>{language === 'en' ? 'Offer Description' : 'ఆఫర్ వివరణ'}</Text>
+                <Text style={styles.detailsDescText}>
+                  {language === 'en' ? selectedDeal.description_en : (selectedDeal.description_te || selectedDeal.description_en)}
+                </Text>
+              </View>
+
+              {/* Native Advanced Ad Container */}
+              <View style={styles.nativeAdBox}>
+                <View style={styles.nativeAdPill}>
+                  <Text style={styles.nativeAdPillText}>SPONSORED</Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', marginTop: 8 }}>
+                  <Ionicons name="sparkles" size={24} color="#D97706" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.nativeAdTitle}>Promote Your Kurnool Business Here</Text>
+                    <Text style={styles.nativeAdDesc}>Reach 25,000+ Kurnool citizens daily with Native Ads.</Text>
+                  </View>
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Sticky Bottom Actions */}
+            <View style={styles.modalStickyBottom}>
+              <TouchableOpacity
+                onPress={() => handleCall(selectedDeal.phone)}
+                style={styles.stickyBtnCall}
+              >
+                <Ionicons name="call" size={16} color="#FFFFFF" />
+                <Text style={styles.stickyBtnTextCall}>{language === 'en' ? 'Call Merchant' : 'కాల్ చేయండి'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleWhatsApp(selectedDeal.phone, selectedDeal.title_en)}
+                style={styles.stickyBtnWa}
+              >
+                <Ionicons name="logo-whatsapp" size={17} color="#FFFFFF" />
+                <Text style={styles.stickyBtnTextWa}>WhatsApp</Text>
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        )}
+      </Modal>
+
+      {/* Marketplace Item Details Modal */}
+      <Modal
+        visible={!!selectedMarketItem}
+        animationType="slide"
+        onRequestClose={() => setSelectedMarketItem(null)}
+      >
+        {selectedMarketItem && (
+          <SafeAreaView style={styles.detailsModalContainer}>
+            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+            <View style={styles.detailsModalHeader}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={styles.detailsModalTitle} numberOfLines={1}>
+                  {language === 'en' ? selectedMarketItem.title_en : (selectedMarketItem.title_te || selectedMarketItem.title_en)}
+                </Text>
+                <Text style={styles.detailsModalSub}>
+                  {language === 'en' ? 'Classified Item Full Details' : 'వస్తువు పూర్తి వివరాలు'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setSelectedMarketItem(null)}
+                style={styles.detailsModalCloseBtn}
+              >
+                <Ionicons name="close" size={24} color="#1E293B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+              showsVerticalScrollIndicator={false}
+            >
+              {(() => {
+                const itemImages = selectedMarketItem.images && selectedMarketItem.images.length > 0
+                  ? selectedMarketItem.images
+                  : selectedMarketItem.imageUrl ? [selectedMarketItem.imageUrl] : [];
+                if (itemImages.length === 0) return null;
+                return (
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => openImageViewer(itemImages)}
+                    style={styles.detailsModalImageWrap}
+                  >
+                    <Image source={{ uri: itemImages[0] }} style={styles.detailsModalImage} resizeMode="cover" />
+                    {selectedMarketItem.status === 'sold' && (
+                      <View style={styles.soldOverlay}>
+                        <View style={styles.soldOverlayBadge}>
+                          <Text style={styles.soldOverlayText}>🔴 SOLD OUT</Text>
+                        </View>
+                      </View>
+                    )}
+                    <View style={styles.imageZoomBadge}>
+                      <Ionicons name="scan-outline" size={12} color="#FFFFFF" />
+                      <Text style={styles.imageZoomBadgeText}>
+                        {itemImages.length > 1 ? `${itemImages.length} Photos (Tap to Zoom)` : 'Tap to Zoom'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })()}
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 8 }}>
+                <View style={[styles.gridPriceBadge, { paddingHorizontal: 12, paddingVertical: 6 }]}>
+                  <Text style={[styles.gridPriceBadgeText, { fontSize: 18 }]}>{selectedMarketItem.price}</Text>
+                </View>
+                <View style={styles.marketCatPill}>
+                  <Text style={[styles.marketCatText, { fontSize: 11 }]}>{selectedMarketItem.category}</Text>
+                </View>
+              </View>
+
+              <Text style={{ fontSize: 20, fontWeight: '900', color: '#0F172A', marginTop: 4 }}>
+                {language === 'en' ? selectedMarketItem.title_en : (selectedMarketItem.title_te || selectedMarketItem.title_en)}
+              </Text>
+
+              <View style={[styles.marketMetaRow, { marginTop: 8 }]}>
+                <Ionicons name="location-outline" size={14} color="#6B7280" />
+                <Text style={[styles.marketMetaText, { fontSize: 13 }]}>{selectedMarketItem.area}</Text>
+                <Text style={{ color: '#D1D5DB' }}>•</Text>
+                <Text style={[styles.marketMetaText, { fontSize: 13 }]}>{selectedMarketItem.condition}</Text>
+              </View>
+
+              <View style={{ marginTop: 16 }}>
+                <Text style={styles.detailsSectionTitle}>{language === 'en' ? 'Item Description' : 'వస్తువు వివరణ'}</Text>
+                <Text style={styles.detailsDescText}>{selectedMarketItem.description}</Text>
+              </View>
+
+              <View style={{ marginTop: 16, padding: 12, backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#64748B' }}>
+                  {language === 'en' ? 'Seller Name' : 'విక్రేత పేరు'}
+                </Text>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: '#1E293B', marginTop: 2 }}>
+                  {selectedMarketItem.sellerName}
+                </Text>
+              </View>
+
+              {selectedMarketItem.sellerUid && auth.currentUser?.uid && selectedMarketItem.sellerUid === auth.currentUser.uid && (
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      handleToggleSold(selectedMarketItem);
+                      setSelectedMarketItem(null);
+                    }}
+                    style={[styles.soldToggleBtn, selectedMarketItem.status === 'sold' ? styles.soldToggleBtnReactivate : styles.soldToggleBtnMark, { flex: 1, paddingVertical: 10, justifyContent: 'center' }]}
+                  >
+                    <Ionicons name={selectedMarketItem.status === 'sold' ? 'refresh-outline' : 'checkmark-done'} size={14} color="#FFFFFF" />
+                    <Text style={styles.soldToggleText}>
+                      {selectedMarketItem.status === 'sold' ? 'Reactivate as Available' : 'Mark as Sold'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      handleDeleteMyItem(selectedMarketItem.id);
+                      setSelectedMarketItem(null);
+                    }}
+                    style={{ paddingHorizontal: 16, backgroundColor: '#FEE2E2', borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Native Advanced Ad Container */}
+              <View style={styles.nativeAdBox}>
+                <View style={styles.nativeAdPill}>
+                  <Text style={styles.nativeAdPillText}>SPONSORED</Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', marginTop: 8 }}>
+                  <Ionicons name="megaphone" size={22} color="#2563EB" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.nativeAdTitle}>Verified Shifting & Delivery in Kurnool</Text>
+                    <Text style={styles.nativeAdDesc}>Doorstep pickup, packaging & transport service across Kurnool.</Text>
+                  </View>
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Sticky Bottom Actions */}
+            {selectedMarketItem.status !== 'sold' ? (
+              <View style={styles.modalStickyBottom}>
+                <TouchableOpacity
+                  onPress={() => handleCall(selectedMarketItem.sellerPhone)}
+                  style={styles.stickyBtnCall}
+                >
+                  <Ionicons name="call" size={16} color="#FFFFFF" />
+                  <Text style={styles.stickyBtnTextCall}>{language === 'en' ? 'Call Seller' : 'కాల్ చేయండి'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleWhatsApp(selectedMarketItem.sellerWhatsapp || selectedMarketItem.sellerPhone, selectedMarketItem.title_en)}
+                  style={styles.stickyBtnWa}
+                >
+                  <Ionicons name="logo-whatsapp" size={17} color="#FFFFFF" />
+                  <Text style={styles.stickyBtnTextWa}>WhatsApp</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={[styles.modalStickyBottom, { backgroundColor: '#FEE2E2', justifyContent: 'center' }]}>
+                <Text style={{ color: '#DC2626', fontWeight: '900', fontSize: 13 }}>THIS ITEM HAS BEEN SOLD OUT</Text>
+              </View>
+            )}
+          </SafeAreaView>
+        )}
       </Modal>
 
       {/* Post Marketplace Item Modal */}
@@ -1542,5 +1637,225 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 11,
+  },
+  // Compact 2-column Grid Styles
+  gridCard: {
+    width: '48.5%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 2,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 5,
+  },
+  gridImageWrap: {
+    width: '100%',
+    height: 125,
+    position: 'relative',
+    backgroundColor: '#F1F5F9',
+  },
+  gridImg: {
+    width: '100%',
+    height: '100%',
+  },
+  gridDiscountBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  gridDiscountBadgeText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    fontSize: 10,
+    letterSpacing: 0.3,
+  },
+  gridPriceBadge: {
+    position: 'absolute',
+    bottom: 6,
+    left: 6,
+    backgroundColor: 'rgba(15, 23, 42, 0.88)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  gridPriceBadgeText: {
+    color: '#34D399',
+    fontWeight: '900',
+    fontSize: 12,
+  },
+  gridBody: {
+    padding: 9,
+  },
+  gridTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+    lineHeight: 17,
+    minHeight: 34,
+  },
+  gridSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  gridTapCue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 6,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  gridTapCueText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#DC2626',
+  },
+  // Details Modal Styles
+  detailsModalContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  detailsModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    backgroundColor: '#FFFFFF',
+  },
+  detailsModalTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  detailsModalSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  detailsModalCloseBtn: {
+    padding: 4,
+  },
+  detailsModalImageWrap: {
+    width: '100%',
+    height: 230,
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  detailsModalImage: {
+    width: '100%',
+    height: '100%',
+  },
+  detailsSectionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#475569',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  detailsDescText: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#1E293B',
+  },
+  // Native Advanced Ad Box
+  nativeAdBox: {
+    marginTop: 20,
+    padding: 14,
+    backgroundColor: '#FFFBEB',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  nativeAdPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#D97706',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  nativeAdPillText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    fontSize: 9,
+    letterSpacing: 0.5,
+  },
+  nativeAdTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#92400E',
+  },
+  nativeAdDesc: {
+    fontSize: 11,
+    color: '#B45309',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  // Modal Sticky Bottom Action Bar
+  modalStickyBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    gap: 12,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+  },
+  stickyBtnCall: {
+    flex: 1,
+    backgroundColor: '#2563EB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 13,
+    borderRadius: 12,
+  },
+  stickyBtnTextCall: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  stickyBtnWa: {
+    flex: 1,
+    backgroundColor: '#16A34A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 13,
+    borderRadius: 12,
+  },
+  stickyBtnTextWa: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 14,
   },
 });

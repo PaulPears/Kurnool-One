@@ -17,7 +17,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
-import { fetchNews, submitNewsStory, NewsItem } from '../services/directoryService';
+import { fetchNews, submitNewsStory, uploadNewsImage, NewsItem } from '../services/directoryService';
+import { pickImageWithFreeStyleCrop } from '../utils/imageUploadHelper';
 
 export default function NewsScreen({ navigation }: any) {
   const { language } = useLanguage();
@@ -33,8 +34,20 @@ export default function NewsScreen({ navigation }: any) {
   const [content, setContent] = useState('');
   const [reporterName, setReporterName] = useState('');
   const [reporterPhone, setReporterPhone] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [localImageUri, setLocalImageUri] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const handlePickNewsImage = async () => {
+    const res = await pickImageWithFreeStyleCrop({
+      title: language === 'en' ? 'News Photo' : 'వార్తా ఫోటో',
+      message: language === 'en'
+        ? 'Capture or select photo for this story (free-style crop enabled):'
+        : 'ఫోటోను ఎంచుకుని మీకు కావలసిన విధంగా క్రాప్ చేయండి:',
+    });
+    if (res?.uri) {
+      setLocalImageUri(res.uri);
+    }
+  };
 
   const handleSubmitNews = async () => {
     if (!headline.trim() || !content.trim() || !reporterName.trim() || !reporterPhone.trim()) {
@@ -47,6 +60,15 @@ export default function NewsScreen({ navigation }: any) {
 
     setSubmitting(true);
     try {
+      let finalImageUrl = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800';
+      if (localImageUri) {
+        try {
+          finalImageUrl = await uploadNewsImage(localImageUri);
+        } catch (uploadErr) {
+          console.warn('News photo upload non-fatal error:', uploadErr);
+        }
+      }
+
       await submitNewsStory({
         title_en: headline.trim(),
         title_te: headline.trim(),
@@ -57,13 +79,13 @@ export default function NewsScreen({ navigation }: any) {
         source: `${reporterName.trim()} (Citizen Reporter)`,
         authorName: reporterName.trim(),
         authorPhone: reporterPhone.trim(),
-        imageUrl: imageUrl.trim() || 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800',
+        imageUrl: finalImageUrl,
         publishedAt: new Date().toISOString().split('T')[0],
         status: 'pending_approval',
       });
 
       Alert.alert(
-        language === 'en' ? 'Story Submitted' : 'వార్త సమర్పించబడింది',
+        language === 'en' ? 'Story Submitted 📰' : 'వార్త సమర్పించబడింది 📰',
         language === 'en'
           ? 'Thank you! Your story has been sent to our editorial desk for verification. It will be published once approved.'
           : 'ధన్యవాదాలు! మీ వార్త సంపాదకీయ పరిశీలన కోసం పంపబడింది. ఆమోదం పొందిన తర్వాత లైవ్ చేయబడుతుంది.'
@@ -75,7 +97,7 @@ export default function NewsScreen({ navigation }: any) {
       setArea('');
       setReporterName('');
       setReporterPhone('');
-      setImageUrl('');
+      setLocalImageUri(null);
     } catch (err) {
       console.error(err);
       Alert.alert(
@@ -375,16 +397,59 @@ export default function NewsScreen({ navigation }: any) {
               onChangeText={setReporterPhone}
             />
 
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 4 }}>
-              {language === 'en' ? 'Photo URL (Optional)' : 'ఫోటో లింక్ (ఐచ్ఛికం)'}
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 6 }}>
+              {language === 'en' ? 'Story Photo (Optional - Free-Style Crop)' : 'వార్తా ఫోటో (ఐచ్ఛికం - క్రాపింగ్ సౌలభ్యం)'}
             </Text>
-            <TextInput
-              style={{ borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 12, fontSize: 13, marginBottom: 20, backgroundColor: '#F8FAFC' }}
-              placeholder="https://..."
-              value={imageUrl}
-              onChangeText={setImageUrl}
-              autoCapitalize="none"
-            />
+            {localImageUri ? (
+              <View style={{ marginBottom: 16 }}>
+                <Image
+                  source={{ uri: localImageUri }}
+                  style={{ width: '100%', height: 160, borderRadius: 12, backgroundColor: '#E2E8F0' }}
+                  resizeMode="cover"
+                />
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+                  <TouchableOpacity
+                    onPress={handlePickNewsImage}
+                    style={{ flex: 1, backgroundColor: '#EFF6FF', paddingVertical: 8, borderRadius: 8, alignItems: 'center' }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#2563EB' }}>
+                      {language === 'en' ? 'Change Photo' : 'ఫోటో మార్చండి'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setLocalImageUri(null)}
+                    style={{ flex: 1, backgroundColor: '#FEF2F2', paddingVertical: 8, borderRadius: 8, alignItems: 'center' }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#DC2626' }}>
+                      {language === 'en' ? 'Remove' : 'తొలగించు'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={handlePickNewsImage}
+                style={{
+                  borderWidth: 1.5,
+                  borderColor: '#BFDBFE',
+                  borderStyle: 'dashed',
+                  borderRadius: 12,
+                  paddingVertical: 18,
+                  alignItems: 'center',
+                  backgroundColor: '#F8FAFC',
+                  marginBottom: 16,
+                  gap: 6,
+                }}
+              >
+                <Ionicons name="camera-outline" size={24} color="#2563EB" />
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#2563EB' }}>
+                  {language === 'en' ? '📷 Add Photo (Camera or Gallery)' : '📷 ఫోటో జోడించండి (కెమెరా / గ్యాలరీ)'}
+                </Text>
+                <Text style={{ fontSize: 11, color: '#64748B' }}>
+                  {language === 'en' ? 'Free-style drag and crop supported' : 'మీకు నచ్చినట్లు క్రాప్ చేయవచ్చు'}
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               onPress={handleSubmitNews}

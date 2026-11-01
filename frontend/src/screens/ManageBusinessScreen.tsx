@@ -22,6 +22,8 @@ import { auth, db } from '../config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import RazorpayModal from '../components/RazorpayModal';
+import BusinessHoursSelector, { OperatingHoursSchedule } from '../components/BusinessHoursSelector';
+import { pickImageWithFreeStyleCrop } from '../utils/imageUploadHelper';
 
 export default function ManageBusinessScreen({ navigation, route }: any) {
   const { language } = useLanguage();
@@ -37,6 +39,15 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
   const [phone, setPhone] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [timing, setTiming] = useState('');
+  const [operatingHours, setOperatingHours] = useState<any>({
+    monday: { closed: false, open: '09:00 AM', close: '09:00 PM' },
+    tuesday: { closed: false, open: '09:00 AM', close: '09:00 PM' },
+    wednesday: { closed: false, open: '09:00 AM', close: '09:00 PM' },
+    thursday: { closed: false, open: '09:00 AM', close: '09:00 PM' },
+    friday: { closed: false, open: '09:00 AM', close: '09:00 PM' },
+    saturday: { closed: false, open: '09:00 AM', close: '09:00 PM' },
+    sunday: { closed: false, open: '10:00 AM', close: '08:00 PM' },
+  });
   const [address, setAddress] = useState('');
   const [landmark, setLandmark] = useState('');
   const [website, setWebsite] = useState('');
@@ -151,6 +162,9 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
     setPhone(b.phone || '');
     setWhatsapp(b.whatsapp || '');
     setTiming(b.timing || '');
+    if (b.operatingHours) {
+      setOperatingHours(b.operatingHours);
+    }
     setAddress(b.address || '');
     setLandmark(b.landmark || '');
     setWebsite(b.website || '');
@@ -171,16 +185,11 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
 
   const pickAndUploadLogo = async () => {
     if (!business) return;
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!res.canceled && res.assets && res.assets[0]?.uri) {
+    const res = await pickImageWithFreeStyleCrop();
+    if (res?.uri) {
       setUploadingLogo(true);
       try {
-        const url = await uploadBusinessLogo(res.assets[0].uri);
+        const url = await uploadBusinessLogo(res.uri);
         await updateBusinessProfile(business.id, { logoUrl: url });
         setLogoUrl(url);
         setBusiness(prev => (prev ? { ...prev, logoUrl: url } : null));
@@ -195,16 +204,11 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
 
   const pickAndUploadCover = async () => {
     if (!business) return;
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [16, 9],
-      quality: 0.8,
-    });
-    if (!res.canceled && res.assets && res.assets[0]?.uri) {
+    const res = await pickImageWithFreeStyleCrop();
+    if (res?.uri) {
       setUploadingCover(true);
       try {
-        const url = await uploadBusinessCover(res.assets[0].uri);
+        const url = await uploadBusinessCover(res.uri);
         await updateBusinessProfile(business.id, { coverImage: url, bannerUrl: url });
         setCoverImageUrl(url);
         setBusiness(prev => (prev ? { ...prev, coverImage: url, bannerUrl: url } : null));
@@ -230,6 +234,7 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
         phone: phone.trim(),
         whatsapp: whatsapp.trim(),
         timing: timing.trim(),
+        operatingHours: operatingHours,
         address: address.trim(),
         landmark: landmark.trim(),
         website: cleanWebsite,
@@ -279,15 +284,9 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
 
   const launchOfferPicker = async () => {
     try {
-      const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.75,
-      });
-
-      if (!res.canceled && res.assets?.[0]?.uri) {
-        setOfferImages(prev => [...prev, res.assets[0].uri]);
+      const res = await pickImageWithFreeStyleCrop();
+      if (res?.uri) {
+        setOfferImages(prev => [...prev, res.uri]);
       }
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Could not pick image');
@@ -735,37 +734,14 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
           onChangeText={setWhatsapp}
         />
 
-        <Text style={styles.label}>Operating Hours / Timings *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. 10:00 AM - 10:00 PM (All 7 Days)"
-          value={timing}
-          onChangeText={setTiming}
+        <BusinessHoursSelector
+          value={operatingHours}
+          onChange={(newSchedule, summary) => {
+            setOperatingHours(newSchedule);
+            setTiming(summary);
+          }}
+          title={language === 'en' ? 'Operating / Working Hours' : 'పనివేళలు'}
         />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-          {['9:00 AM - 9:00 PM', '10:00 AM - 10:00 PM', '8:00 AM - 11:00 PM', '24 Hours Open', 'Mon - Sat', 'All 7 Days'].map(preset => (
-            <TouchableOpacity
-              key={preset}
-              onPress={() => {
-                if (!timing) setTiming(preset);
-                else if (timing.includes(preset)) setTiming(timing.replace(preset, '').trim());
-                else setTiming(`${timing} • ${preset}`);
-              }}
-              style={{
-                backgroundColor: timing.includes(preset) ? '#DBEAFE' : '#F1F5F9',
-                paddingHorizontal: 10,
-                paddingVertical: 5,
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: timing.includes(preset) ? '#2563EB' : '#E2E8F0',
-              }}
-            >
-              <Text style={{ fontSize: 11, fontWeight: '700', color: timing.includes(preset) ? '#1E40AF' : '#475569' }}>
-                {preset}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
 
         <Text style={styles.label}>Amenities & Features</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>

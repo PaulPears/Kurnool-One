@@ -9,6 +9,7 @@ import { useLanguage } from '../context/LanguageContext';
 import {
   fetchMyProfessionalProfile,
   updateProfessionalProfile,
+  uploadProfessionalAvatar,
   createBusinessOffer,
   uploadOfferImage,
   fetchMyLeads,
@@ -20,6 +21,8 @@ import { auth, db } from '../config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import RazorpayModal from '../components/RazorpayModal';
+import BusinessHoursSelector from '../components/BusinessHoursSelector';
+import { pickImageWithFreeStyleCrop } from '../utils/imageUploadHelper';
 
 export default function ManageProfessionalScreen({ navigation, route }: any) {
   const { language } = useLanguage();
@@ -37,6 +40,16 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
   const [visitingCharges, setVisitingCharges] = useState('₹150');
   const [hourlyRate, setHourlyRate] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [operatingHours, setOperatingHours] = useState<any>({
+    monday: { closed: false, open: '09:00 AM', close: '09:00 PM' },
+    tuesday: { closed: false, open: '09:00 AM', close: '09:00 PM' },
+    wednesday: { closed: false, open: '09:00 AM', close: '09:00 PM' },
+    thursday: { closed: false, open: '09:00 AM', close: '09:00 PM' },
+    friday: { closed: false, open: '09:00 AM', close: '09:00 PM' },
+    saturday: { closed: false, open: '09:00 AM', close: '09:00 PM' },
+    sunday: { closed: false, open: '10:00 AM', close: '08:00 PM' },
+  });
   const [instagramUrl, setInstagramUrl] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
@@ -128,6 +141,9 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
         setVisitingCharges(p.visitingCharges || '₹150');
         setHourlyRate(p.hourlyRate || '');
         setAvatarUrl(p.avatarUrl || '');
+        if ((p as any).operatingHours) {
+          setOperatingHours((p as any).operatingHours);
+        }
         setInstagramUrl(p.instagramUrl || '');
         setYoutubeUrl(p.youtubeUrl || '');
         setLinkedinUrl(p.linkedinUrl || '');
@@ -146,6 +162,25 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
     }
   };
 
+  const pickAndUploadAvatar = async () => {
+    if (!profile) return;
+    const res = await pickImageWithFreeStyleCrop();
+    if (res?.uri) {
+      setUploadingAvatar(true);
+      try {
+        const url = await uploadProfessionalAvatar(res.uri);
+        await updateProfessionalProfile(profile.id, { avatarUrl: url });
+        setAvatarUrl(url);
+        setProfile(prev => (prev ? { ...prev, avatarUrl: url } : null));
+        Alert.alert('Success', 'Profile photo updated successfully!');
+      } catch (err: any) {
+        Alert.alert('Error', err.message || 'Failed to upload photo');
+      } finally {
+        setUploadingAvatar(false);
+      }
+    }
+  };
+
   const handleSaveProfile = async () => {
     if (!profile) return;
     setSaving(true);
@@ -159,6 +194,7 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
         serviceAreas: areas.length > 0 ? areas : ['All Kurnool'],
         visitingCharges: visitingCharges.trim(),
         hourlyRate: hourlyRate.trim() || undefined,
+        operatingHours: operatingHours,
         avatarUrl: avatarUrl.trim() || undefined,
         instagramUrl: instagramUrl.trim() || undefined,
         youtubeUrl: youtubeUrl.trim() || undefined,
@@ -564,27 +600,37 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
 
         {/* Profile Photo / Avatar */}
         <View style={styles.formGroup}>
-          <Text style={styles.inputLabel}>Profile Photo / Avatar URL</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          <Text style={styles.inputLabel}>Profile Photo / Avatar</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 8 }}>
             {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 1, borderColor: '#CBD5E1' }} />
+              <Image source={{ uri: avatarUrl }} style={{ width: 64, height: 64, borderRadius: 32, borderWidth: 2, borderColor: '#0D9488' }} />
             ) : (
-              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#CCFBF1', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="person" size={28} color="#0D9488" />
+              <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#CCFBF1', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="person" size={32} color="#0D9488" />
               </View>
             )}
-            <Text style={{ flex: 1, fontSize: 12, color: '#64748B' }}>
-              Paste an image URL for your profile picture. It will display across Kurnool One directory cards.
-            </Text>
+            <View style={{ flex: 1 }}>
+              <TouchableOpacity
+                onPress={pickAndUploadAvatar}
+                disabled={uploadingAvatar}
+                style={{ backgroundColor: '#0D9488', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' }}
+              >
+                {uploadingAvatar ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name="camera-outline" size={16} color="#FFFFFF" />
+                    <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 12 }}>
+                      {avatarUrl ? 'Change Photo' : 'Upload Photo'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              <Text style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
+                Free-style crop with camera or gallery upload.
+              </Text>
+            </View>
           </View>
-          <TextInput
-            style={styles.textInput}
-            value={avatarUrl}
-            onChangeText={setAvatarUrl}
-            placeholder="https://images.unsplash.com/... or hosted image URL"
-            placeholderTextColor="#94A3B8"
-            autoCapitalize="none"
-          />
         </View>
 
         <View style={styles.formGroup}>
@@ -718,6 +764,14 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
             placeholder="https://yourportfolio.com"
             placeholderTextColor="#94A3B8"
             autoCapitalize="none"
+          />
+        </View>
+
+        <View style={styles.formGroup}>
+          <BusinessHoursSelector
+            value={operatingHours}
+            onChange={(newSchedule) => setOperatingHours(newSchedule)}
+            title={language === 'en' ? 'Working Hours / Availability' : 'పనివేళలు / లభ్యత'}
           />
         </View>
 
