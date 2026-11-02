@@ -207,6 +207,8 @@ export default function OffersScreen({ route, navigation }: any) {
   const [postModalVisible, setPostModalVisible] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<OfferItem | null>(null);
   const [selectedMarketItem, setSelectedMarketItem] = useState<MarketItem | null>(null);
+  const [dealPhotoIdx, setDealPhotoIdx] = useState(0);
+  const [marketPhotoIdx, setMarketPhotoIdx] = useState(0);
   const [postTitle, setPostTitle] = useState('');
   const [postCategory, setPostCategory] = useState('Two-Wheelers');
   const [postPrice, setPostPrice] = useState('');
@@ -553,13 +555,45 @@ export default function OffersScreen({ route, navigation }: any) {
         </View>
       ) : activeTab === 'offers' ? (
         <FlatList
-          key="deals_grid_2"
+          key="deals_landscape_list"
           data={displayedOffers}
           keyExtractor={item => item.id}
-          numColumns={2}
-          columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 12 }}
-          contentContainerStyle={{ padding: 12, paddingBottom: 40 }}
+          numColumns={1}
+          contentContainerStyle={{ padding: 14, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <View style={styles.dealsHeaderBanner}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={styles.dealsHeaderTitle}>
+                  {language === 'en' ? 'Verified Hot Deals' : 'ధృవీకరించబడిన ఆఫర్లు'}
+                </Text>
+                <Text style={styles.dealsHeaderSub}>
+                  {language === 'en' ? 'Exclusive discounts from local merchants in Kurnool' : 'కర్నూలు వ్యాపారుల నుండి ప్రత్యేక తగ్గింపులు'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  Alert.alert(
+                    language === 'en' ? 'Post a Hot Deal' : 'ఆఫర్‌ను పోస్ట్ చేయండి',
+                    language === 'en'
+                      ? 'Publishing Hot Deals is reserved for Standard Verified and Premium Featured merchants. Manage your store or upgrade your plan to broadcast discounts.'
+                      : 'హాట్ డీల్స్ పోస్ట్ చేయడానికి మీ దుకాణాన్ని స్టాండర్డ్ లేదా ప్రీమియంకు అప్‌గ్రేడ్ చేయండి.',
+                    [
+                      { text: language === 'en' ? 'Cancel' : 'వద్దు', style: 'cancel' },
+                      {
+                        text: language === 'en' ? 'Store Dashboard' : 'డ్యాష్‌బోర్డ్',
+                        onPress: () => navigation.navigate('ManageBusiness'),
+                      },
+                    ]
+                  );
+                }}
+                style={styles.postDealBtn}
+              >
+                <Ionicons name="flame" size={14} color="#FFFFFF" />
+                <Text style={styles.postDealBtnText}>{language === 'en' ? '+ Post Deal' : '+ ఆఫర్'}</Text>
+              </TouchableOpacity>
+            </View>
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconCircle}>
@@ -577,36 +611,66 @@ export default function OffersScreen({ route, navigation }: any) {
           }
           renderItem={({ item }) => {
             const offerImages = item.images && item.images.length > 0 ? item.images : item.bannerUrl ? [item.bannerUrl] : [];
+            const hasImage = offerImages.length > 0;
+
             return (
               <TouchableOpacity
-                activeOpacity={0.9}
-                onPress={() => setSelectedDeal(item)}
-                style={styles.gridCard}
+                activeOpacity={0.92}
+                onPress={() => {
+                  setSelectedDeal(item);
+                  setDealPhotoIdx(0);
+                }}
+                style={styles.landscapeDealCard}
               >
-                <View style={styles.gridImageWrap}>
-                  {offerImages.length > 0 ? (
-                    <Image source={{ uri: offerImages[0] }} style={styles.gridImg} resizeMode="cover" />
-                  ) : (
-                    <View style={[styles.gridImg, { backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center' }]}>
-                      <Ionicons name="pricetag" size={28} color="#DC2626" />
+                {hasImage ? (
+                  // Landscape Photo Banner Card
+                  <View style={styles.landscapeImgWrap}>
+                    <Image source={{ uri: offerImages[0] }} style={styles.landscapeImg} resizeMode="cover" />
+                    <View style={styles.landscapeImgGradientOverlay} />
+                    <View style={styles.landscapeDiscountPill}>
+                      <Text style={styles.landscapeDiscountText}>{item.discountText}</Text>
                     </View>
-                  )}
-                  <View style={styles.gridDiscountBadge}>
-                    <Text style={styles.gridDiscountBadgeText}>{item.discountText}</Text>
+                    <View style={styles.landscapeDealInfoOverlay}>
+                      <Text style={styles.landscapeDealTitle} numberOfLines={1}>
+                        {language === 'en' ? item.title_en : (item.title_te || item.title_en)}
+                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 3 }}>
+                        <Text style={styles.landscapeMerchantName} numberOfLines={1}>
+                          <Ionicons name="storefront" size={12} color="#FFFFFF" /> {item.businessName}
+                        </Text>
+                        <Text style={styles.landscapeValidityText}>
+                          {item.validUntil ? `Exp: ${item.validUntil}` : 'Limited Offer'}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
-                </View>
-                <View style={styles.gridBody}>
-                  <Text style={styles.gridTitle} numberOfLines={2}>
-                    {language === 'en' ? item.title_en : (item.title_te || item.title_en)}
-                  </Text>
-                  <Text style={styles.gridSub} numberOfLines={1}>
-                    <Ionicons name="storefront-outline" size={11} color="#2563EB" /> {item.businessName}
-                  </Text>
-                  <View style={styles.gridTapCue}>
-                    <Text style={styles.gridTapCueText}>{language === 'en' ? 'View Deal' : 'ఆఫర్ చూడండి'}</Text>
-                    <Ionicons name="arrow-forward" size={11} color="#DC2626" />
+                ) : (
+                  // Text-Only Deal: Styled Vibrant Gradient Card
+                  <View style={styles.textOnlyDealWrap}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <View style={styles.textOnlyDiscountBadge}>
+                        <Text style={styles.textOnlyDiscountText}>{item.discountText || 'SPECIAL DEAL'}</Text>
+                      </View>
+                      <View style={styles.textOnlyValidityBadge}>
+                        <Ionicons name="time-outline" size={11} color="#DBEAFE" />
+                        <Text style={styles.textOnlyValidityText}>{item.validUntil || 'Limited Time'}</Text>
+                      </View>
+                    </View>
+
+                    <Text style={styles.textOnlyTitle} numberOfLines={2}>
+                      {language === 'en' ? item.title_en : (item.title_te || item.title_en)}
+                    </Text>
+
+                    <View style={styles.textOnlyFooter}>
+                      <Text style={styles.textOnlyMerchant} numberOfLines={1}>
+                        <Ionicons name="storefront-outline" size={12} color="#DBEAFE" /> {item.businessName}
+                      </Text>
+                      <View style={styles.textOnlyTapCue}>
+                        <Text style={styles.textOnlyTapCueText}>Claim Deal &rarr;</Text>
+                      </View>
+                    </View>
                   </View>
-                </View>
+                )}
               </TouchableOpacity>
             );
           }}
@@ -806,19 +870,47 @@ export default function OffersScreen({ route, navigation }: any) {
                   : selectedDeal.bannerUrl ? [selectedDeal.bannerUrl] : [];
                 if (dealImages.length === 0) return null;
                 return (
-                  <TouchableOpacity
-                    activeOpacity={0.9}
-                    onPress={() => openImageViewer(dealImages)}
-                    style={styles.detailsModalImageWrap}
-                  >
-                    <Image source={{ uri: dealImages[0] }} style={styles.detailsModalImage} resizeMode="cover" />
-                    <View style={styles.imageZoomBadge}>
-                      <Ionicons name="scan-outline" size={12} color="#FFFFFF" />
-                      <Text style={styles.imageZoomBadgeText}>
-                        {dealImages.length > 1 ? `${dealImages.length} Photos (Tap to Zoom)` : 'Tap to Zoom'}
+                  <View style={styles.swipeGalleryWrap}>
+                    <ScrollView
+                      horizontal
+                      pagingEnabled
+                      showsHorizontalScrollIndicator={false}
+                      onMomentumScrollEnd={(e) => {
+                        const width = e.nativeEvent.layoutMeasurement.width;
+                        const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+                        setDealPhotoIdx(idx);
+                      }}
+                    >
+                      {dealImages.map((imgUri, sIdx) => (
+                        <TouchableOpacity
+                          key={sIdx}
+                          activeOpacity={0.95}
+                          onPress={() => openImageViewer(dealImages, sIdx)}
+                        >
+                          <Image source={{ uri: imgUri }} style={styles.swipeGallerySlide} resizeMode="cover" />
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                    <View style={styles.swipeGalleryCounterPill}>
+                      <Ionicons name="images" size={12} color="#FFFFFF" />
+                      <Text style={styles.swipeGalleryCounterText}>
+                        {dealPhotoIdx + 1} / {dealImages.length}
                       </Text>
                     </View>
-                  </TouchableOpacity>
+                    {dealImages.length > 1 && (
+                      <View style={styles.swipeGalleryDotsRow}>
+                        {dealImages.map((_, dotIdx) => (
+                          <View
+                            key={dotIdx}
+                            style={[
+                              styles.swipeGalleryDot,
+                              dotIdx === dealPhotoIdx && styles.swipeGalleryDotActive,
+                            ]}
+                          />
+                        ))}
+                      </View>
+                    )}
+                  </View>
                 );
               })()}
 
@@ -919,12 +1011,27 @@ export default function OffersScreen({ route, navigation }: any) {
                   : selectedMarketItem.imageUrl ? [selectedMarketItem.imageUrl] : [];
                 if (itemImages.length === 0) return null;
                 return (
-                  <TouchableOpacity
-                    activeOpacity={0.9}
-                    onPress={() => openImageViewer(itemImages)}
-                    style={styles.detailsModalImageWrap}
-                  >
-                    <Image source={{ uri: itemImages[0] }} style={styles.detailsModalImage} resizeMode="cover" />
+                  <View style={styles.swipeGalleryWrap}>
+                    <ScrollView
+                      horizontal
+                      pagingEnabled
+                      showsHorizontalScrollIndicator={false}
+                      onMomentumScrollEnd={(e) => {
+                        const width = e.nativeEvent.layoutMeasurement.width;
+                        const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+                        setMarketPhotoIdx(idx);
+                      }}
+                    >
+                      {itemImages.map((imgUri, sIdx) => (
+                        <TouchableOpacity
+                          key={sIdx}
+                          activeOpacity={0.95}
+                          onPress={() => openImageViewer(itemImages, sIdx)}
+                        >
+                          <Image source={{ uri: imgUri }} style={styles.swipeGallerySlide} resizeMode="cover" />
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
                     {selectedMarketItem.status === 'sold' && (
                       <View style={styles.soldOverlay}>
                         <View style={styles.soldOverlayBadge}>
@@ -932,13 +1039,26 @@ export default function OffersScreen({ route, navigation }: any) {
                         </View>
                       </View>
                     )}
-                    <View style={styles.imageZoomBadge}>
-                      <Ionicons name="scan-outline" size={12} color="#FFFFFF" />
-                      <Text style={styles.imageZoomBadgeText}>
-                        {itemImages.length > 1 ? `${itemImages.length} Photos (Tap to Zoom)` : 'Tap to Zoom'}
+                    <View style={styles.swipeGalleryCounterPill}>
+                      <Ionicons name="images" size={12} color="#FFFFFF" />
+                      <Text style={styles.swipeGalleryCounterText}>
+                        {marketPhotoIdx + 1} / {itemImages.length}
                       </Text>
                     </View>
-                  </TouchableOpacity>
+                    {itemImages.length > 1 && (
+                      <View style={styles.swipeGalleryDotsRow}>
+                        {itemImages.map((_, dotIdx) => (
+                          <View
+                            key={dotIdx}
+                            style={[
+                              styles.swipeGalleryDot,
+                              dotIdx === marketPhotoIdx && styles.swipeGalleryDotActive,
+                            ]}
+                          />
+                        ))}
+                      </View>
+                    )}
+                  </View>
                 );
               })()}
 
@@ -1182,9 +1302,9 @@ export default function OffersScreen({ route, navigation }: any) {
               placeholderTextColor="#9CA3AF"
             />
 
-            {/* Photos */}
+            {/* Photos (1 Free + 4 Rewarded Video Ad Slots) */}
             <Text style={styles.inputLabel}>
-              {language === 'en' ? 'Photos (Up to 2)' : 'ఫోటోలు (గరిష్టంగా 2)'}
+              {language === 'en' ? 'Photos (1 Free + 4 Rewarded Ad Slots)' : 'ఫోటోలు (1 ఉచితం + 4 యాడ్ స్లాట్లు)'}
             </Text>
             <View style={styles.photoPickerRow}>
               {postImages.map((uri, idx) => (
@@ -1198,14 +1318,14 @@ export default function OffersScreen({ route, navigation }: any) {
                   </TouchableOpacity>
                 </View>
               ))}
-              {postImages.length < 2 && (
+              {postImages.length < 5 && (
                 <TouchableOpacity
                   onPress={handlePickPostImage}
                   style={styles.photoAddBtn}
                 >
                   <Ionicons name="camera-outline" size={24} color="#059669" />
                   <Text style={styles.photoAddText}>
-                    {language === 'en' ? 'Add Photo' : 'ఫోటో జోడించండి'}
+                    {postImages.length === 0 ? '+ Add Photo' : `+ Unlock #${postImages.length + 1}`}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -1857,5 +1977,228 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 14,
+  },
+  // Landscape Deal Styles
+  dealsHeaderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  dealsHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#991B1B',
+  },
+  dealsHeaderSub: {
+    fontSize: 10,
+    color: '#B91C1C',
+    marginTop: 1,
+  },
+  postDealBtn: {
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  postDealBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  landscapeDealCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    overflow: 'hidden',
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  landscapeImgWrap: {
+    width: '100%',
+    height: 160,
+    position: 'relative',
+    backgroundColor: '#1E293B',
+  },
+  landscapeImg: {
+    width: '100%',
+    height: '100%',
+  },
+  landscapeImgGradientOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  landscapeDiscountPill: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  landscapeDiscountText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  landscapeDealInfoOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 12,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+  },
+  landscapeDealTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  landscapeMerchantName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#DBEAFE',
+    flex: 1,
+  },
+  landscapeValidityText: {
+    fontSize: 11,
+    color: '#CBD5E1',
+    fontWeight: '600',
+  },
+  // Text-Only Deal Styles: Vibrant Gradient Fallback
+  textOnlyDealWrap: {
+    padding: 16,
+    backgroundColor: '#1E3A8A',
+    borderRadius: 18,
+    minHeight: 140,
+    justifyContent: 'space-between',
+  },
+  textOnlyDiscountBadge: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  textOnlyDiscountText: {
+    color: '#0F172A',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  textOnlyValidityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  textOnlyValidityText: {
+    fontSize: 10,
+    color: '#DBEAFE',
+    fontWeight: '600',
+  },
+  textOnlyTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    marginVertical: 10,
+    lineHeight: 22,
+  },
+  textOnlyFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.15)',
+  },
+  textOnlyMerchant: {
+    fontSize: 12,
+    color: '#DBEAFE',
+    fontWeight: '700',
+    flex: 1,
+  },
+  textOnlyTapCue: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  textOnlyTapCueText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#1E3A8A',
+  },
+  // Swipeable Gallery Carousel Styles
+  swipeGalleryWrap: {
+    width: '100%',
+    height: 250,
+    backgroundColor: '#0F172A',
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+    marginBottom: 8,
+  },
+  swipeGallerySlide: {
+    width: 360,
+    height: 250,
+  },
+  swipeGalleryCounterPill: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  swipeGalleryCounterText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  swipeGalleryDotsRow: {
+    position: 'absolute',
+    bottom: 10,
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
+  swipeGalleryDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+  },
+  swipeGalleryDotActive: {
+    backgroundColor: '#FFFFFF',
+    width: 14,
   },
 });

@@ -25,6 +25,14 @@ export default function HomeScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
   const [showRegisterChooser, setShowRegisterChooser] = useState(false);
   const [showMenuDrawer, setShowMenuDrawer] = useState(false);
+  const [userPhoto, setUserPhoto] = useState<string | null>(auth.currentUser?.photoURL || null);
+
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((u) => {
+      setUserPhoto(u?.photoURL || null);
+    });
+    return unsub;
+  }, []);
 
   useEffect(() => {
     loadHomeData();
@@ -89,9 +97,13 @@ export default function HomeScreen({ navigation }: any) {
 
           <TouchableOpacity
             onPress={() => navigation.navigate('Profile')}
-            style={{ padding: 6, backgroundColor: '#F1F5F9', borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0' }}
+            style={styles.profileAvatarBtn}
           >
-            <Ionicons name="person-circle-outline" size={22} color="#475569" />
+            {userPhoto ? (
+              <Image source={{ uri: userPhoto }} style={styles.profileAvatarImg} />
+            ) : (
+              <Ionicons name="person-circle-outline" size={24} color="#475569" />
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -583,6 +595,22 @@ const styles = StyleSheet.create({
   },
   langText: { fontSize: 12, fontWeight: '800', color: '#2563EB' },
   iconBtn: { padding: 4 },
+  profileAvatarBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1.5,
+    borderColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  profileAvatarImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 18,
+  },
   searchBar: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB',
     marginHorizontal: 16, marginTop: 8, marginBottom: 4, paddingLeft: 14, paddingRight: 6,

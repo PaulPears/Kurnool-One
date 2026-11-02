@@ -33,6 +33,8 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
   const [allBusinesses, setAllBusinesses] = useState<BusinessItem[]>([]);
   const [showShopPicker, setShowShopPicker] = useState(false);
   const [showRazorpayModal, setShowRazorpayModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'biz_standard' | 'biz_premium'>('biz_standard');
   const [leads, setLeads] = useState<LeadItem[]>([]);
 
   // Edit fields
@@ -446,6 +448,42 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
           <Text style={styles.heroSub}>{business.address}</Text>
         </View>
 
+        {/* Plan Status & Upgrade Banner */}
+        <View style={styles.planStatusCard}>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons
+                name={business.tier === 'featured' ? 'ribbon' : business.paymentStatus === 'paid' ? 'checkmark-circle' : 'information-circle'}
+                size={16}
+                color={business.tier === 'featured' ? '#D97706' : business.paymentStatus === 'paid' ? '#059669' : '#2563EB'}
+              />
+              <Text style={styles.planStatusTitle}>
+                {business.tier === 'featured'
+                  ? '👑 Premium Featured Listing (1 Year)'
+                  : business.paymentStatus === 'paid'
+                  ? '🛡️ Standard Verified Listing (6 Months)'
+                  : '🆓 Free Basic Listing'}
+              </Text>
+            </View>
+            <Text style={styles.planStatusDesc}>
+              {business.tier === 'featured'
+                ? 'Full featured ranking & unlimited Hot Deals active across Kurnool.'
+                : business.paymentStatus === 'paid'
+                ? 'Upgrade to Premium for #1 Featured homepage spot & Hot Deals privileges.'
+                : 'Upgrade to Standard Verified or Premium for verified badge, WhatsApp leads & Hot Deals.'}
+            </Text>
+          </View>
+          {business.tier !== 'featured' && (
+            <TouchableOpacity
+              onPress={() => setShowUpgradeModal(true)}
+              style={styles.upgradeBtn}
+            >
+              <Ionicons name="sparkles" size={13} color="#FFFFFF" />
+              <Text style={styles.upgradeBtnText}>Upgrade</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* Quick Action: Add Another Business */}
         <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
           <TouchableOpacity
@@ -649,11 +687,42 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
 
         {/* Festival Offer CTA */}
         <TouchableOpacity
-          onPress={() => setOfferModalVisible(true)}
+          onPress={() => {
+            const isEligible = business.paymentStatus === 'paid' && (
+              business.tier === 'featured' ||
+              business.tier === 'premium' ||
+              business.planId === 'premium' ||
+              business.planId === 'verified' ||
+              business.planId === 'yearly' ||
+              (business.planId as any) === 'biz_premium' ||
+              (business.planId as any) === 'biz_standard'
+            );
+            if (!isEligible) {
+              Alert.alert(
+                language === 'en' ? 'Verified Merchant Feature' : 'వెరిఫైడ్ వ్యాపార ఫీచర్',
+                language === 'en'
+                  ? 'Publishing Hot Deals and Festival Offers is exclusively available to Standard Verified and Premium Featured merchants. Upgrade your store listing to broadcast discounts to all Kurnool citizens.'
+                  : 'హాట్ డీల్స్ మరియు పండుగ ఆఫర్లను పోస్ట్ చేయడానికి మీ వ్యాపారాన్ని స్టాండర్డ్ లేదా ప్రీమియంకు అప్‌గ్రేడ్ చేయండి.',
+                [
+                  { text: language === 'en' ? 'Cancel' : 'రద్దు', style: 'cancel' },
+                  { text: language === 'en' ? 'Upgrade Plan' : 'అప్‌గ్రేడ్ చేయండి', onPress: () => setShowUpgradeModal(true) },
+                ]
+              );
+              return;
+            }
+            setOfferModalVisible(true);
+          }}
           style={styles.offerCtaCard}
         >
           <View style={{ flex: 1 }}>
-            <Text style={styles.offerCtaTitle}>🎁 Post a Festival Discount / Deal</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.offerCtaTitle}>🎁 Post a Festival Discount / Deal</Text>
+              {business.paymentStatus !== 'paid' && (
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.25)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                  <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '800' }}>🔒 UPGRADE REQUIRED</Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.offerCtaSub}>Broadcast special offers to thousands of Kurnool residents</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
@@ -1024,12 +1093,104 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
         </View>
       </Modal>
 
+      {/* ─── PLAN UPGRADE MODAL ─────────────────────────────────────── */}
+      <Modal visible={showUpgradeModal} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalSheet}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <View>
+                <Text style={styles.modalTitle}>⚡ Upgrade Store Listing</Text>
+                <Text style={{ fontSize: 11, color: '#64748B' }}>Unlock blue checkmark, customer leads & Hot Deals</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowUpgradeModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ gap: 12, marginBottom: 16 }}>
+              {/* Standard Verified Plan */}
+              <TouchableOpacity
+                onPress={() => setSelectedUpgradePlan('biz_standard')}
+                style={[
+                  styles.upgradePlanOption,
+                  selectedUpgradePlan === 'biz_standard' && styles.upgradePlanOptionActive,
+                ]}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons
+                      name={selectedUpgradePlan === 'biz_standard' ? 'radio-button-on' : 'radio-button-off'}
+                      size={20}
+                      color={selectedUpgradePlan === 'biz_standard' ? '#2563EB' : '#94A3B8'}
+                    />
+                    <Text style={[styles.upgradePlanName, selectedUpgradePlan === 'biz_standard' && { color: '#1D4ED8' }]}>
+                      Standard Verified
+                    </Text>
+                  </View>
+                  <View style={styles.upgradePriceBadge}>
+                    <Text style={styles.upgradePriceText}>₹399 / 6 Mo</Text>
+                  </View>
+                </View>
+                <View style={{ marginTop: 6, gap: 3, paddingLeft: 28 }}>
+                  <Text style={styles.upgradePerk}>• Blue Verified Merchant Badge</Text>
+                  <Text style={styles.upgradePerk}>• Direct WhatsApp & Call buttons</Text>
+                  <Text style={styles.upgradePerk}>• Priority ranking above free stores</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Premium Featured Plan */}
+              <TouchableOpacity
+                onPress={() => setSelectedUpgradePlan('biz_premium')}
+                style={[
+                  styles.upgradePlanOption,
+                  selectedUpgradePlan === 'biz_premium' && styles.upgradePlanOptionActive,
+                  { borderColor: selectedUpgradePlan === 'biz_premium' ? '#D97706' : '#FDE68A' }
+                ]}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons
+                      name={selectedUpgradePlan === 'biz_premium' ? 'radio-button-on' : 'radio-button-off'}
+                      size={20}
+                      color={selectedUpgradePlan === 'biz_premium' ? '#D97706' : '#94A3B8'}
+                    />
+                    <Text style={[styles.upgradePlanName, selectedUpgradePlan === 'biz_premium' && { color: '#B45309' }]}>
+                      👑 Premium Featured (1 Year)
+                    </Text>
+                  </View>
+                  <View style={[styles.upgradePriceBadge, { backgroundColor: '#FEF3C7' }]}>
+                    <Text style={[styles.upgradePriceText, { color: '#B45309' }]}>₹999 / 1 Yr</Text>
+                  </View>
+                </View>
+                <View style={{ marginTop: 6, gap: 3, paddingLeft: 28 }}>
+                  <Text style={styles.upgradePerk}>• Top #1 Homepage Featured Banner</Text>
+                  <Text style={styles.upgradePerk}>• Unlimited Hot Deals & Offers publishing</Text>
+                  <Text style={styles.upgradePerk}>• Full photo gallery & social media boost</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => {
+                setShowUpgradeModal(false);
+                setShowRazorpayModal(true);
+              }}
+              style={styles.proceedUpgradeBtn}
+            >
+              <Text style={styles.proceedUpgradeBtnText}>
+                Proceed to Pay {selectedUpgradePlan === 'biz_premium' ? '₹999' : '₹399'} via Razorpay
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* ─── RAZORPAY SUBSCRIPTION MODAL ─────────────────────────────────── */}
       <RazorpayModal
         visible={showRazorpayModal}
         onClose={() => setShowRazorpayModal(false)}
-        planName={`${business?.name_en || 'Business'} Subscription`}
-        amount={business?.planId === 'yearly' ? 2000 : business?.planId === 'monthly' ? 199 : 999}
+        planName={selectedUpgradePlan === 'biz_premium' ? 'Premium Featured Business (1 Year)' : 'Standard Verified Business (6 Months)'}
+        amount={selectedUpgradePlan === 'biz_premium' ? 999 : 399}
         entityName={business?.name_en || 'Business'}
         customerPhone={business?.phone}
         onSuccess={async (paymentData) => {
@@ -1038,14 +1199,30 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
           const orderId = paymentData.razorpay_order_id;
           if (business) {
             try {
+              const expiryDays = selectedUpgradePlan === 'biz_premium' ? 365 : 180;
+              const expiryDate = new Date(Date.now() + expiryDays * 86400000).toISOString().split('T')[0];
+              const newTier: 'featured' | 'premium' = selectedUpgradePlan === 'biz_premium' ? 'featured' : 'premium';
+              const targetPlanId = selectedUpgradePlan === 'biz_premium' ? 'premium' : 'verified';
+
               await updateBusinessProfile(business.id, {
                 paymentStatus: 'paid',
+                tier: newTier,
+                planId: targetPlanId,
+                verificationBadge: 'verified_business',
+                planExpiresAt: expiryDate,
                 paymentId,
                 orderId,
                 status: 'published',
               });
-              setBusiness((prev) => (prev ? { ...prev, paymentStatus: 'paid', status: 'published' } : null));
-              Alert.alert('Payment Successful', 'Your business listing is now active and verified on Kurnool One!');
+              setBusiness((prev) => (prev ? {
+                ...prev,
+                paymentStatus: 'paid',
+                tier: newTier,
+                planId: targetPlanId,
+                planExpiresAt: expiryDate,
+                status: 'published'
+              } : null));
+              Alert.alert('Upgrade Successful!', 'Your store has been upgraded to verified status with full privileges on Kurnool One!');
             } catch (updErr) {
               console.warn('Update post-payment error:', updErr);
             }
@@ -1310,4 +1487,62 @@ const styles = StyleSheet.create({
     color: '#2563EB',
     marginTop: 2,
   },
+  planStatusCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 14,
+    gap: 10,
+  },
+  planStatusTitle: { fontSize: 13, fontWeight: '800', color: '#1E40AF' },
+  planStatusDesc: { fontSize: 11, color: '#3B82F6', marginTop: 3, lineHeight: 15 },
+  upgradeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  upgradeBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12 },
+  modalSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 36,
+  },
+  upgradePlanOption: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    padding: 14,
+  },
+  upgradePlanOptionActive: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#2563EB',
+  },
+  upgradePlanName: { fontSize: 14, fontWeight: '800', color: '#0F172A' },
+  upgradePriceBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  upgradePriceText: { fontSize: 12, fontWeight: '900', color: '#2563EB' },
+  upgradePerk: { fontSize: 11, color: '#475569' },
+  proceedUpgradeBtn: {
+    backgroundColor: '#2563EB',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  proceedUpgradeBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
 });

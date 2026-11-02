@@ -276,94 +276,95 @@ export default function DirectoryScreen({ route, navigation }: any) {
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => {
-            const coverUri = item.coverImage || item.bannerUrl || (item.images && item.images.length > 0 ? item.images[0] : null);
+            const coverUri = item.thumbnailUrl || item.logoUrl || item.coverImage || item.bannerUrl || (item.images && item.images.length > 0 ? item.images[0] : null);
+            const bizCat = MASTER_CATEGORIES.find(c => c.id === item.categoryId);
+            const catColor = bizCat?.color || '#2563EB';
+            const catBg = bizCat?.bgLight || '#EFF6FF';
+            const catIcon = (bizCat?.icon as any) || 'storefront';
+            const isVerified = item.verificationBadge === 'verified_business' || item.tier === 'featured' || item.paymentStatus === 'paid';
+
             return (
               <TouchableOpacity
                 activeOpacity={0.9}
                 onPress={() => navigation.navigate('BusinessDetail', { businessId: item.id })}
-                style={styles.bizCard}
+                style={styles.compactBizCard}
               >
-                {coverUri ? (
-                  <Image source={{ uri: coverUri }} style={styles.bizImage} resizeMode="cover" />
-                ) : (
-                  <View style={[styles.bizImage, { backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' }]}>
-                    <Ionicons name="storefront-outline" size={36} color="#2563EB" />
-                  </View>
-                )}
-
-                <View style={styles.bizContent}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={styles.bizTitle} numberOfLines={1}>
-                    {language === 'en' ? item.name_en : (item.name_te || item.name_en)}
-                  </Text>
+                {/* Left Thumbnail or Icon */}
+                <View style={styles.compactBizLeft}>
+                  {coverUri ? (
+                    <Image source={{ uri: coverUri }} style={styles.compactBizImg} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.compactBizFallback, { backgroundColor: catBg }]}>
+                      <Ionicons name={catIcon} size={28} color={catColor} />
+                    </View>
+                  )}
                   {item.tier === 'featured' && (
-                    <View style={styles.featuredBadge}>
-                      <Text style={styles.featuredText}>FEATURED</Text>
+                    <View style={styles.compactFeaturedBadge}>
+                      <Text style={styles.compactFeaturedText}>👑</Text>
                     </View>
                   )}
                 </View>
 
-                {(() => {
-                  const bizCat = MASTER_CATEGORIES.find(c => c.id === item.categoryId);
-                  const catColor = bizCat?.color || '#2563EB';
-                  const catBg = bizCat?.bgLight || '#EFF6FF';
-                  const catIcon = (bizCat?.icon as any) || 'storefront';
-                  return (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: catBg, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-start', marginTop: 4, marginBottom: 4, borderWidth: 1, borderColor: `${catColor}30` }}>
-                      <Ionicons name={catIcon} size={12} color={catColor} />
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: catColor }}>
+                {/* Right Details */}
+                <View style={styles.compactBizRight}>
+                  {/* Title & Verified Badge */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <Text style={styles.compactBizTitle} numberOfLines={1}>
+                      {language === 'en' ? item.name_en : (item.name_te || item.name_en)}
+                    </Text>
+                    {isVerified && (
+                      <Ionicons name="checkmark-circle" size={15} color="#2563EB" />
+                    )}
+                  </View>
+
+                  {/* Category Pill & Rating */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                    <View style={[styles.compactCatPill, { backgroundColor: catBg, borderColor: `${catColor}30` }]}>
+                      <Text style={[styles.compactCatText, { color: catColor }]} numberOfLines={1}>
                         {language === 'en' ? (bizCat?.name_en || item.customCategory || 'Business') : (bizCat?.name_te || item.customCategory || 'వ్యాపారం')}
                       </Text>
                     </View>
-                  );
-                })()}
 
-                <Text style={styles.bizAddress} numberOfLines={1}>
-                  <Ionicons name="location-outline" size={13} color="#6B7280" /> {item.address}
-                </Text>
-
-                <View style={styles.bizMetaRow}>
-                  <View style={styles.ratingPill}>
-                    <Ionicons name="star" size={12} color="#F59E0B" />
-                    <Text style={styles.ratingText}>{Number(item.ratingAvg || 5.0).toFixed(1)}</Text>
-                    <Text style={{ fontSize: 11, color: '#6B7280' }}>({item.ratingCount || 1})</Text>
+                    <View style={styles.compactRatingRow}>
+                      <Ionicons name="star" size={11} color="#F59E0B" />
+                      <Text style={styles.compactRatingScore}>{Number(item.ratingAvg || 5.0).toFixed(1)}</Text>
+                    </View>
                   </View>
-                  {item.timing && (
-                    <Text style={styles.bizTiming} numberOfLines={1}>
-                      <Ionicons name="time-outline" size={12} color="#6B7280" /> {item.timing}
-                    </Text>
-                  )}
-                </View>
 
-                {/* Quick Action Buttons */}
-                <View style={styles.bizActionsRow}>
-                  <TouchableOpacity
-                    onPress={() => handleCall(item.phone)}
-                    style={styles.actionBtnCall}
-                  >
-                    <Ionicons name="call" size={14} color="#FFFFFF" />
-                    <Text style={styles.actionBtnTextCall}>Call</Text>
-                  </TouchableOpacity>
+                  {/* Location Landmark */}
+                  <Text style={styles.compactBizAddress} numberOfLines={1}>
+                    <Ionicons name="location-outline" size={11} color="#64748B" /> {item.landmark ? `${item.landmark}, ` : ''}{item.address}
+                  </Text>
 
-                  {item.whatsapp && (
+                  {/* Action Buttons: 1-Tap Call & WhatsApp */}
+                  <View style={styles.compactActionRow}>
                     <TouchableOpacity
-                      onPress={() => handleWhatsApp(item.whatsapp!)}
-                      style={styles.actionBtnWa}
+                      onPress={() => handleCall(item.phone)}
+                      style={styles.compactCallBtn}
                     >
-                      <Ionicons name="logo-whatsapp" size={15} color="#FFFFFF" />
-                      <Text style={styles.actionBtnTextWa}>WhatsApp</Text>
+                      <Ionicons name="call" size={11} color="#FFFFFF" />
+                      <Text style={styles.compactCallBtnText}>Call</Text>
                     </TouchableOpacity>
-                  )}
 
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate('BusinessDetail', { businessId: item.id })}
-                    style={styles.actionBtnDetails}
-                  >
-                    <Text style={styles.actionBtnTextDetails}>View &rarr;</Text>
-                  </TouchableOpacity>
+                    {item.whatsapp && (
+                      <TouchableOpacity
+                        onPress={() => handleWhatsApp(item.whatsapp!)}
+                        style={styles.compactWaBtn}
+                      >
+                        <Ionicons name="logo-whatsapp" size={12} color="#FFFFFF" />
+                        <Text style={styles.compactWaBtnText}>WhatsApp</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('BusinessDetail', { businessId: item.id })}
+                      style={styles.compactViewBtn}
+                    >
+                      <Text style={styles.compactViewBtnText}>Details &rarr;</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
             );
           }}
           ListEmptyComponent={
@@ -625,6 +626,82 @@ const styles = StyleSheet.create({
   categoryChipActive: { backgroundColor: '#2563EB' },
   categoryChipText: { fontSize: 12, fontWeight: '700', color: '#4B5563' },
   categoryChipTextActive: { color: '#FFFFFF' },
+  compactBizCard: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  compactBizLeft: {
+    width: 76,
+    height: 76,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#F1F5F9',
+  },
+  compactBizImg: { width: '100%', height: '100%' },
+  compactBizFallback: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },
+  compactFeaturedBadge: {
+    position: 'absolute',
+    top: 2,
+    left: 2,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  compactFeaturedText: { fontSize: 10 },
+  compactBizRight: { flex: 1, marginLeft: 10, justifyContent: 'center' },
+  compactBizTitle: { fontSize: 14, fontWeight: '800', color: '#0F172A', flex: 1 },
+  compactCatPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+    borderWidth: 1,
+    maxWidth: 130,
+  },
+  compactCatText: { fontSize: 9.5, fontWeight: '700' },
+  compactRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  compactRatingScore: { fontSize: 11, fontWeight: '800', color: '#92400E' },
+  compactBizAddress: { fontSize: 11, color: '#64748B', marginTop: 3 },
+  compactActionRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  compactCallBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  compactCallBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 10 },
+  compactWaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#16A34A',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  compactWaBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 10 },
+  compactViewBtn: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#F1F5F9',
+  },
+  compactViewBtnText: { color: '#475569', fontWeight: '700', fontSize: 10 },
   bizCard: {
     backgroundColor: '#FFFFFF', borderRadius: 18, marginBottom: 14,
     overflow: 'hidden', borderWidth: 1, borderColor: '#F3F4F6',

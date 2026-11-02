@@ -30,6 +30,8 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
   const [profile, setProfile] = useState<ProfessionalItem | null>(null);
   const [leads, setLeads] = useState<LeadItem[]>([]);
   const [showRazorpayModal, setShowRazorpayModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'pro_standard' | 'pro_premium'>('pro_standard');
 
   // Edit fields
   const [fullName, setFullName] = useState('');
@@ -542,13 +544,34 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
         {/* Broadcast Deal / Offer Banner */}
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={() => setOfferModalVisible(true)}
+          onPress={() => {
+            const isEligible = profile?.paymentStatus === 'paid';
+            if (!isEligible) {
+              Alert.alert(
+                language === 'en' ? 'Verified Professional Feature' : 'వెరిఫైడ్ ప్రొఫెషనల్ ఫీచర్',
+                language === 'en'
+                  ? 'Broadcasting service offers and discounts is exclusively available to Standard Verified and Elite professionals. Upgrade your profile to reach customers across Kurnool.'
+                  : 'ఆఫర్లను ప్రసారం చేయడానికి మీ ప్రొఫైల్‌ను స్టాండర్డ్ లేదా ఎలైట్‌కు అప్‌గ్రేడ్ చేయండి.',
+                [
+                  { text: language === 'en' ? 'Cancel' : 'రద్దు', style: 'cancel' },
+                  { text: language === 'en' ? 'Upgrade Plan' : 'అప్‌గ్రేడ్ చేయండి', onPress: () => setShowUpgradeModal(true) },
+                ]
+              );
+              return;
+            }
+            setOfferModalVisible(true);
+          }}
           style={styles.offerCtaCard}
         >
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="flame" size={18} color="#FFFFFF" />
               <Text style={styles.offerCtaTitle}>Broadcast Special Service Offer</Text>
+              {profile?.paymentStatus !== 'paid' && (
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.25)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                  <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '800' }}>🔒 UPGRADE REQUIRED</Text>
+                </View>
+              )}
             </View>
             <Text style={styles.offerCtaSub}>
               Post discounts, seasonal service packages or free inspection to the Offers feed.
@@ -559,13 +582,35 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
           </View>
         </TouchableOpacity>
 
-        {/* Pricing Plan Badge */}
+        {/* Dynamic Pricing Plan & Upgrade Badge */}
         <View style={styles.planBanner}>
-          <Ionicons name="ribbon" size={20} color="#0D9488" />
+          <Ionicons
+            name={profile?.paymentStatus === 'paid' ? 'shield-checkmark' : 'information-circle'}
+            size={22}
+            color="#0D9488"
+          />
           <View style={{ flex: 1 }}>
-            <Text style={styles.planBannerTitle}>Active Plan: 6 Months (₹500 / 6mo)</Text>
-            <Text style={styles.planBannerSub}>Verified badge and priority directory listing active.</Text>
+            <Text style={styles.planBannerTitle}>
+              {profile?.paymentStatus === 'paid'
+                ? profile?.planId === 'pro_premium'
+                  ? '👑 Professional Elite (1 Year)'
+                  : '🛡️ Standard Verified Pro (6 Months)'
+                : '🆓 Free Basic Professional'}
+            </Text>
+            <Text style={styles.planBannerSub}>
+              {profile?.paymentStatus === 'paid'
+                ? 'Verified checkmark badge and client call buttons active.'
+                : 'Upgrade for official Blue Checkmark badge, direct WhatsApp leads & Deals.'}
+            </Text>
           </View>
+          {profile?.paymentStatus !== 'paid' && (
+            <TouchableOpacity
+              onPress={() => setShowUpgradeModal(true)}
+              style={styles.proUpgradeBtn}
+            >
+              <Text style={styles.proUpgradeBtnText}>Upgrade</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Rates & Fees Card */}
@@ -898,12 +943,104 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
         </View>
       </Modal>
 
+      {/* ─── PRO UPGRADE MODAL ─────────────────────────────────────── */}
+      <Modal visible={showUpgradeModal} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalSheet}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <View>
+                <Text style={styles.modalTitle}>⚡ Upgrade Professional Profile</Text>
+                <Text style={{ fontSize: 11, color: '#64748B' }}>Get verified badge, WhatsApp leads & post offers</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowUpgradeModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ gap: 12, marginBottom: 16 }}>
+              {/* Standard Verified Plan */}
+              <TouchableOpacity
+                onPress={() => setSelectedUpgradePlan('pro_standard')}
+                style={[
+                  styles.upgradePlanOption,
+                  selectedUpgradePlan === 'pro_standard' && styles.upgradePlanOptionActive,
+                ]}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons
+                      name={selectedUpgradePlan === 'pro_standard' ? 'radio-button-on' : 'radio-button-off'}
+                      size={20}
+                      color={selectedUpgradePlan === 'pro_standard' ? '#0D9488' : '#94A3B8'}
+                    />
+                    <Text style={[styles.upgradePlanName, selectedUpgradePlan === 'pro_standard' && { color: '#0F766E' }]}>
+                      Standard Verified Pro
+                    </Text>
+                  </View>
+                  <View style={styles.upgradePriceBadge}>
+                    <Text style={styles.upgradePriceText}>₹199 / 6 Mo</Text>
+                  </View>
+                </View>
+                <View style={{ marginTop: 6, gap: 3, paddingLeft: 28 }}>
+                  <Text style={styles.upgradePerk}>• Verified Pro badge & ranking boost</Text>
+                  <Text style={styles.upgradePerk}>• Direct 1-tap WhatsApp inquiry button</Text>
+                  <Text style={styles.upgradePerk}>• Client ratings & review showcase</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Elite Featured Plan */}
+              <TouchableOpacity
+                onPress={() => setSelectedUpgradePlan('pro_premium')}
+                style={[
+                  styles.upgradePlanOption,
+                  selectedUpgradePlan === 'pro_premium' && styles.upgradePlanOptionActive,
+                  { borderColor: selectedUpgradePlan === 'pro_premium' ? '#0D9488' : '#CCFBF1' }
+                ]}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons
+                      name={selectedUpgradePlan === 'pro_premium' ? 'radio-button-on' : 'radio-button-off'}
+                      size={20}
+                      color={selectedUpgradePlan === 'pro_premium' ? '#0D9488' : '#94A3B8'}
+                    />
+                    <Text style={[styles.upgradePlanName, selectedUpgradePlan === 'pro_premium' && { color: '#0F766E' }]}>
+                      👑 Professional Elite (1 Year)
+                    </Text>
+                  </View>
+                  <View style={[styles.upgradePriceBadge, { backgroundColor: '#CCFBF1' }]}>
+                    <Text style={[styles.upgradePriceText, { color: '#0F766E' }]}>₹499 / 1 Yr</Text>
+                  </View>
+                </View>
+                <View style={{ marginTop: 6, gap: 3, paddingLeft: 28 }}>
+                  <Text style={styles.upgradePerk}>• Top category ranking for 1 Full Year</Text>
+                  <Text style={styles.upgradePerk}>• Unlimited service offers & discount deals</Text>
+                  <Text style={styles.upgradePerk}>• Complete portfolio photo gallery</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => {
+                setShowUpgradeModal(false);
+                setShowRazorpayModal(true);
+              }}
+              style={styles.proceedUpgradeBtn}
+            >
+              <Text style={styles.proceedUpgradeBtnText}>
+                Proceed to Pay {selectedUpgradePlan === 'pro_premium' ? '₹499' : '₹199'} via Razorpay
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* ─── RAZORPAY SUBSCRIPTION MODAL ─────────────────────────────────── */}
       <RazorpayModal
         visible={showRazorpayModal}
         onClose={() => setShowRazorpayModal(false)}
-        planName={`${profile?.fullName || 'Professional'} Subscription`}
-        amount={profile?.planId === 'yearly' ? 900 : profile?.planId === 'monthly' ? 99 : 500}
+        planName={selectedUpgradePlan === 'pro_premium' ? 'Professional Elite (1 Year)' : 'Standard Verified Pro (6 Months)'}
+        amount={selectedUpgradePlan === 'pro_premium' ? 499 : 199}
         entityName={profile?.fullName || 'Professional'}
         customerPhone={profile?.phone}
         onSuccess={async (paymentData) => {
@@ -914,12 +1051,18 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
             try {
               await updateProfessionalProfile(profile.id, {
                 paymentStatus: 'paid',
+                planId: selectedUpgradePlan,
                 paymentId,
                 orderId,
                 status: 'active',
               });
-              setProfile((prev) => (prev ? { ...prev, paymentStatus: 'paid', status: 'active' } : null));
-              Alert.alert('Payment Successful', 'Your professional profile is now verified and active across Kurnool One!');
+              setProfile((prev) => (prev ? {
+                ...prev,
+                paymentStatus: 'paid',
+                planId: selectedUpgradePlan,
+                status: 'active'
+              } : null));
+              Alert.alert('Upgrade Successful!', 'Your professional profile is now verified and active across Kurnool One!');
             } catch (updErr) {
               console.warn('Pro update post-payment error:', updErr);
             }
@@ -1167,4 +1310,46 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 2,
   },
+  proUpgradeBtn: {
+    backgroundColor: '#0D9488',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  proUpgradeBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12 },
+  modalSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 36,
+  },
+  upgradePlanOption: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    padding: 14,
+  },
+  upgradePlanOptionActive: {
+    backgroundColor: '#F0FDFA',
+    borderColor: '#0D9488',
+  },
+  upgradePlanName: { fontSize: 14, fontWeight: '800', color: '#0F172A' },
+  upgradePriceBadge: {
+    backgroundColor: '#F0FDFA',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  upgradePriceText: { fontSize: 12, fontWeight: '900', color: '#0D9488' },
+  upgradePerk: { fontSize: 11, color: '#475569' },
+  proceedUpgradeBtn: {
+    backgroundColor: '#0D9488',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  proceedUpgradeBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
 });

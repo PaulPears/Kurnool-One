@@ -82,3 +82,4 @@
 - Both `frontend` and `website` pass TypeScript compilation with **0 errors**.
 - Full standalone release build executed successfully via Gradle.
 - Standalone APK generated at: `G:\Kurnool One\Kurnool One\Kurnool-One.apk` (40.11 MB).
+

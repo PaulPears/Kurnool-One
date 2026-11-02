@@ -10,6 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
 import { useLanguage } from '../context/LanguageContext';
+import { pickImageWithFreeStyleCrop } from '../utils/imageUploadHelper';
 import {
   fetchHouseRentals,
   createHouseRental,
@@ -26,6 +27,10 @@ export default function HouseRentScreen({ navigation }: any) {
   const [selectedBhk, setSelectedBhk] = useState('All');
   const [rentals, setRentals] = useState<HouseRentalItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Selected Rental Detail Modal with Swipeable Gallery
+  const [selectedRental, setSelectedRental] = useState<HouseRentalItem | null>(null);
+  const [activeSwipeIdx, setActiveSwipeIdx] = useState(0);
 
   // Full-screen Image Viewer
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -101,19 +106,38 @@ export default function HouseRentScreen({ navigation }: any) {
   };
 
   const handlePickImages = async () => {
-    if (images.length >= 3) {
-      Alert.alert('Limit Reached', 'You can upload up to 3 photos of the property.');
+    if (images.length >= 5) {
+      Alert.alert('Limit Reached', 'You can attach up to 5 photos per rental listing.');
       return;
     }
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      selectionLimit: 3 - images.length,
-      quality: 0.7,
-    });
-    if (!res.canceled && res.assets && res.assets.length > 0) {
-      const newUris = res.assets.map(a => a.uri);
-      setImages(prev => [...prev, ...newUris].slice(0, 3));
+
+    const pickAndAdd = async () => {
+      try {
+        const res = await pickImageWithFreeStyleCrop({
+          title: language === 'en' ? 'Rental Property Photo' : 'అద్దె ఇంటి ఫోటో',
+          message: language === 'en' ? 'Select photo source with free-style crop:' : 'ఫోటోను ఎంచుకుని మీకు కావలసినట్లు క్రాప్ చేయండి:',
+        });
+        if (res?.uri) {
+          setImages(prev => [...prev, res.uri]);
+        }
+      } catch (e: any) {
+        Alert.alert('Error', e.message || 'Could not pick photo');
+      }
+    };
+
+    if (images.length >= 1) {
+      Alert.alert(
+        language === 'en' ? `Unlock Photo #${images.length + 1}` : `ఫోటో #${images.length + 1} అన్‌లాక్ చేయండి`,
+        language === 'en'
+          ? `Slot #1 is free. Watch a rewarded partner video ad to unlock Photo Slot #${images.length + 1}?`
+          : `1వ ఫోటో ఉచితం. ఫోటో #${images.length + 1} అన్‌లాక్ చేయడానికి వీడియో ప్రకటన చూడాలా?`,
+        [
+          { text: language === 'en' ? 'Cancel' : 'వద్దు', style: 'cancel' },
+          { text: language === 'en' ? 'Watch Ad & Unlock' : 'ప్రకటన చూసి అన్‌లాక్ చేయండి', onPress: pickAndAdd },
+        ]
+      );
+    } else {
+      await pickAndAdd();
     }
   };
 
@@ -323,9 +347,12 @@ export default function HouseRentScreen({ navigation }: any) {
         </View>
       ) : (
         <FlatList
+          key="rent_grid_2"
           data={rentals}
           keyExtractor={item => item.id}
-          contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
+          numColumns={2}
+          columnWrapperStyle={{ justifyContent: 'space-between', marginBottom: 12 }}
+          contentContainerStyle={{ padding: 12, paddingBottom: 60 }}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={loading} onRefresh={loadRentals} colors={['#2563EB']} />}
           ListEmptyComponent={
@@ -347,145 +374,279 @@ export default function HouseRentScreen({ navigation }: any) {
             </View>
           }
           renderItem={({ item }) => {
-            const isOwner = auth.currentUser?.uid && item.ownerUid === auth.currentUser.uid;
+            const coverPhoto = item.images && item.images.length > 0 ? item.images[0] : null;
             return (
-              <View style={styles.card}>
-                {/* Images */}
-                {item.images && item.images.length > 0 ? (
-                  <TouchableOpacity
-                    activeOpacity={0.9}
-                    onPress={() => openImageViewer(item.images)}
-                    style={styles.imgWrap}
-                  >
-                    <Image source={{ uri: item.images[0] }} style={styles.cardImg} resizeMode="cover" />
-                    <View style={styles.photoCountBadge}>
-                      <Ionicons name="images" size={11} color="#FFFFFF" />
-                      <Text style={styles.photoCountText}>{item.images.length} Photos</Text>
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => {
+                  setSelectedRental(item);
+                  setActiveSwipeIdx(0);
+                }}
+                style={styles.gridCard}
+              >
+                {/* Image Wrap */}
+                <View style={styles.gridImageWrap}>
+                  {coverPhoto ? (
+                    <Image source={{ uri: coverPhoto }} style={styles.gridImg} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.gridImg, { backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' }]}>
+                      <Ionicons name="home" size={28} color="#2563EB" />
                     </View>
-                    <View style={styles.bhkOverlayPill}>
-                      <Text style={styles.bhkOverlayText}>{item.bhk}</Text>
-                    </View>
-                  </TouchableOpacity>
-                ) : (
-                  <View style={[styles.imgWrap, styles.imgPlaceholder]}>
-                    <Ionicons name="business-outline" size={36} color="#94A3B8" />
-                    <View style={styles.bhkOverlayPill}>
-                      <Text style={styles.bhkOverlayText}>{item.bhk}</Text>
-                    </View>
+                  )}
+                  {/* Rent Badge */}
+                  <View style={styles.gridPriceBadge}>
+                    <Text style={styles.gridPriceBadgeText}>
+                      ₹{item.monthlyRent.toLocaleString('en-IN')}/mo
+                    </Text>
                   </View>
-                )}
-
-                {/* Body */}
-                <View style={styles.cardBody}>
-                  {/* Rent & Deposit Row */}
-                  <View style={styles.priceRow}>
-                    <View>
-                      <Text style={styles.rentAmount}>
-                        ₹{item.monthlyRent.toLocaleString('en-IN')}
-                        <Text style={styles.perMonth}> / month</Text>
-                      </Text>
-                      {item.depositAmount ? (
-                        <Text style={styles.depositText}>
-                          Advance: ₹{item.depositAmount.toLocaleString('en-IN')}
-                        </Text>
-                      ) : null}
-                    </View>
-
-                    <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                      {item.status === 'rented' && (
-                        <View style={styles.rentedBadge}>
-                          <Text style={styles.rentedBadgeText}>RENTED OUT</Text>
-                        </View>
-                      )}
-                      <View style={styles.tenantPill}>
-                        <Text style={styles.tenantPillText}>{item.tenantPreference}</Text>
-                      </View>
-                    </View>
+                  {/* BHK Pill */}
+                  <View style={styles.gridBhkPill}>
+                    <Text style={styles.gridBhkPillText}>{item.bhk}</Text>
                   </View>
+                  {item.status === 'rented' && (
+                    <View style={styles.gridRentedOverlay}>
+                      <Text style={styles.gridRentedOverlayText}>RENTED</Text>
+                    </View>
+                  )}
+                </View>
 
-                  {/* Title */}
-                  <Text style={styles.cardTitle}>
+                {/* Card Body */}
+                <View style={styles.gridBody}>
+                  <Text style={styles.gridTitle} numberOfLines={2}>
                     {language === 'en' ? item.title_en : (item.title_te || item.title_en)}
                   </Text>
-
-                  {/* Locality & Specs */}
-                  <View style={styles.metaRow}>
-                    <Ionicons name="location-outline" size={14} color="#2563EB" />
-                    <Text style={styles.metaArea} numberOfLines={1}>{item.area}</Text>
+                  <Text style={styles.gridArea} numberOfLines={1}>
+                    <Ionicons name="location-outline" size={11} color="#2563EB" /> {item.area}
+                  </Text>
+                  <View style={styles.gridTagRow}>
+                    <View style={styles.gridTenantTag}>
+                      <Text style={styles.gridTenantTagText}>{item.tenantPreference}</Text>
+                    </View>
                   </View>
-
-                  {/* Tag Chips */}
-                  <View style={styles.specChipsRow}>
-                    <View style={styles.specChip}>
-                      <Ionicons name="sparkles-outline" size={11} color="#475569" />
-                      <Text style={styles.specChipText}>{item.furnishing}</Text>
-                    </View>
-                    {item.waterFacility ? (
-                      <View style={styles.specChip}>
-                        <Ionicons name="water-outline" size={11} color="#0284C7" />
-                        <Text style={styles.specChipText}>{item.waterFacility}</Text>
-                      </View>
-                    ) : null}
-                    {item.parking ? (
-                      <View style={styles.specChip}>
-                        <Ionicons name="car-outline" size={11} color="#16A34A" />
-                        <Text style={styles.specChipText}>{item.parking}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-
-                  {/* Description */}
-                  <Text style={styles.descText} numberOfLines={2}>{item.description}</Text>
-
-                  {/* Action Row */}
-                  <View style={styles.actionRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.ownerName} numberOfLines={1}>Owner: {item.ownerName}</Text>
-                      {item.postedDate && (
-                        <Text style={styles.postedDate}>Listed {item.postedDate}</Text>
-                      )}
-                    </View>
-
-                    <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                      <TouchableOpacity
-                        onPress={() => handleCall(item.ownerPhone)}
-                        style={styles.callBtn}
-                      >
-                        <Ionicons name="call" size={13} color="#FFFFFF" />
-                        <Text style={styles.callBtnText}>Call</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        onPress={() => handleWhatsApp(item.ownerWhatsapp || item.ownerPhone, item.title_en)}
-                        style={styles.waBtn}
-                      >
-                        <Ionicons name="logo-whatsapp" size={14} color="#FFFFFF" />
-                        <Text style={styles.waBtnText}>WhatsApp</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        onPress={() => handleShare(item)}
-                        style={styles.shareBtn}
-                      >
-                        <Ionicons name="share-social-outline" size={14} color="#334155" />
-                      </TouchableOpacity>
-
-                      {isOwner && (
-                        <TouchableOpacity
-                          onPress={() => handleDelete(item)}
-                          style={styles.deleteBtn}
-                        >
-                          <Ionicons name="trash-outline" size={14} color="#DC2626" />
-                        </TouchableOpacity>
-                      )}
-                    </View>
+                  <View style={styles.gridTapCue}>
+                    <Text style={styles.gridTapCueText}>{language === 'en' ? 'View Details' : 'వివరాలు చూడండి'}</Text>
+                    <Ionicons name="arrow-forward" size={11} color="#2563EB" />
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           }}
         />
       )}
+
+      {/* ─── RENTAL PROPERTY DETAIL MODAL WITH SWIPEABLE GALLERY ─────────── */}
+      <Modal visible={!!selectedRental} animationType="slide" onRequestClose={() => setSelectedRental(null)}>
+        <SafeAreaView style={styles.detailModalContainer}>
+          <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+          {selectedRental && (
+            <>
+              {/* Modal Top Header */}
+              <View style={styles.detailModalHeader}>
+                <TouchableOpacity onPress={() => setSelectedRental(null)} style={styles.detailBackBtn}>
+                  <Ionicons name="arrow-back" size={24} color="#0F172A" />
+                </TouchableOpacity>
+                <Text style={styles.detailModalTitle} numberOfLines={1}>
+                  {selectedRental.bhk} • {selectedRental.area}
+                </Text>
+                <TouchableOpacity onPress={() => handleShare(selectedRental)} style={styles.detailShareBtn}>
+                  <Ionicons name="share-social-outline" size={20} color="#0F172A" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+                {/* Swipeable Photo Gallery (Swipe Left / Right) */}
+                {selectedRental.images && selectedRental.images.length > 0 ? (
+                  <View style={styles.galleryContainer}>
+                    <ScrollView
+                      horizontal
+                      pagingEnabled
+                      showsHorizontalScrollIndicator={false}
+                      onMomentumScrollEnd={(e) => {
+                        const width = e.nativeEvent.layoutMeasurement.width;
+                        const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+                        setActiveSwipeIdx(idx);
+                      }}
+                    >
+                      {selectedRental.images.map((imgUri, sIdx) => (
+                        <TouchableOpacity
+                          key={sIdx}
+                          activeOpacity={0.95}
+                          onPress={() => openImageViewer(selectedRental.images, sIdx)}
+                        >
+                          <Image
+                            source={{ uri: imgUri }}
+                            style={styles.gallerySlideImg}
+                            resizeMode="cover"
+                          />
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+
+                    {/* Photo Counter Pill */}
+                    <View style={styles.galleryCounterPill}>
+                      <Ionicons name="images" size={12} color="#FFFFFF" />
+                      <Text style={styles.galleryCounterText}>
+                        {activeSwipeIdx + 1} / {selectedRental.images.length}
+                      </Text>
+                    </View>
+
+                    {/* Pagination Dots */}
+                    {selectedRental.images.length > 1 && (
+                      <View style={styles.galleryDotsRow}>
+                        {selectedRental.images.map((_, dotIdx) => (
+                          <View
+                            key={dotIdx}
+                            style={[
+                              styles.galleryDot,
+                              dotIdx === activeSwipeIdx && styles.galleryDotActive,
+                            ]}
+                          />
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ) : (
+                  <View style={styles.galleryFallback}>
+                    <Ionicons name="home" size={48} color="#94A3B8" />
+                  </View>
+                )}
+
+                <View style={{ padding: 16 }}>
+                  {/* Rent & Deposit Box */}
+                  <View style={styles.detailPriceCard}>
+                    <View>
+                      <Text style={styles.detailRentAmt}>
+                        ₹{selectedRental.monthlyRent.toLocaleString('en-IN')}
+                        <Text style={styles.detailPerMonth}> / month</Text>
+                      </Text>
+                      {selectedRental.depositAmount ? (
+                        <Text style={styles.detailDepositText}>
+                          Security Deposit / Advance: ₹{selectedRental.depositAmount.toLocaleString('en-IN')}
+                        </Text>
+                      ) : null}
+                    </View>
+                    {selectedRental.status === 'rented' && (
+                      <View style={styles.rentedBadge}>
+                        <Text style={styles.rentedBadgeText}>RENTED OUT</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Title & Locality */}
+                  <Text style={styles.detailTitle}>
+                    {language === 'en' ? selectedRental.title_en : (selectedRental.title_te || selectedRental.title_en)}
+                  </Text>
+                  <Text style={styles.detailArea}>
+                    <Ionicons name="location" size={14} color="#2563EB" /> {selectedRental.area}
+                  </Text>
+
+                  {/* Specifications Grid */}
+                  <Text style={styles.detailSectionTitle}>Property Specifications</Text>
+                  <View style={styles.specsGrid}>
+                    <View style={styles.specBox}>
+                      <Ionicons name="bed-outline" size={18} color="#2563EB" />
+                      <Text style={styles.specBoxLabel}>BHK Type</Text>
+                      <Text style={styles.specBoxVal}>{selectedRental.bhk}</Text>
+                    </View>
+                    <View style={styles.specBox}>
+                      <Ionicons name="people-outline" size={18} color="#059669" />
+                      <Text style={styles.specBoxLabel}>Preferred Tenant</Text>
+                      <Text style={styles.specBoxVal}>{selectedRental.tenantPreference}</Text>
+                    </View>
+                    <View style={styles.specBox}>
+                      <Ionicons name="sparkles-outline" size={18} color="#7C3AED" />
+                      <Text style={styles.specBoxLabel}>Furnishing</Text>
+                      <Text style={styles.specBoxVal}>{selectedRental.furnishing}</Text>
+                    </View>
+                    <View style={styles.specBox}>
+                      <Ionicons name="business-outline" size={18} color="#D97706" />
+                      <Text style={styles.specBoxLabel}>Property Type</Text>
+                      <Text style={styles.specBoxVal}>{selectedRental.propertyType}</Text>
+                    </View>
+                    <View style={styles.specBox}>
+                      <Ionicons name="water-outline" size={18} color="#0284C7" />
+                      <Text style={styles.specBoxLabel}>Water Supply</Text>
+                      <Text style={styles.specBoxVal}>{selectedRental.waterFacility || 'Available'}</Text>
+                    </View>
+                    <View style={styles.specBox}>
+                      <Ionicons name="car-outline" size={18} color="#16A34A" />
+                      <Text style={styles.specBoxLabel}>Parking</Text>
+                      <Text style={styles.specBoxVal}>{selectedRental.parking || 'Available'}</Text>
+                    </View>
+                  </View>
+
+                  {/* Description */}
+                  {selectedRental.description ? (
+                    <>
+                      <Text style={styles.detailSectionTitle}>Description</Text>
+                      <Text style={styles.detailDesc}>{selectedRental.description}</Text>
+                    </>
+                  ) : null}
+
+                  {/* Address */}
+                  {selectedRental.addressDetails ? (
+                    <>
+                      <Text style={styles.detailSectionTitle}>Address Details</Text>
+                      <Text style={styles.detailAddress}>{selectedRental.addressDetails}</Text>
+                    </>
+                  ) : null}
+
+                  {/* Owner Controls */}
+                  {auth.currentUser?.uid && selectedRental.ownerUid === auth.currentUser.uid && (
+                    <View style={styles.ownerControlsCard}>
+                      <Text style={styles.ownerControlsTitle}>Owner Management Controls</Text>
+                      <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+                        <TouchableOpacity
+                          onPress={() => {
+                            handleToggleStatus(selectedRental);
+                            setSelectedRental(null);
+                          }}
+                          style={[styles.ownerBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
+                        >
+                          <Ionicons name="swap-horizontal" size={15} color="#2563EB" />
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: '#1D4ED8' }}>
+                            {selectedRental.status === 'available' ? 'Mark Rented' : 'Mark Available'}
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => {
+                            handleDelete(selectedRental);
+                            setSelectedRental(null);
+                          }}
+                          style={[styles.ownerBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}
+                        >
+                          <Ionicons name="trash-outline" size={15} color="#DC2626" />
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: '#DC2626' }}>Delete</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              </ScrollView>
+
+              {/* Sticky Bottom Action Buttons */}
+              <View style={styles.detailBottomBar}>
+                <TouchableOpacity
+                  onPress={() => handleCall(selectedRental.ownerPhone)}
+                  style={styles.detailCallBtn}
+                >
+                  <Ionicons name="call" size={18} color="#FFFFFF" />
+                  <Text style={styles.detailCallBtnText}>Call Owner</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => handleWhatsApp(selectedRental.ownerWhatsapp || selectedRental.ownerPhone, selectedRental.title_en)}
+                  style={styles.detailWaBtn}
+                >
+                  <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" />
+                  <Text style={styles.detailWaBtnText}>WhatsApp</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </SafeAreaView>
+      </Modal>
 
       {/* Post Rental Modal */}
       <Modal visible={postModalVisible} animationType="slide" onRequestClose={() => setPostModalVisible(false)}>
@@ -694,8 +855,10 @@ export default function HouseRentScreen({ navigation }: any) {
               onChangeText={setDescription}
             />
 
-            {/* Photos (up to 3) */}
-            <Text style={styles.label}>Property Photos (Max 3)</Text>
+            {/* Photos (1 Free + 4 Rewarded Video Ad Slots) */}
+            <Text style={styles.label}>
+              {language === 'en' ? 'Property Photos (1 Free + 4 Rewarded Ad Slots)' : 'ఇంటి ఫోటోలు (1 ఉచితం + 4 యాడ్ స్లాట్లు)'}
+            </Text>
             <View style={styles.photoPickerRow}>
               {images.map((imgUri, idx) => (
                 <View key={idx} style={styles.photoThumbWrap}>
@@ -709,10 +872,12 @@ export default function HouseRentScreen({ navigation }: any) {
                 </View>
               ))}
 
-              {images.length < 3 && (
+              {images.length < 5 && (
                 <TouchableOpacity onPress={handlePickImages} style={styles.addPhotoBtn}>
                   <Ionicons name="camera-outline" size={24} color="#2563EB" />
-                  <Text style={styles.addPhotoText}>+ Add Photo</Text>
+                  <Text style={styles.addPhotoText}>
+                    {images.length === 0 ? '+ Add Photo' : `+ Unlock #${images.length + 1}`}
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -1068,5 +1233,343 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // 2-Column Compact Grid Styles (Matching Kurnool Bazaar)
+  gridCard: {
+    width: '48%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  gridImageWrap: {
+    width: '100%',
+    height: 125,
+    position: 'relative',
+    backgroundColor: '#F1F5F9',
+  },
+  gridImg: {
+    width: '100%',
+    height: '100%',
+  },
+  gridPriceBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  gridPriceBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  gridBhkPill: {
+    position: 'absolute',
+    bottom: 6,
+    left: 6,
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  gridBhkPillText: {
+    color: '#FFFFFF',
+    fontSize: 9.5,
+    fontWeight: '800',
+  },
+  gridRentedOverlay: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  gridRentedOverlayText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  gridBody: {
+    padding: 10,
+  },
+  gridTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#0F172A',
+    lineHeight: 16,
+  },
+  gridArea: {
+    fontSize: 10.5,
+    color: '#2563EB',
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  gridTagRow: {
+    flexDirection: 'row',
+    marginTop: 6,
+  },
+  gridTenantTag: {
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  gridTenantTagText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#15803D',
+  },
+  gridTapCue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  gridTapCueText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#2563EB',
+  },
+  // Detail Modal & Swipe Gallery Styles
+  detailModalContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  detailModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  detailBackBtn: { padding: 4 },
+  detailShareBtn: { padding: 4 },
+  detailModalTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+    textAlign: 'center',
+    marginHorizontal: 10,
+  },
+  galleryContainer: {
+    width: '100%',
+    height: 250,
+    backgroundColor: '#0F172A',
+    position: 'relative',
+  },
+  gallerySlideImg: {
+    width: 390,
+    height: 250,
+  },
+  galleryFallback: {
+    width: '100%',
+    height: 180,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  galleryCounterPill: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  galleryCounterText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  galleryDotsRow: {
+    position: 'absolute',
+    bottom: 10,
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
+  galleryDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+  },
+  galleryDotActive: {
+    backgroundColor: '#FFFFFF',
+    width: 14,
+  },
+  detailPriceCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    backgroundColor: '#EFF6FF',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  detailRentAmt: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#1D4ED8',
+  },
+  detailPerMonth: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  detailDepositText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#3B82F6',
+    marginTop: 2,
+  },
+  detailTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#0F172A',
+    lineHeight: 24,
+  },
+  detailArea: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2563EB',
+    marginTop: 4,
+    marginBottom: 14,
+  },
+  detailSectionTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#0F172A',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: 14,
+    marginBottom: 8,
+  },
+  specsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  specBox: {
+    width: '48%',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  specBoxLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748B',
+    marginTop: 4,
+  },
+  specBoxVal: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginTop: 1,
+  },
+  detailDesc: {
+    fontSize: 13,
+    color: '#475569',
+    lineHeight: 20,
+  },
+  detailAddress: {
+    fontSize: 13,
+    color: '#475569',
+    lineHeight: 18,
+  },
+  ownerControlsCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: 16,
+  },
+  ownerControlsTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  ownerBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  detailBottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 14,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  detailCallBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#2563EB',
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  detailCallBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  detailWaBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#16A34A',
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  detailWaBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 14,
   },
 });

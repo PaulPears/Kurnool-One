@@ -21,7 +21,6 @@ export default function PartnerProgramScreen({ navigation }: any) {
   const [whatsapp, setWhatsapp] = useState('');
   const [area, setArea] = useState('');
   const [upiId, setUpiId] = useState('');
-  const [idProof, setIdProof] = useState('');
   const [partnerCode, setPartnerCode] = useState('');
 
   // Stats
@@ -45,7 +44,7 @@ export default function PartnerProgramScreen({ navigation }: any) {
           if (!uid) uid = parsed.uid || parsed.id;
           userPhone = parsed.phone || '';
           if (parsed.name && !fullName) setFullName(parsed.name);
-        } catch {}
+        } catch { }
       }
       if (!userPhone && auth.currentUser?.phoneNumber) {
         userPhone = auth.currentUser.phoneNumber.replace(/\D/g, '').slice(-10);
@@ -66,15 +65,14 @@ export default function PartnerProgramScreen({ navigation }: any) {
           setWhatsapp(data.whatsapp || userPhone);
           setArea(data.area || '');
           setUpiId(data.upiId || '');
-          setIdProof(data.idProof || '');
-          setPartnerCode(data.partnerCode || `KNL-${userPhone.slice(-4)}`);
+          setPartnerCode(data.partnerCode || '');
           setOnboardedCount(data.onboardedCount || 0);
           setEarnedCommission(data.earnedCommission || 0);
           setPendingCommission(data.pendingCommission || 0);
         } else {
-          // Generate preliminary code
-          const defaultCode = `KNL-${userPhone ? userPhone.slice(-4) : Math.floor(1000 + Math.random() * 9000)}`;
-          setPartnerCode(defaultCode);
+          // Generate unique partner code with alphanumeric randomness
+          const newCode = await generateUniqueCode();
+          setPartnerCode(newCode);
         }
       }
     } catch (e) {
@@ -82,6 +80,31 @@ export default function PartnerProgramScreen({ navigation }: any) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const generateUniqueCode = async (): Promise<string> => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let unique = false;
+    let code = '';
+    let attempts = 0;
+    while (!unique && attempts < 5) {
+      attempts++;
+      let randomStr = '';
+      for (let i = 0; i < 4; i++) {
+        randomStr += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      code = `KNL-${randomStr}`;
+      try {
+        const q = query(collection(db, 'partners'), where('partnerCode', '==', code));
+        const snap = await getDocs(q);
+        if (snap.empty) {
+          unique = true;
+        }
+      } catch {
+        unique = true; // fallback if network query fails
+      }
+    }
+    return code || `KNL-${Math.floor(1000 + Math.random() * 9000)}`;
   };
 
   const handleRegisterPartner = async () => {
@@ -108,7 +131,10 @@ export default function PartnerProgramScreen({ navigation }: any) {
     setSaving(true);
     try {
       const uid = auth.currentUser?.uid || `partner_${phone.replace(/\D/g, '').slice(-10)}`;
-      const code = partnerCode || `KNL-${phone.slice(-4)}`;
+      let code = partnerCode;
+      if (!code || code === 'KNL-PARTNER') {
+        code = await generateUniqueCode();
+      }
 
       const partnerPayload = {
         uid,
@@ -117,7 +143,6 @@ export default function PartnerProgramScreen({ navigation }: any) {
         whatsapp: (whatsapp || phone).trim(),
         area: area.trim() || 'Kurnool City',
         upiId: upiId.trim(),
-        idProof: idProof.trim(),
         partnerCode: code,
         status: 'active',
         onboardedCount: onboardedCount || 0,
@@ -151,7 +176,7 @@ export default function PartnerProgramScreen({ navigation }: any) {
 
     try {
       await Share.share({ message });
-    } catch {}
+    } catch { }
   };
 
   const handleCopyCode = () => {
@@ -277,9 +302,9 @@ export default function PartnerProgramScreen({ navigation }: any) {
           <View style={styles.tableRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.planName}>Standard Business (6 Months)</Text>
-              <Text style={styles.planSub}>₹199 subscription</Text>
+              <Text style={styles.planSub}>₹399 subscription</Text>
             </View>
-            <Text style={styles.commissionAmt}>₹50</Text>
+            <Text style={styles.commissionAmt}>₹100</Text>
           </View>
 
           <View style={[styles.tableRow, { backgroundColor: '#ECFDF5', borderRadius: 8, paddingHorizontal: 8 }]}>
@@ -288,6 +313,14 @@ export default function PartnerProgramScreen({ navigation }: any) {
               <Text style={styles.planSub}>₹999 / 1 Year subscription</Text>
             </View>
             <Text style={[styles.commissionAmt, { color: '#059669', fontSize: 16 }]}>₹250</Text>
+          </View>
+
+          <View style={styles.tableRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.planName}>Standard Professional (6 Months)</Text>
+              <Text style={styles.planSub}>₹199 subscription</Text>
+            </View>
+            <Text style={styles.commissionAmt}>₹50</Text>
           </View>
 
           <View style={styles.tableRow}>
@@ -342,15 +375,20 @@ export default function PartnerProgramScreen({ navigation }: any) {
             onChangeText={setUpiId}
           />
 
-          <Text style={styles.inputLabel}>Aadhaar Number / ID Document (For KYC)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="12-digit Aadhaar Number (kept confidential)"
-            keyboardType="number-pad"
-            maxLength={14}
-            value={idProof}
-            onChangeText={setIdProof}
-          />
+          {/* Bank KYC & Verified Payout Notice */}
+          <View style={styles.kycNoticeBox}>
+            <Ionicons name="shield-checkmark" size={20} color="#059669" />
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={styles.kycNoticeTitle}>
+                {language === 'en' ? 'KYC & Secure Bank Payouts' : 'సురక్షిత బ్యాంక్ చెల్లింపులు'}
+              </Text>
+              <Text style={styles.kycNoticeText}>
+                {language === 'en'
+                  ? 'Your identity is authenticated via your verified phone number and bank-linked UPI ID. All payouts are sent directly to your UPI ID with an official 12-digit Bank UTR receipt.'
+                  : 'మీ ఫోన్ నంబర్ మరియు బ్యాంక్ లింక్డ్ UPI ID ద్వారా మీ గుర్తింపు సురక్షితంగా ధృవీకరించబడుతుంది. కమీషన్ నేరుగా మీ UPI ఖాతాకు జమ చేయబడుతుంది.'}
+              </Text>
+            </View>
+          </View>
 
           <TouchableOpacity
             onPress={handleRegisterPartner}
@@ -519,6 +557,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#0F172A',
   },
+  kycNoticeBox: {
+    flexDirection: 'row',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 14,
+    alignItems: 'flex-start',
+  },
+  kycNoticeTitle: { fontSize: 12, fontWeight: '800', color: '#065F46', marginBottom: 2 },
+  kycNoticeText: { fontSize: 11, color: '#047857', lineHeight: 16 },
   submitBtn: {
     backgroundColor: '#D97706',
     paddingVertical: 14,

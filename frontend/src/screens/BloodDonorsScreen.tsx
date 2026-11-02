@@ -112,6 +112,7 @@ export default function BloodDonorsScreen({ navigation }: any) {
   const [donorConsent, setDonorConsent] = useState(false);
   const [donorAvailability, setDonorAvailability] = useState<'available' | 'donated_recently' | 'unavailable'>('available');
   const [savingDonor, setSavingDonor] = useState(false);
+  const [noticeCollapsed, setNoticeCollapsed] = useState(false);
 
   useEffect(() => {
     loadDonors();
@@ -363,6 +364,47 @@ export default function BloodDonorsScreen({ navigation }: any) {
         </ScrollView>
       </View>
 
+      {/* Sticky Mandatory Medical Notice Banner (Never Hidden by Scrolling) */}
+      <View style={styles.stickyNoticeCard}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+          <Ionicons name="warning" size={18} color="#DC2626" style={{ marginTop: 1 }} />
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={styles.stickyNoticeTitle}>
+                {language === 'en' ? '⚠️ MANDATORY MEDICAL NOTICE' : '⚠️ తప్పనిసరి వైద్య హెచ్చరిక'}
+              </Text>
+              <TouchableOpacity onPress={() => setNoticeCollapsed(!noticeCollapsed)}>
+                <Text style={styles.collapseToggleText}>
+                  {noticeCollapsed
+                    ? (language === 'en' ? 'Read Full Notice ▼' : 'వివరాలు ▼')
+                    : (language === 'en' ? 'Hide Details ▲' : 'దాచు ▲')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {!noticeCollapsed ? (
+              <View style={{ marginTop: 4, gap: 2 }}>
+                <Text style={styles.stickyNoticeBullet}>
+                  • {language === 'en' ? 'Blood donation is 100% voluntary and non-commercial.' : 'కర్నూలు వన్‌లో రక్తదానం 100% ఉచితం మరియు స్వచ్ఛందం.'}
+                </Text>
+                <Text style={styles.stickyNoticeBullet}>
+                  • {language === 'en' ? 'NEVER pay money or advance transfer fees to anyone claiming to be a donor.' : 'రక్తం కోసం ఎవరికీ డబ్బు లేదా అడ్వాన్స్ ఆన్‌లైన్ పేమెంట్ చేయవద్దు.'}
+                </Text>
+                <Text style={styles.stickyNoticeBullet}>
+                  • {language === 'en' ? 'Hospitals must verify cross-matching and donor health prior to transfusion.' : 'రక్త మార్పిడికి ముందు ఆసుపత్రి మరియు వైద్యుల పర్యవేక్షణలో పరీక్షలు తప్పనిసరి.'}
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.stickyNoticeCollapsedText} numberOfLines={1}>
+                {language === 'en'
+                  ? 'Voluntary & non-commercial. Never pay money for blood in Kurnool.'
+                  : 'రక్తదానం స్వచ్ఛందం. ఎవరికీ ఎలాంటి నగదు చెల్లించవద్దు.'}
+              </Text>
+            )}
+          </View>
+        </View>
+      </View>
+
       {/* Donors List */}
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -453,21 +495,6 @@ export default function BloodDonorsScreen({ navigation }: any) {
               </View>
             </View>
           )}
-          ListFooterComponent={
-            <View style={styles.medicalNoticeBanner}>
-              <Ionicons name="shield-checkmark-outline" size={18} color="#991B1B" style={{ marginTop: 2 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.medicalNoticeTitle}>
-                  {language === 'en' ? 'Mandatory Medical Notice:' : 'వైద్య హెచ్చరిక & నియమావళి:'}
-                </Text>
-                <Text style={styles.medicalNoticeText}>
-                  {language === 'en'
-                    ? 'Kurnool One is an independent civic directory and does not medically test blood donors. Hospitals and qualified healthcare professionals must confirm blood compatibility, cross-matching, and donor eligibility before any transfusion.'
-                    : 'కర్నూలు వన్ స్వచ్ఛంద వేదిక మాత్రమే. రక్తదానం స్వీకరించే ముందు ఆసుపత్రి మరియు వైద్యులు బ్లడ్ టెస్టింగ్ & క్రాస్ మ్యాచింగ్ తప్పనిసరిగా నిర్వహించాలి.'}
-                </Text>
-              </View>
-            </View>
-          }
         />
       )}
 
@@ -784,6 +811,38 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  stickyNoticeCard: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 14,
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 4,
+    padding: 12,
+  },
+  stickyNoticeTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#991B1B',
+    letterSpacing: 0.3,
+  },
+  collapseToggleText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#DC2626',
+  },
+  stickyNoticeBullet: {
+    fontSize: 10.5,
+    color: '#7F1D1D',
+    lineHeight: 15,
+  },
+  stickyNoticeCollapsedText: {
+    fontSize: 10,
+    color: '#991B1B',
+    marginTop: 2,
+    fontWeight: '600',
   },
   medicalNoticeBanner: {
     flexDirection: 'row',

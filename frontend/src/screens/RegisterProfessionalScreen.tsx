@@ -688,7 +688,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
             : 'అధికారిక ప్రొఫైల్, యాక్టివ్ బ్యాడ్జ్ మరియు కస్టమర్ కాల్స్.'}
         </Text>
 
-        <View style={{ gap: 10, marginBottom: 16 }}>
+        <View style={{ gap: 12, marginBottom: 16 }}>
           {PROFESSIONAL_PRICING_PLANS.map((plan) => {
             const isSelected = selectedPlan === plan.id;
             return (
@@ -697,23 +697,36 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
                 onPress={() => setSelectedPlan(plan.id as any)}
                 style={[
                   styles.planItemCard,
-                  isSelected && styles.planItemCardActive
+                  isSelected && styles.planItemCardActive,
+                  plan.recommended && !isSelected && { borderColor: '#0D9488', borderWidth: 1.5 }
                 ]}
               >
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Ionicons
                       name={isSelected ? 'radio-button-on' : 'radio-button-off'}
-                      size={18}
+                      size={20}
                       color={isSelected ? '#0D9488' : '#94A3B8'}
                     />
                     <Text style={[styles.planItemTitle, isSelected && { color: '#0F766E' }]}>{plan.name}</Text>
                   </View>
-                  <View style={styles.proPriceBadge}>
-                    <Text style={styles.proPriceBadgeText}>{plan.price === 0 ? 'FREE' : `₹${plan.price}`}</Text>
+                  <View style={[styles.proPriceBadge, plan.price > 0 && { backgroundColor: '#CCFBF1' }]}>
+                    <Text style={[styles.proPriceBadgeText, plan.price > 0 && { color: '#0F766E' }]}>
+                      {plan.price === 0 ? 'FREE' : `₹${plan.price}`}
+                    </Text>
                   </View>
                 </View>
                 <Text style={styles.planItemSub}>{plan.badge} • {plan.period}</Text>
+
+                {/* Benefit Perks Checklist */}
+                <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F1F5F9', gap: 5 }}>
+                  {plan.features.map((feat, fIdx) => (
+                    <View key={fIdx} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Ionicons name="checkmark-circle" size={14} color={isSelected ? '#0D9488' : '#059669'} />
+                      <Text style={{ fontSize: 11, color: '#334155', fontWeight: '500' }}>{feat}</Text>
+                    </View>
+                  ))}
+                </View>
               </TouchableOpacity>
             );
           })}
