@@ -70,9 +70,8 @@ export default function PartnerProgramScreen({ navigation }: any) {
           setEarnedCommission(data.earnedCommission || 0);
           setPendingCommission(data.pendingCommission || 0);
         } else {
-          // Generate unique partner code with alphanumeric randomness
-          const newCode = await generateUniqueCode();
-          setPartnerCode(newCode);
+          setIsPartner(false);
+          setPartnerCode('');
         }
       }
     } catch (e) {
@@ -260,30 +259,51 @@ export default function PartnerProgramScreen({ navigation }: any) {
         </View>
 
         {/* Partner Code Box */}
-        <View style={styles.codeCard}>
-          <Text style={styles.codeCardLabel}>
-            {language === 'en' ? 'YOUR UNIQUE PARTNER CODE' : 'మీ ప్రత్యేక పార్ట్‌నర్ కోడ్'}
-          </Text>
-          <View style={styles.codeRow}>
-            <Text style={styles.codeText}>{partnerCode || 'KNL-PARTNER'}</Text>
-            <TouchableOpacity onPress={handleCopyCode} style={styles.copyBtn}>
-              <Ionicons name="copy-outline" size={16} color="#2563EB" />
-              <Text style={styles.copyBtnText}>Copy</Text>
+        {!isPartner ? (
+          <View style={[styles.codeCard, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <Ionicons name="sparkles" size={20} color="#16A34A" />
+              <Text style={[styles.codeCardLabel, { color: '#15803D', marginBottom: 0 }]}>
+                {language === 'en' ? 'UNIQUE PARTNER CODE' : 'ప్రత్యేక పార్ట్‌నర్ కోడ్'}
+              </Text>
+            </View>
+            <View style={[styles.codeRow, { backgroundColor: '#FFFFFF', borderColor: '#86EFAC', borderStyle: 'dashed' }]}>
+              <Text style={[styles.codeText, { color: '#059669', fontSize: 16 }]}>
+                {language === 'en' ? '✨ Generated Upon Activation' : '✨ యాక్టివేషన్ తర్వాత పొందండి'}
+              </Text>
+            </View>
+            <Text style={[styles.codeHint, { color: '#166534', marginTop: 8 }]}>
+              {language === 'en'
+                ? 'Fill your UPI payout details below and tap Activate to receive your official KNL-XXXX referral code.'
+                : 'క్రింద మీ UPI వివరాలను నమోదు చేసి యాక్టివేట్ చేయండి, మీ అధికారిక KNL-XXXX కోడ్ పొందండి.'}
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.codeCard}>
+            <Text style={styles.codeCardLabel}>
+              {language === 'en' ? 'YOUR UNIQUE PARTNER CODE' : 'మీ ప్రత్యేక పార్ట్‌నర్ కోడ్'}
+            </Text>
+            <View style={styles.codeRow}>
+              <Text style={styles.codeText}>{partnerCode}</Text>
+              <TouchableOpacity onPress={handleCopyCode} style={styles.copyBtn}>
+                <Ionicons name="copy-outline" size={16} color="#2563EB" />
+                <Text style={styles.copyBtnText}>Copy</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.codeHint}>
+              {language === 'en'
+                ? 'Merchants can enter this code during registration for attribution.'
+                : 'దుకాణదారులు రిజిస్ట్రేషన్ సమయంలో ఈ కోడ్ నమోదు చేయవచ్చు.'}
+            </Text>
+
+            <TouchableOpacity onPress={handleSharePartnerLink} style={styles.shareWaBtn}>
+              <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" />
+              <Text style={styles.shareWaBtnText}>
+                {language === 'en' ? 'Share Invite on WhatsApp' : 'వాట్సాప్‌లో షేర్ చేయండి'}
+              </Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.codeHint}>
-            {language === 'en'
-              ? 'Merchants can enter this code during registration for attribution.'
-              : 'దుకాణదారులు రిజిస్ట్రేషన్ సమయంలో ఈ కోడ్ నమోదు చేయవచ్చు.'}
-          </Text>
-
-          <TouchableOpacity onPress={handleSharePartnerLink} style={styles.shareWaBtn}>
-            <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" />
-            <Text style={styles.shareWaBtnText}>
-              {language === 'en' ? 'Share Invite on WhatsApp' : 'వాట్సాప్‌లో షేర్ చేయండి'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        )}
 
         {/* Commission Table */}
         <View style={styles.tableCard}>

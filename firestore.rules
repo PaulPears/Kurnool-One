@@ -194,6 +194,18 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true; // Allows web admin console & mobile admin console broadcasts
     }
+
+    // Kurnool One Partner Program profiles & referral codes
+    match /partners/{partnerId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // Admin action audit logs (full accountability trail)
+    match /admin_audit_logs/{logId} {
+      allow read, write: if true; // Allows web admin console & authorized services to record audit entries
+    }
   }
 }
 

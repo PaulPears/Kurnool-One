@@ -169,7 +169,7 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        {/* Quick Categories Grid */}
+        {/* Quick Categories Horizontal Strip */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>
             {language === 'en' ? 'Explore Kurnool Categories' : 'కర్నూలు వర్గాలు'}
@@ -179,16 +179,20 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.categoriesGrid}>
-          {MASTER_CATEGORIES.slice(0, 8).map(cat => (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoriesHorizontalScroll}
+        >
+          {MASTER_CATEGORIES.map(cat => (
             <TouchableOpacity
               key={cat.id}
               onPress={() => navigation.navigate('Directory', { initialCategory: cat.id })}
-              style={styles.categoryCard}
+              style={styles.categoryHorizontalCard}
             >
               <View
                 style={[
-                  styles.categoryIconCircle,
+                  styles.categoryIconCircleSmall,
                   {
                     backgroundColor: `${cat.color || '#2563EB'}15`,
                     borderColor: `${cat.color || '#2563EB'}33`,
@@ -196,17 +200,17 @@ export default function HomeScreen({ navigation }: any) {
                 ]}
               >
                 {cat.id === 'chicken_mutton_center' ? (
-                  <MaterialCommunityIcons name="food-drumstick" size={22} color={cat.color || '#DC2626'} />
+                  <MaterialCommunityIcons name="food-drumstick" size={20} color={cat.color || '#DC2626'} />
                 ) : (
-                  <Ionicons name={cat.icon as any} size={22} color={cat.color || '#2563EB'} />
+                  <Ionicons name={cat.icon as any} size={20} color={cat.color || '#2563EB'} />
                 )}
               </View>
-              <Text style={styles.categoryLabel} numberOfLines={2}>
+              <Text style={styles.categoryHorizontalLabel} numberOfLines={1}>
                 {language === 'en' ? cat.name_en : cat.name_te}
               </Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
 
         {/* Near Me Quick Services Strip */}
         <View style={styles.sectionHeader}>
@@ -613,20 +617,44 @@ const styles = StyleSheet.create({
   },
   searchBar: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB',
-    marginHorizontal: 16, marginTop: 8, marginBottom: 4, paddingLeft: 14, paddingRight: 6,
-    paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB',
+    marginHorizontal: 16, marginTop: 6, marginBottom: 4, paddingLeft: 12, paddingRight: 5,
+    paddingVertical: 4, borderRadius: 14, borderWidth: 1, borderColor: '#E5E7EB',
   },
   searchPlaceholder: { flex: 1, marginLeft: 8, fontSize: 13, color: '#6B7280' },
   searchBtnInner: {
-    backgroundColor: '#2563EB', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
+    backgroundColor: '#2563EB', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10,
   },
-  searchBtnInnerText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12 },
+  searchBtnInnerText: { color: '#FFFFFF', fontWeight: '800', fontSize: 11 },
   sectionHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, marginTop: 14, marginBottom: 8,
+    paddingHorizontal: 16, marginTop: 12, marginBottom: 8,
   },
-  sectionTitle: { fontSize: 16, fontWeight: '900', color: '#111827' },
+  sectionTitle: { fontSize: 15, fontWeight: '900', color: '#111827' },
   viewAllText: { fontSize: 12, fontWeight: '800', color: '#2563EB' },
+  categoriesHorizontalScroll: {
+    paddingHorizontal: 14,
+    gap: 12,
+    paddingBottom: 4,
+  },
+  categoryHorizontalCard: {
+    alignItems: 'center',
+    width: 68,
+  },
+  categoryIconCircleSmall: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+    borderWidth: 1,
+  },
+  categoryHorizontalLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#374151',
+    textAlign: 'center',
+  },
   categoriesGrid: {
     flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12,
   },

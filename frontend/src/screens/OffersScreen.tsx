@@ -623,37 +623,75 @@ export default function OffersScreen({ route, navigation }: any) {
                 style={styles.landscapeDealCard}
               >
                 {hasImage ? (
-                  // Landscape Photo Banner Card
-                  <View style={styles.landscapeImgWrap}>
-                    <Image source={{ uri: offerImages[0] }} style={styles.landscapeImg} resizeMode="cover" />
-                    <View style={styles.landscapeImgGradientOverlay} />
-                    <View style={styles.landscapeDiscountPill}>
-                      <Text style={styles.landscapeDiscountText}>{item.discountText}</Text>
+                  // Swiggy / Zomato Modern Card with Photo Banner & White Details Section
+                  <View>
+                    <View style={styles.landscapeImgWrap}>
+                      <Image source={{ uri: offerImages[0] }} style={styles.landscapeImg} resizeMode="cover" />
+                      
+                      {/* Floating Discount Badge */}
+                      <View style={styles.modernDiscountPill}>
+                        <Text style={styles.modernDiscountText}>🔥 {item.discountText}</Text>
+                      </View>
+
+                      {/* Expiry Pill */}
+                      <View style={styles.modernExpiryPill}>
+                        <Ionicons name="time" size={11} color="#FFFFFF" />
+                        <Text style={styles.modernExpiryText}>{item.validUntil || 'Limited Period'}</Text>
+                      </View>
                     </View>
-                    <View style={styles.landscapeDealInfoOverlay}>
-                      <Text style={styles.landscapeDealTitle} numberOfLines={1}>
+
+                    {/* Bottom Details Section */}
+                    <View style={styles.dealCardBottom}>
+                      <Text style={styles.dealCardBottomTitle} numberOfLines={2}>
                         {language === 'en' ? item.title_en : (item.title_te || item.title_en)}
                       </Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 3 }}>
-                        <Text style={styles.landscapeMerchantName} numberOfLines={1}>
-                          <Ionicons name="storefront" size={12} color="#FFFFFF" /> {item.businessName}
-                        </Text>
-                        <Text style={styles.landscapeValidityText}>
-                          {item.validUntil ? `Exp: ${item.validUntil}` : 'Limited Offer'}
-                        </Text>
+
+                      <View style={styles.dealCardStoreRow}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 }}>
+                          <Ionicons name="storefront" size={14} color="#2563EB" />
+                          <Text style={styles.dealCardStoreName} numberOfLines={1}>
+                            {item.businessName}
+                          </Text>
+                          <Ionicons name="checkmark-circle" size={13} color="#2563EB" />
+                        </View>
+                      </View>
+
+                      {/* Actions row */}
+                      <View style={styles.dealCardActionsRow}>
+                        {item.phone ? (
+                          <TouchableOpacity
+                            onPress={() => handleCall(item.phone)}
+                            style={styles.dealCallBtn}
+                          >
+                            <Ionicons name="call" size={12} color="#FFFFFF" />
+                            <Text style={styles.dealCallBtnText}>Call Store</Text>
+                          </TouchableOpacity>
+                        ) : null}
+                        {(item as any).whatsapp ? (
+                          <TouchableOpacity
+                            onPress={() => handleWhatsApp((item as any).whatsapp)}
+                            style={styles.dealWaBtn}
+                          >
+                            <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
+                            <Text style={styles.dealWaBtnText}>WhatsApp</Text>
+                          </TouchableOpacity>
+                        ) : null}
+                        <View style={styles.dealClaimPill}>
+                          <Text style={styles.dealClaimPillText}>Claim Deal &rarr;</Text>
+                        </View>
                       </View>
                     </View>
                   </View>
                 ) : (
-                  // Text-Only Deal: Styled Vibrant Gradient Card
+                  // Text-Only Deal: Styled Ticket Voucher
                   <View style={styles.textOnlyDealWrap}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <View style={styles.textOnlyDiscountBadge}>
-                        <Text style={styles.textOnlyDiscountText}>{item.discountText || 'SPECIAL DEAL'}</Text>
+                        <Text style={styles.textOnlyDiscountText}>🔥 {item.discountText || 'SPECIAL DEAL'}</Text>
                       </View>
                       <View style={styles.textOnlyValidityBadge}>
                         <Ionicons name="time-outline" size={11} color="#DBEAFE" />
-                        <Text style={styles.textOnlyValidityText}>{item.validUntil || 'Limited Time'}</Text>
+                        <Text style={styles.textOnlyValidityText}>{item.validUntil || 'Limited Period'}</Text>
                       </View>
                     </View>
 
@@ -662,9 +700,12 @@ export default function OffersScreen({ route, navigation }: any) {
                     </Text>
 
                     <View style={styles.textOnlyFooter}>
-                      <Text style={styles.textOnlyMerchant} numberOfLines={1}>
-                        <Ionicons name="storefront-outline" size={12} color="#DBEAFE" /> {item.businessName}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 }}>
+                        <Ionicons name="storefront-outline" size={13} color="#DBEAFE" />
+                        <Text style={styles.textOnlyMerchant} numberOfLines={1}>
+                          {item.businessName}
+                        </Text>
+                      </View>
                       <View style={styles.textOnlyTapCue}>
                         <Text style={styles.textOnlyTapCueText}>Claim Deal &rarr;</Text>
                       </View>
@@ -2016,20 +2057,20 @@ const styles = StyleSheet.create({
   },
   landscapeDealCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderRadius: 20,
     overflow: 'hidden',
-    marginBottom: 14,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
     elevation: 3,
   },
   landscapeImgWrap: {
     width: '100%',
-    height: 160,
+    height: 165,
     position: 'relative',
     backgroundColor: '#1E293B',
   },
@@ -2037,58 +2078,117 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  landscapeImgGradientOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  landscapeDiscountPill: {
+  modernDiscountPill: {
     position: 'absolute',
     top: 10,
     left: 10,
     backgroundColor: '#DC2626',
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingVertical: 5,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  landscapeDiscountText: {
+  modernDiscountText: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '900',
     letterSpacing: 0.5,
   },
-  landscapeDealInfoOverlay: {
+  modernExpiryPill: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 12,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  landscapeDealTitle: {
+  modernExpiryText: {
+    color: '#FFFFFF',
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  dealCardBottom: {
+    padding: 14,
+    backgroundColor: '#FFFFFF',
+  },
+  dealCardBottomTitle: {
     fontSize: 15,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: '#0F172A',
+    lineHeight: 20,
   },
-  landscapeMerchantName: {
-    fontSize: 12,
+  dealCardStoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  dealCardStoreName: {
+    fontSize: 13,
     fontWeight: '700',
-    color: '#DBEAFE',
-    flex: 1,
+    color: '#2563EB',
   },
-  landscapeValidityText: {
+  dealCardActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  dealCallBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  dealCallBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
     fontSize: 11,
-    color: '#CBD5E1',
-    fontWeight: '600',
+  },
+  dealWaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#16A34A',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  dealWaBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 11,
+  },
+  dealClaimPill: {
+    marginLeft: 'auto',
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  dealClaimPillText: {
+    color: '#1D4ED8',
+    fontWeight: '800',
+    fontSize: 11,
   },
   // Text-Only Deal Styles: Vibrant Gradient Fallback
   textOnlyDealWrap: {
-    padding: 16,
+    padding: 18,
     backgroundColor: '#1E3A8A',
-    borderRadius: 18,
+    borderRadius: 20,
     minHeight: 140,
     justifyContent: 'space-between',
   },

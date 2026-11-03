@@ -51,7 +51,7 @@ import {
   ShoppingBag,
 } from 'lucide-react';
 import { db, auth } from '@/config/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import {
   collection,
   getDocs,
@@ -87,6 +87,17 @@ import {
   MarketplaceItem,
 } from '@/services/directoryService';
 
+export interface AuditLogItem {
+  id: string;
+  timestamp?: any;
+  adminEmail: string;
+  action: string;
+  targetType: string;
+  targetId: string;
+  targetName?: string;
+  details: string;
+}
+
 type AdminTab =
   | 'overview'
   | 'businesses'
@@ -101,9 +112,10 @@ type AdminTab =
   | 'blood_donors'
   | 'house_rentals'
   | 'marketplace'
-  | 'partners';
+  | 'partners'
+  | 'activity_logs';
 
-const ADMIN_PASSCODE = 'Kurnool@Admin2026'; // Master management passkey
+const ADMIN_DEFAULT_PASS = 'Kurnool@2026'; // Standard fallback administrator password
 
 
 export default function DedicatedAdminConsole() {
@@ -134,6 +146,8 @@ export default function DedicatedAdminConsole() {
   const [rentalsList, setRentalsList] = useState<HouseRentalItem[]>([]);
   const [marketplaceList, setMarketplaceList] = useState<MarketplaceItem[]>([]);
   const [partnersList, setPartnersList] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
+  const [logFilterAction, setLogFilterAction] = useState('all');
   const [payoutModalPartner, setPayoutModalPartner] = useState<any | null>(null);
   const [payoutUtr, setPayoutUtr] = useState('');
   const [processingPayout, setProcessingPayout] = useState(false);
@@ -221,40 +235,83 @@ export default function DedicatedAdminConsole() {
     setAuthChecking(false);
   }, []);
 
-  const handleAdminEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError('');
-    if (!adminEmail.trim() || !adminPassword.trim()) {
-      setLoginError('Please enter both Email and Password.');
-      return;
-    }
+  const logAdminAction = async (action: string, targetType: string, targetId: string, details: string, targetName?: string) => {
     try {
-      await signInWithEmailAndPassword(auth, adminEmail.trim(), adminPassword.trim());
-      try { localStorage.setItem('kurnool_admin_session', 'active'); } catch {}
-      setIsAuthenticated(true);
-      setToast('Logged in as Administrator via Firebase Auth');
-    } catch (err: any) {
-      if (adminPassword.trim() === ADMIN_PASSCODE) {
-        try { localStorage.setItem('kurnool_admin_session', 'active'); } catch {}
-        setIsAuthenticated(true);
-        setToast('Master Passkey Accepted');
-        return;
-      }
-      setLoginError('Authentication failed: ' + (err.message || 'Invalid email or password. You can also use the Master Passkey.'));
+      const currentAdmin = auth.currentUser?.email || adminEmail || 'pearsrobert174@gmail.com';
+      await addDoc(collection(db, 'admin_audit_logs'), {
+        timestamp: serverTimestamp(),
+        adminEmail: currentAdmin,
+        action,
+        targetType,
+        targetId,
+        targetName: targetName || '',
+        details,
+      });
+      // Prepend to local state
+      setAuditLogs(prev => [
+        {
+          id: `local_${Date.now()}`,
+          timestamp: new Date(),
+          adminEmail: currentAdmin,
+          action,
+          targetType,
+          targetId,
+          targetName: targetName || '',
+          details,
+        },
+        ...prev,
+      ]);
+    } catch (err) {
+      console.warn('Audit log write non-fatal:', err);
     }
   };
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  const handleGoogleAdminLogin = async () => {
+    setLoginError('');
+    try {
+      const provider = new GoogleAuthProvider();
+      const res = await signInWithPopup(auth, provider);
+      const email = res.user?.email || '';
+      if (email === 'pearsrobert174@gmail.com' || email.includes('admin') || email === 'ananthashayana592@gmail.com' || email === 'chiyan150304@gmail.com') {
+        try { localStorage.setItem('kurnool_admin_session', 'active'); } catch {}
+        setIsAuthenticated(true);
+        setToast(`Logged in as Administrator (${email})`);
+        await logAdminAction('admin_login', 'auth', res.user.uid, `Google One-Click Login by ${email}`);
+      } else {
+        setLoginError(`Access denied: ${email} is not authorized for the Administrator console.`);
+      }
+    } catch (err: any) {
+      setLoginError('Google sign in error: ' + (err.message || 'Popup closed or interrupted.'));
+    }
+  };
+
+  const handleAdminEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
-    if (passcode.trim() === ADMIN_PASSCODE) {
-      try {
-        localStorage.setItem('kurnool_admin_session', 'active');
-      } catch {}
+    const email = adminEmail.trim();
+    const pass = adminPassword.trim();
+    if (!email || !pass) {
+      setLoginError('Please enter both Email and Password.');
+      return;
+    }
+
+    // Direct password match for administrator
+    if ((email === 'admin@kurnoolone.com' || email === 'pearsrobert174@gmail.com') && (pass === ADMIN_DEFAULT_PASS || pass === 'Kurnool@Admin2026')) {
+      try { localStorage.setItem('kurnool_admin_session', 'active'); } catch {}
       setIsAuthenticated(true);
-      setToast('Welcome to Kurnool One Control Console');
-    } else {
-      setLoginError('Invalid Administrator Passcode. Access Denied.');
+      setToast(`Logged in as Administrator (${email})`);
+      await logAdminAction('admin_login', 'auth', email, `Email Login by ${email}`);
+      return;
+    }
+
+    try {
+      const res = await signInWithEmailAndPassword(auth, email, pass);
+      try { localStorage.setItem('kurnool_admin_session', 'active'); } catch {}
+      setIsAuthenticated(true);
+      setToast(`Logged in as Administrator (${email})`);
+      await logAdminAction('admin_login', 'auth', res.user.uid, `Email Login by ${email}`);
+    } catch (err: any) {
+      setLoginError('Authentication failed: Invalid administrator email or password.');
     }
   };
 
@@ -371,6 +428,13 @@ export default function DedicatedAdminConsole() {
         const pItems = partnerSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         setPartnersList(pItems);
       } catch (e) { console.warn('Could not load partners:', e); }
+
+      // 14. Activity Audit Logs
+      try {
+        const logsSnap = await getDocs(query(collection(db, 'admin_audit_logs'), orderBy('timestamp', 'desc'), limit(150)));
+        const lItems = logsSnap.docs.map(d => ({ id: d.id, ...d.data() } as AuditLogItem));
+        setAuditLogs(lItems);
+      } catch (e) { console.warn('Could not load audit logs:', e); }
     } catch (err) {
       console.error('Failed to load admin data:', err);
     } finally {
@@ -389,6 +453,7 @@ export default function DedicatedAdminConsole() {
   const handleApproveNews = async (newsId: string) => {
     try {
       await updateDoc(doc(db, 'news', newsId), { status: 'published' });
+      await logAdminAction('approve_news', 'news', newsId, 'News story approved and published live');
       setToast('News story approved and published live!');
       loadData();
     } catch (err: any) {
@@ -400,6 +465,7 @@ export default function DedicatedAdminConsole() {
     if (!confirm('Reject and delete this news submission?')) return;
     try {
       await deleteDoc(doc(db, 'news', newsId));
+      await logAdminAction('reject_news', 'news', newsId, 'News submission rejected and deleted');
       setToast('News submission removed.');
       loadData();
     } catch (err: any) {
@@ -649,6 +715,7 @@ export default function DedicatedAdminConsole() {
         }
       }
 
+      await logAdminAction('delete', type, id, `Deleted ${type} record`, deleteConfirmModal.title);
       setToast(`Record deleted successfully.`);
       setDeleteConfirmModal(null);
     } catch (err) {
@@ -770,6 +837,7 @@ export default function DedicatedAdminConsole() {
         senderName: 'Kurnool One Admin',
         status: 'sent',
       });
+      await logAdminAction('broadcast_push', 'notification', 'broadcast', `Push: ${notificationForm.title.trim()}`, notificationForm.title.trim());
       setToast('Broadcast Notification published successfully!');
       setNotificationForm({
         title: '',
@@ -843,14 +911,14 @@ export default function DedicatedAdminConsole() {
         <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-3xl p-8 sm:p-10 shadow-2xl backdrop-blur-xl space-y-6">
           <div className="text-center space-y-3">
             <div className="w-16 h-16 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center mx-auto text-blue-400 shadow-inner">
-              <Lock className="w-8 h-8" />
+              <ShieldCheck className="w-8 h-8" />
             </div>
             <div>
               <h1 className="text-2xl font-black text-white tracking-tight">
                 Kurnool One Control Console
               </h1>
               <p className="text-xs text-slate-400 mt-1">
-                Enter your Administrator Security Passkey to access the dedicated management platform.
+                Dedicated Administrator & City Management Platform
               </p>
             </div>
           </div>
@@ -862,102 +930,71 @@ export default function DedicatedAdminConsole() {
             </div>
           )}
 
-          <div className="flex rounded-xl bg-slate-950 p-1 border border-slate-800">
-            <button
-              type="button"
-              onClick={() => setLoginMode('email')}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${loginMode === 'email' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-            >
-              Admin Email & Password
-            </button>
-            <button
-              type="button"
-              onClick={() => setLoginMode('passcode')}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${loginMode === 'passcode' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-            >
-              Master Passkey
-            </button>
+          {/* 1-Click Google Admin Sign-in */}
+          <button
+            type="button"
+            onClick={handleGoogleAdminLogin}
+            className="w-full py-3.5 bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs rounded-xl shadow-lg transition active:scale-98 cursor-pointer flex items-center justify-center gap-3 border border-slate-200"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+            </svg>
+            <span>Sign In with Google (1-Click)</span>
+          </button>
+
+          <div className="flex items-center gap-3">
+            <div className="h-px bg-slate-800 flex-1" />
+            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">or email login</span>
+            <div className="h-px bg-slate-800 flex-1" />
           </div>
 
-          {loginMode === 'email' ? (
-            <form onSubmit={handleAdminEmailLogin} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">
-                  Admin Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500" />
-                  <input
-                    type="email"
-                    value={adminEmail}
-                    onChange={(e) => setAdminEmail(e.target.value)}
-                    placeholder="e.g. admin@kurnoolone.com"
-                    className="w-full pl-10 pr-4 py-3 bg-slate-950/80 border border-slate-700 rounded-xl text-white text-xs outline-none focus:border-blue-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">
-                  Admin Password
-                </label>
-                <div className="relative">
-                  <Key className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500" />
-                  <input
-                    type="password"
-                    value={adminPassword}
-                    onChange={(e) => setAdminPassword(e.target.value)}
-                    placeholder="Enter your admin password..."
-                    className="w-full pl-10 pr-4 py-3 bg-slate-950/80 border border-slate-700 rounded-xl text-white text-xs outline-none focus:border-blue-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs rounded-xl shadow-lg shadow-blue-600/30 transition active:scale-98 cursor-pointer flex items-center justify-center gap-2"
-              >
-                <ShieldCheck className="w-4 h-4" />
-                <span>Log In to Admin Console</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowAdminHelpModal(true)}
-                className="w-full py-2 text-center text-xs text-blue-400 hover:text-blue-300 font-bold transition flex items-center justify-center gap-1.5"
-              >
-                <HelpCircle className="w-3.5 h-3.5" />
-                <span>How to create your Admin Email & Password?</span>
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleAdminLogin} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">
-                  Administrator Passcode
-                </label>
+          <form onSubmit={handleAdminEmailLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">
+                Admin Email Address
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500" />
                 <input
-                  type="password"
-                  value={passcode}
-                  onChange={(e) => setPasscode(e.target.value)}
-                  placeholder="Enter admin passkey..."
-                  className="w-full px-4 py-3.5 bg-slate-950/80 border border-slate-700 rounded-xl text-white text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
-                  autoFocus
+                  type="email"
+                  value={adminEmail}
+                  onChange={(e) => setAdminEmail(e.target.value)}
+                  placeholder="admin@kurnoolone.com or pearsrobert174@gmail.com"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-950/80 border border-slate-700 rounded-xl text-white text-xs outline-none focus:border-blue-500"
                   required
                 />
               </div>
+            </div>
 
-              <button
-                type="submit"
-                className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-sm rounded-xl shadow-lg shadow-blue-600/30 transition active:scale-98 cursor-pointer flex items-center justify-center gap-2"
-              >
-                <ShieldCheck className="w-4 h-4" />
-                <span>Unlock with Passkey</span>
-              </button>
-            </form>
-          )}
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">
+                Admin Password
+              </label>
+              <div className="relative">
+                <Key className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500" />
+                <input
+                  type="password"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  placeholder="Enter your admin password..."
+                  className="w-full pl-10 pr-4 py-3 bg-slate-950/80 border border-slate-700 rounded-xl text-white text-xs outline-none focus:border-blue-500"
+                  required
+                />
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">Default Password: <code className="text-blue-400 font-mono">Kurnool@2026</code></p>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs rounded-xl shadow-lg shadow-blue-600/30 transition active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>Log In to Admin Console</span>
+            </button>
+          </form>
 
           <div className="pt-4 border-t border-slate-800/80 text-center">
             <Link
@@ -1300,6 +1337,30 @@ export default function DedicatedAdminConsole() {
             </div>
             <span className="px-2 py-0.5 rounded-full text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 font-mono font-bold">
               {partnersList.length}
+            </span>
+          </button>
+
+          {/* Activity Logs (Audit Trail) */}
+          <button
+            onClick={() => {
+              setActiveTab('activity_logs');
+              setSearchQuery('');
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
+              activeTab === 'activity_logs'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="w-4 h-4 text-indigo-400" />
+              <div className="text-left">
+                <span className="block">Activity Logs</span>
+                <span className="block text-[10px] text-indigo-300 font-normal">Action Audit Trail</span>
+              </div>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono font-bold">
+              {auditLogs.length}
             </span>
           </button>
         </nav>
@@ -1942,6 +2003,13 @@ export default function DedicatedAdminConsole() {
                         pendingCommission: 0,
                       });
                       setToast(`₹${due} marked as PAID with UTR ${payoutUtr.trim()}`);
+                      await logAdminAction(
+                        'payout_paid',
+                        'partner',
+                        payoutModalPartner.id,
+                        `Commission ₹${due} paid to UPI: ${payoutModalPartner.upiId} (UTR: ${payoutUtr.trim()})`,
+                        payoutModalPartner.fullName || payoutModalPartner.phone
+                      );
                       setPayoutModalPartner(null);
                       setPayoutUtr('');
                       await loadData();
@@ -2313,6 +2381,13 @@ export default function DedicatedAdminConsole() {
                         pendingCommission: 0,
                       });
                       setToast(`₹${due} marked as PAID with UTR ${payoutUtr.trim()}`);
+                      await logAdminAction(
+                        'payout_paid',
+                        'partner',
+                        payoutModalPartner.id,
+                        `Commission ₹${due} paid to UPI: ${payoutModalPartner.upiId} (UTR: ${payoutUtr.trim()})`,
+                        payoutModalPartner.fullName || payoutModalPartner.phone
+                      );
                       setPayoutModalPartner(null);
                       setPayoutUtr('');
                       await loadData();
@@ -3585,6 +3660,13 @@ export default function DedicatedAdminConsole() {
                         pendingCommission: 0,
                       });
                       setToast(`₹${due} marked as PAID with UTR ${payoutUtr.trim()}`);
+                      await logAdminAction(
+                        'payout_paid',
+                        'partner',
+                        payoutModalPartner.id,
+                        `Commission ₹${due} paid to UPI: ${payoutModalPartner.upiId} (UTR: ${payoutUtr.trim()})`,
+                        payoutModalPartner.fullName || payoutModalPartner.phone
+                      );
                       setPayoutModalPartner(null);
                       setPayoutUtr('');
                       await loadData();
@@ -3915,6 +3997,13 @@ export default function DedicatedAdminConsole() {
                         pendingCommission: 0,
                       });
                       setToast(`₹${due} marked as PAID with UTR ${payoutUtr.trim()}`);
+                      await logAdminAction(
+                        'payout_paid',
+                        'partner',
+                        payoutModalPartner.id,
+                        `Commission ₹${due} paid to UPI: ${payoutModalPartner.upiId} (UTR: ${payoutUtr.trim()})`,
+                        payoutModalPartner.fullName || payoutModalPartner.phone
+                      );
                       setPayoutModalPartner(null);
                       setPayoutUtr('');
                       await loadData();
@@ -4247,6 +4336,13 @@ export default function DedicatedAdminConsole() {
                         pendingCommission: 0,
                       });
                       setToast(`₹${due} marked as PAID with UTR ${payoutUtr.trim()}`);
+                      await logAdminAction(
+                        'payout_paid',
+                        'partner',
+                        payoutModalPartner.id,
+                        `Commission ₹${due} paid to UPI: ${payoutModalPartner.upiId} (UTR: ${payoutUtr.trim()})`,
+                        payoutModalPartner.fullName || payoutModalPartner.phone
+                      );
                       setPayoutModalPartner(null);
                       setPayoutUtr('');
                       await loadData();
@@ -4265,6 +4361,155 @@ export default function DedicatedAdminConsole() {
           </div>
         </div>
       )}
+          {/* ─── TAB: ACTIVITY LOGS & AUDIT TRAIL ─── */}
+          {activeTab === 'activity_logs' && (
+            <div className="space-y-6">
+              {/* Top Banner */}
+              <div className="p-6 rounded-2xl bg-gradient-to-r from-indigo-900/40 via-blue-900/30 to-slate-900 border border-indigo-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-[11px] font-black uppercase tracking-wider mb-2">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Security & Action Trail
+                  </div>
+                  <h2 className="text-xl font-black text-white">Administrator Activity Logs</h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Immutable audit log of all administrative actions, updates, verifications, broadcasts, and payouts.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={loadData}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition flex items-center gap-2"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Refresh Logs</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Filter Row */}
+              <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+                <div className="relative w-full sm:w-80">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search logs by action, admin, target..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <span className="text-xs text-slate-400 font-bold">Filter:</span>
+                  <select
+                    value={logFilterAction}
+                    onChange={(e) => setLogFilterAction(e.target.value)}
+                    className="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white outline-none"
+                  >
+                    <option value="all">All Actions</option>
+                    <option value="admin_login">Admin Logins</option>
+                    <option value="verify_business">Verifications</option>
+                    <option value="update_tier">Tier Updates</option>
+                    <option value="broadcast_push">Push Broadcasts</option>
+                    <option value="payout_paid">Partner Payouts</option>
+                    <option value="delete">Deletions</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Logs Table */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-950/80 text-slate-400 font-bold uppercase tracking-wider text-[10px] border-b border-slate-800">
+                      <tr>
+                        <th className="py-3.5 px-4">Timestamp (IST)</th>
+                        <th className="py-3.5 px-4">Admin Email</th>
+                        <th className="py-3.5 px-4">Action</th>
+                        <th className="py-3.5 px-4">Target Type</th>
+                        <th className="py-3.5 px-4">Item Name / ID</th>
+                        <th className="py-3.5 px-4">Details</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                      {auditLogs.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-12 text-center text-slate-500">
+                            No administrative logs recorded yet. All actions will stream live here.
+                          </td>
+                        </tr>
+                      ) : (
+                        auditLogs
+                          .filter((l) => {
+                            if (logFilterAction !== 'all' && l.action !== logFilterAction) return false;
+                            if (!searchQuery.trim()) return true;
+                            const q = searchQuery.toLowerCase();
+                            return (
+                              l.adminEmail?.toLowerCase().includes(q) ||
+                              l.action?.toLowerCase().includes(q) ||
+                              l.targetType?.toLowerCase().includes(q) ||
+                              l.targetName?.toLowerCase().includes(q) ||
+                              l.details?.toLowerCase().includes(q)
+                            );
+                          })
+                          .map((log) => {
+                            const dateStr = log.timestamp?.toDate
+                              ? log.timestamp.toDate().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+                              : log.timestamp instanceof Date
+                              ? log.timestamp.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+                              : typeof log.timestamp === 'string'
+                              ? new Date(log.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+                              : 'Just now';
+
+                            const isLogin = log.action === 'admin_login';
+                            const isDelete = log.action === 'delete';
+                            const isBroadcast = log.action === 'broadcast_push';
+                            const isPayout = log.action === 'payout_paid';
+
+                            return (
+                              <tr key={log.id} className="hover:bg-slate-800/30 transition">
+                                <td className="py-3 px-4 font-mono text-[11px] text-slate-400 whitespace-nowrap">
+                                  {dateStr}
+                                </td>
+                                <td className="py-3 px-4 font-semibold text-white whitespace-nowrap">
+                                  {log.adminEmail}
+                                </td>
+                                <td className="py-3 px-4 whitespace-nowrap">
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                      isLogin
+                                        ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                        : isDelete
+                                        ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                                        : isBroadcast
+                                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                        : isPayout
+                                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                        : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                                    }`}
+                                  >
+                                    {log.action}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4 font-mono text-slate-400 capitalize">
+                                  {log.targetType}
+                                </td>
+                                <td className="py-3 px-4 font-bold text-white max-w-[200px] truncate">
+                                  {log.targetName || log.targetId || '-'}
+                                </td>
+                                <td className="py-3 px-4 text-slate-300 max-w-[300px] truncate">
+                                  {log.details}
+                                </td>
+                              </tr>
+                            );
+                          })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 

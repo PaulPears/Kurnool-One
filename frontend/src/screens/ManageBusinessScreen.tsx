@@ -135,14 +135,17 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
         try {
           const docSnap = await getDoc(doc(db, 'businesses', targetBizId));
           if (docSnap.exists()) {
-            b = { id: docSnap.id, ...docSnap.data() } as BusinessItem;
+            const bizData = docSnap.data();
+            if (bizData.ownerUid === uid) {
+              b = { id: docSnap.id, ...bizData } as BusinessItem;
+            }
           }
         } catch (fetchErr) {
           console.warn('Direct fetch error:', fetchErr);
         }
       }
 
-      const list = await fetchMyBusinesses(uid, userPhone);
+      const list = await fetchMyBusinesses(uid);
       setAllBusinesses(list);
 
       if (!b && list && list.length > 0) {

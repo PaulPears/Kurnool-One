@@ -1577,23 +1577,13 @@ export const registerProfessional = async (
 
 export const fetchMyProfessionalProfile = async (userId?: string, phone?: string): Promise<ProfessionalItem | null> => {
   try {
+    if (!userId) return null;
     const coll = collection(db, 'professionals');
-    if (userId) {
-      const q = query(coll, where('userId', '==', userId), limit(1));
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        const d = snap.docs[0];
-        return { id: d.id, ...d.data() } as ProfessionalItem;
-      }
-    }
-    if (phone) {
-      const cleanPhone = phone.replace(/\D/g, '').slice(-10);
-      const qPhone = query(coll, where('phone', '==', cleanPhone), limit(1));
-      const snapPhone = await getDocs(qPhone);
-      if (!snapPhone.empty) {
-        const d = snapPhone.docs[0];
-        return { id: d.id, ...d.data() } as ProfessionalItem;
-      }
+    const q = query(coll, where('userId', '==', userId), limit(1));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const d = snap.docs[0];
+      return { id: d.id, ...d.data() } as ProfessionalItem;
     }
     return null;
   } catch (err) {
@@ -1699,31 +1689,39 @@ export const createBusinessOffer = async (
     status: 'active',
     createdAt: serverTimestamp(),
   });
+
+  // Automatically broadcast push alert for this new Hot Deal
+  try {
+    const notifColl = collection(db, 'broadcast_notifications');
+    const discount = data.discountText || 'Special Offer';
+    const store = data.businessName || 'Local Merchant';
+    const dealTitle = data.title_en || data.title_te || 'Exclusive Deal';
+    await addDoc(notifColl, {
+      title: `🔥 Hot Deal: ${discount} at ${store}`,
+      body: `${dealTitle} • Tap to view deal on Kurnool One!`,
+      category: 'deal',
+      targetAudience: 'all',
+      actionUrl: '/offers',
+      imageUrl: data.bannerUrl || (data.images && data.images[0]) || '',
+      createdAt: serverTimestamp(),
+    });
+  } catch (notifErr) {
+    console.warn('Failed to broadcast deal notification:', notifErr);
+  }
+
   return docRef.id;
 };
 
 export const fetchMyBusinesses = async (ownerUid?: string, phone?: string): Promise<BusinessItem[]> => {
   try {
+    if (!ownerUid) {
+      return [];
+    }
     const coll = collection(db, 'businesses');
-    let results: BusinessItem[] = [];
-
-    if (ownerUid) {
-      const q = query(coll, where('ownerUid', '==', ownerUid), limit(50));
-      const snap = await getDocs(q);
-      snap.forEach(d => results.push({ id: d.id, ...d.data() } as BusinessItem));
-    }
-
-    // Also check by phone if provided and not yet found
-    if (phone && results.length === 0) {
-      const cleanPhone = phone.replace(/\D/g, '').slice(-10);
-      const qPhone = query(coll, where('phone', '==', cleanPhone), limit(10));
-      const snapPhone = await getDocs(qPhone);
-      snapPhone.forEach(d => {
-        if (!results.find(r => r.id === d.id)) {
-          results.push({ id: d.id, ...d.data() } as BusinessItem);
-        }
-      });
-    }
+    const q = query(coll, where('ownerUid', '==', ownerUid), limit(50));
+    const snap = await getDocs(q);
+    const results: BusinessItem[] = [];
+    snap.forEach(d => results.push({ id: d.id, ...d.data() } as BusinessItem));
 
     return results;
   } catch (err) {

@@ -70,14 +70,21 @@ export default function ProfileScreen({ route, navigation }: any) {
           setCurrentUser(updatedLocalUser);
         }
 
-        // Query user's owned listings directly
+        // Query user's owned listings directly by targetUid
         try {
           const [bizList, proProf] = await Promise.all([
-            fetchMyBusinesses(targetUid, cUser?.phone || auth.currentUser?.phoneNumber || ''),
-            fetchMyProfessionalProfile(targetUid, cUser?.phone || auth.currentUser?.phoneNumber || ''),
+            fetchMyBusinesses(targetUid),
+            fetchMyProfessionalProfile(targetUid),
           ]);
           setMyBusinesses(bizList);
           setMyProfessional(proProf);
+
+          // If user owns 0 businesses, sanitize any stale local business role
+          if (isSelf && cUser && cUser.role === 'business' && (!bizList || bizList.length === 0)) {
+            const cleanUser = { ...cUser, role: 'user' };
+            await AsyncStorage.setItem('user', JSON.stringify(cleanUser));
+            setCurrentUser(cleanUser);
+          }
         } catch (fetchListingsErr) {
           console.warn('Listing fetch non-fatal:', fetchListingsErr);
         }
@@ -132,14 +139,8 @@ export default function ProfileScreen({ route, navigation }: any) {
     auth.currentUser?.email ||
     '';
 
-  const isMerchant =
-    currentUser?.role === 'business' ||
-    user?.role === 'business' ||
-    myBusinesses.length > 0;
-  const isProfessional =
-    currentUser?.role === 'professional' ||
-    user?.role === 'professional' ||
-    !!myProfessional;
+  const isMerchant = Array.isArray(myBusinesses) && myBusinesses.length > 0;
+  const isProfessional = myProfessional !== null;
 
   if (loading && !user && !currentUser) {
     return (
