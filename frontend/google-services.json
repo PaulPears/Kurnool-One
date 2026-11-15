@@ -14,6 +14,46 @@
       },
       "oauth_client": [
         {
+          "client_id": "77831467457-6fesodsk49kph742n572397oedb2cnep.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kurnoolone",
+            "certificate_hash": "963eaf0b1b01c0585420c3cd855d451c903187f9"
+          }
+        },
+        {
+          "client_id": "77831467457-bthbt2j3lgohn1qsbdgtosd2uueoagg3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kurnoolone",
+            "certificate_hash": "63d2782fe7cb4640f155949ac6da0990695112c6"
+          }
+        },
+        {
+          "client_id": "77831467457-ssl3nni3bcr9md9vu4fakjatp4pk65kt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kurnoolone",
+            "certificate_hash": "4fe05c7d0c329126d4f118c41a5b61f3bcdced95"
+          }
+        },
+        {
+          "client_id": "77831467457-vjoedali2th80fhpo5rkh9up7ku3kq51.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kurnoolone",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "77831467457-vv88lhjt1j948hfuskamicuj0etsakdb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kurnoolone",
+            "certificate_hash": "56e62cfc50b58e8c78f485cd6aa22251335d0ab8"
+          }
+        },
+        {
           "client_id": "77831467457-hspogpc77l8r6uollgce645qfi12utg6.apps.googleusercontent.com",
           "client_type": 3
         }

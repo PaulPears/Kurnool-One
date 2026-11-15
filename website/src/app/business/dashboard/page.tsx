@@ -54,7 +54,7 @@ export default function BusinessDashboardPage() {
   const [website, setWebsite] = useState('');
   const [googleMapsUrl, setGoogleMapsUrl] = useState('');
   const [description, setDescription] = useState('');
-  
+
   // Social media links
   const [facebook, setFacebook] = useState('');
   const [instagram, setInstagram] = useState('');
@@ -310,7 +310,7 @@ export default function BusinessDashboardPage() {
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        
+
         {/* Top Header Card */}
         <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -366,11 +366,10 @@ export default function BusinessDashboardPage() {
               <button
                 key={b.id}
                 onClick={() => selectBusiness(b)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                  selectedBiz?.id === b.id
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${selectedBiz?.id === b.id
                     ? 'bg-blue-600 text-white shadow-sm'
                     : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-                }`}
+                  }`}
               >
                 {b.name_en}
               </button>
@@ -389,11 +388,10 @@ export default function BusinessDashboardPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                activeTab === tab.id
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${activeTab === tab.id
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
+                }`}
             >
               <tab.icon className="w-4 h-4" />
               {tab.label}
@@ -870,18 +868,17 @@ export default function BusinessDashboardPage() {
         {activeTab === 'plan' && (
           <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
             <h2 className="text-lg font-black text-slate-900">Listing Plan & Verification Badge</h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
-                { name: 'Monthly', price: '₹199 / mo', desc: 'Standard business listing on directory' },
-                { name: '6 Months', price: '₹999 / 6mo', desc: 'Most popular option for shops & clinics', active: true },
-                { name: 'Yearly', price: '₹2,000 / yr', desc: 'Best value listing with maximum visibility' },
+                { name: 'Free Basic', price: '₹0', desc: 'Basic store listing on Kurnool One directory' },
+                { name: 'Standard Verified', price: '₹399 / 6mo', desc: 'Blue Verified Merchant badge & direct WhatsApp leads', active: true },
+                { name: 'Premium Featured', price: '₹999 / yr', desc: 'Top #1 Homepage spotlight & unlimited Hot Deals publishing' },
               ].map((tier, idx) => (
                 <div
                   key={idx}
-                  className={`p-5 rounded-2xl border transition-all ${
-                    tier.active ? 'border-blue-600 bg-blue-50/40 ring-2 ring-blue-600/20' : 'border-slate-200 bg-white'
-                  }`}
+                  className={`p-5 rounded-2xl border transition-all ${tier.active ? 'border-blue-600 bg-blue-50/40 ring-2 ring-blue-600/20' : 'border-slate-200 bg-white'
+                    }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-black text-slate-900 uppercase tracking-wider">{tier.name}</span>

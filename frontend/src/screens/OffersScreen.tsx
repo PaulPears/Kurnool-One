@@ -1,15 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, SafeAreaView, FlatList, TouchableOpacity,
+  View, Text, FlatList, TouchableOpacity,
   Image, Linking, ActivityIndicator, StatusBar, StyleSheet, Modal, Share,
-  TextInput, Alert, RefreshControl, ScrollView,
+  TextInput, Alert, RefreshControl, ScrollView, Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
 import { useLanguage } from '../context/LanguageContext';
 import { pickImageWithFreeStyleCrop } from '../utils/imageUploadHelper';
+import { playRewardedAdForPhotoUnlock, showInterstitialAd } from '../services/adService';
+import { SafeBannerAd } from '../components/SafeBannerAd';
+import { SafeNativeAd } from '../components/SafeNativeAd';
+import { ReportModal } from '../components/ReportModal';
+import { getAdUnitId } from '../config/ads';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const BANNER_AD_UNIT = getAdUnitId('BANNER_OFFERS');
 import {
   fetchOffers,
   fetchEvents,
@@ -60,105 +70,12 @@ export interface MarketItem {
   images?: string[];
   description: string;
   status?: string;
+  sourceType?: 'user' | 'business' | 'professional';
+  businessName?: string;
+  professionalName?: string;
 }
 
-const SEED_MARKET_ITEMS: MarketItem[] = [
-  {
-    id: 'm1',
-    title_en: 'Honda Activa 5G (Single Owner, Kurnool Reg)',
-    title_te: 'హోండా యాక్టివా 5G (సింగిల్ ఓనర్, కర్నూలు)',
-    price: '₹38,500',
-    category: 'Two-Wheelers',
-    sellerName: 'Suresh Rao',
-    sellerPhone: '9848012345',
-    sellerWhatsapp: '9848012345',
-    area: 'Abbas Nagar, Kurnool',
-    condition: 'Excellent • 24,000 KM',
-    postedDate: 'Today',
-    imageUrl: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=600&auto=format&fit=crop&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=800&auto=format&fit=crop&q=80',
-    ],
-    description: 'Very well maintained scooter with insurance valid till Dec 2026. New rear tyre, single hand drive.',
-  },
-  {
-    id: 'm2',
-    title_en: 'Apple iPhone 13 (128GB Midnight Black)',
-    title_te: 'యాపిల్ ఐఫోన్ 13 (128GB బ్లాక్)',
-    price: '₹36,000',
-    category: 'Mobiles & Tablets',
-    sellerName: 'Imran Khan',
-    sellerPhone: '9876543210',
-    sellerWhatsapp: '9876543210',
-    area: 'Birla Compound, Kurnool',
-    condition: '87% Battery • Bill & Box',
-    postedDate: 'Yesterday',
-    imageUrl: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=600&auto=format&fit=crop&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=800&auto=format&fit=crop&q=80',
-    ],
-    description: 'Scratchless condition with original Apple adapter, bill, and box. Screen guard installed.',
-  },
-  {
-    id: 'm3',
-    title_en: 'Godrej 260L Double Door Refrigerator',
-    title_te: 'గోద్రెజ్ 260L డబుల్ డోర్ ఫ్రిజ్',
-    price: '₹11,500',
-    category: 'Home Appliances',
-    sellerName: 'Venkatesh M.',
-    sellerPhone: '9440112233',
-    sellerWhatsapp: '9440112233',
-    area: 'B Camp, Kurnool',
-    condition: '2 Years Used • Mint',
-    postedDate: '2 days ago',
-    imageUrl: 'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=600&auto=format&fit=crop&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?w=800&auto=format&fit=crop&q=80',
-    ],
-    description: 'Selling due to relocation. 3-star power rating, super chilling, perfectly clean and scratch-free.',
-  },
-  {
-    id: 'm4',
-    title_en: '2 BHK Independent House for Immediate Sale',
-    title_te: '2 BHK ఇండిపెండెంట్ ఇల్లు అమ్మకానికి',
-    price: '₹46,00,000',
-    category: 'Properties & Plots',
-    sellerName: 'Lakshmi Narayana',
-    sellerPhone: '9849200001',
-    sellerWhatsapp: '9849200001',
-    area: 'Joharapuram Road, Kurnool',
-    condition: '150 Sq.Yds • East Face',
-    postedDate: '3 days ago',
-    imageUrl: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600&auto=format&fit=crop&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&auto=format&fit=crop&q=80',
-    ],
-    description: 'Gram Panchayat approved, 30ft road, clear title with Borewell + Municipal tap connection.',
-  },
-  {
-    id: 'm5',
-    title_en: 'Solid Teak Wood 6-Seater Dining Table',
-    title_te: 'టేకు చెక్క 6-సీటర్ డైనింగ్ టేబుల్',
-    price: '₹15,000',
-    category: 'Furniture',
-    sellerName: 'Anand Kumar',
-    sellerPhone: '9123456789',
-    sellerWhatsapp: '9123456789',
-    area: 'Nandyal Checkpost, Kurnool',
-    condition: 'Solid Teak • 6 Chairs',
-    postedDate: '4 days ago',
-    imageUrl: 'https://images.unsplash.com/photo-1617806118233-18e1de247200?w=600&auto=format&fit=crop&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1617806118233-18e1de247200?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1538688525198-9b88f6f53126?w=800&auto=format&fit=crop&q=80',
-    ],
-    description: 'Pure original teak wood dining table with glass top and 6 cushioned matching chairs.',
-  },
-];
+const SEED_MARKET_ITEMS: MarketItem[] = [];
 
 export default function OffersScreen({ route, navigation }: any) {
   const { language } = useLanguage();
@@ -168,12 +85,13 @@ export default function OffersScreen({ route, navigation }: any) {
   );
 
   const [offers, setOffers] = useState<OfferItem[]>([]);
-  const [marketItems, setMarketItems] = useState<MarketItem[]>(SEED_MARKET_ITEMS);
+  const [marketItems, setMarketItems] = useState<MarketItem[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reportingTarget, setReportingTarget] = useState<{ id: string; title: string; type: 'deal' | 'marketplace' } | null>(null);
 
   // Filter States
-  const [selectedDealCategory, setSelectedDealCategory] = useState('all');
+  const [dealSearchQuery, setDealSearchQuery] = useState('');
   const [selectedMarketCategory, setSelectedMarketCategory] = useState('all');
 
   const handleToggleSold = async (item: MarketItem) => {
@@ -195,9 +113,18 @@ export default function OffersScreen({ route, navigation }: any) {
     }
   };
 
-  const displayedOffers = selectedDealCategory === 'all'
+  const displayedOffers = !dealSearchQuery.trim()
     ? offers
-    : offers.filter(o => o.category === selectedDealCategory || (selectedDealCategory === 'restaurants_dining' && (o.category === 'restaurants_cafes' || o.category === 'restaurants_dining')));
+    : offers.filter(o => {
+        const q = dealSearchQuery.toLowerCase();
+        return (
+          (o.title_en || '').toLowerCase().includes(q) ||
+          (o.businessName || '').toLowerCase().includes(q) ||
+          (o.discountText || '').toLowerCase().includes(q) ||
+          (o.category || '').toLowerCase().includes(q) ||
+          (o.description_en || '').toLowerCase().includes(q)
+        );
+      });
 
   const displayedMarketItems = selectedMarketCategory === 'all'
     ? marketItems
@@ -207,6 +134,12 @@ export default function OffersScreen({ route, navigation }: any) {
   const [postModalVisible, setPostModalVisible] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<OfferItem | null>(null);
   const [selectedMarketItem, setSelectedMarketItem] = useState<MarketItem | null>(null);
+
+  const handleOpenMarketItem = (item: MarketItem) => {
+    showInterstitialAd(() => {
+      setSelectedMarketItem(item);
+    });
+  };
   const [dealPhotoIdx, setDealPhotoIdx] = useState(0);
   const [marketPhotoIdx, setMarketPhotoIdx] = useState(0);
   const [postTitle, setPostTitle] = useState('');
@@ -239,7 +172,7 @@ export default function OffersScreen({ route, navigation }: any) {
       await Share.share({
         message: `🛍️ *${title}*\n💰 Price: ${item.price}\n📍 Location: ${item.area}\n🏷️ Category: ${item.category}\n\nChat with seller & explore more listings on Kurnool One App:\n👉 Download App: ${appUrl}`,
       });
-    } catch {}
+    } catch { }
   };
 
   const handleShareOffer = async (offer: OfferItem) => {
@@ -249,7 +182,7 @@ export default function OffersScreen({ route, navigation }: any) {
       await Share.share({
         message: `🔥 *${title}*\n🏷️ ${offer.discountText} at ${offer.businessName}\n📅 ${offer.validUntil}\n\n👉 Grab this deal on Kurnool One App:\n${appUrl}`,
       });
-    } catch {}
+    } catch { }
   };
 
   useEffect(() => {
@@ -278,14 +211,7 @@ export default function OffersScreen({ route, navigation }: any) {
         setOffers(activeOffers);
       } else if (activeTab === 'marketplace') {
         const liveItems = await fetchMarketplaceItems();
-        if (liveItems && liveItems.length > 0) {
-          // Combine live with seeds if needed or show live items
-          const liveIds = new Set(liveItems.map(i => i.id));
-          const filteredSeeds = SEED_MARKET_ITEMS.filter(s => !liveIds.has(s.id));
-          setMarketItems([...liveItems, ...filteredSeeds]);
-        } else {
-          setMarketItems(SEED_MARKET_ITEMS);
-        }
+        setMarketItems(liveItems || []);
       } else {
         const data = await fetchEvents();
         setEvents(data);
@@ -298,7 +224,7 @@ export default function OffersScreen({ route, navigation }: any) {
   };
 
   const handleCall = (phone?: string) => {
-    if (phone) Linking.openURL(`tel:${phone}`).catch(() => {});
+    if (phone) Linking.openURL(`tel:${phone}`).catch(() => { });
   };
 
   const handleWhatsApp = (phone?: string, title?: string) => {
@@ -308,7 +234,7 @@ export default function OffersScreen({ route, navigation }: any) {
       const msg = title
         ? `Hello, I saw your "${title}" listing on Kurnool One App. Is it available?`
         : `Hello, I found your offer on Kurnool One App.`;
-      Linking.openURL(`https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`).catch(() => {});
+      Linking.openURL(`https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`).catch(() => { });
     }
   };
 
@@ -356,7 +282,12 @@ export default function OffersScreen({ route, navigation }: any) {
           : '1వ ఫోటో ఉచితం. మరిన్ని ఫోటోలు (5 వరకు) జోడించడానికి చిన్న ప్రకటన చూడాలా?',
         [
           { text: language === 'en' ? 'Cancel' : 'వద్దు', style: 'cancel' },
-          { text: language === 'en' ? 'Watch Ad & Add' : 'చూసి జోడించండి', onPress: pickImage },
+          {
+            text: language === 'en' ? 'Watch Ad & Add' : 'చూసి జోడించండి',
+            onPress: () => {
+              playRewardedAdForPhotoUnlock(pickImage);
+            },
+          },
         ]
       );
     } else {
@@ -504,26 +435,24 @@ export default function OffersScreen({ route, navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* Category Filter Bar */}
+      {/* Hot Deals Search Bar (No Category Restrictions) */}
       {activeTab === 'offers' && (
-        <View style={{ backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-            {DEAL_FILTER_CATEGORIES.map(cat => {
-              const isSelected = selectedDealCategory === cat.id;
-              return (
-                <TouchableOpacity
-                  key={cat.id}
-                  onPress={() => setSelectedDealCategory(cat.id)}
-                  style={[styles.filterChip, isSelected && styles.filterChipActiveDeals]}
-                >
-                  <Ionicons name={cat.icon as any} size={13} color={isSelected ? '#FFFFFF' : '#DC2626'} />
-                  <Text style={[styles.filterChipText, isSelected && styles.filterChipTextActive]}>
-                    {language === 'en' ? cat.label_en : cat.label_te}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+        <View style={{ backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingHorizontal: 14, paddingVertical: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: '#E2E8F0' }}>
+            <Ionicons name="search" size={18} color="#64748B" />
+            <TextInput
+              style={{ flex: 1, marginLeft: 8, fontSize: 13, color: '#0F172A' }}
+              placeholder={language === 'en' ? 'Search any shop, service, or discount...' : 'ఏదైనా దుకాణం, సేవ లేదా డిస్కౌంట్ శోధించండి...'}
+              placeholderTextColor="#94A3B8"
+              value={dealSearchQuery}
+              onChangeText={setDealSearchQuery}
+            />
+            {dealSearchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setDealSearchQuery('')}>
+                <Ionicons name="close-circle" size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       )}
 
@@ -565,7 +494,7 @@ export default function OffersScreen({ route, navigation }: any) {
             <View style={styles.dealsHeaderBanner}>
               <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={styles.dealsHeaderTitle}>
-                  {language === 'en' ? 'Verified Hot Deals' : 'ధృవీకరించబడిన ఆఫర్లు'}
+                  {language === 'en' ? 'Hot Deals & Offers' : 'హాట్ డీల్స్ & ఆఫర్లు'}
                 </Text>
                 <Text style={styles.dealsHeaderSub}>
                   {language === 'en' ? 'Exclusive discounts from local merchants in Kurnool' : 'కర్నూలు వ్యాపారుల నుండి ప్రత్యేక తగ్గింపులు'}
@@ -620,98 +549,69 @@ export default function OffersScreen({ route, navigation }: any) {
                   setSelectedDeal(item);
                   setDealPhotoIdx(0);
                 }}
-                style={styles.landscapeDealCard}
+                style={styles.compactDealCard}
               >
-                {hasImage ? (
-                  // Swiggy / Zomato Modern Card with Photo Banner & White Details Section
-                  <View>
-                    <View style={styles.landscapeImgWrap}>
-                      <Image source={{ uri: offerImages[0] }} style={styles.landscapeImg} resizeMode="cover" />
-                      
-                      {/* Floating Discount Badge */}
-                      <View style={styles.modernDiscountPill}>
-                        <Text style={styles.modernDiscountText}>🔥 {item.discountText}</Text>
-                      </View>
-
-                      {/* Expiry Pill */}
-                      <View style={styles.modernExpiryPill}>
-                        <Ionicons name="time" size={11} color="#FFFFFF" />
-                        <Text style={styles.modernExpiryText}>{item.validUntil || 'Limited Period'}</Text>
-                      </View>
+                {/* Left Thumbnail (92x92) */}
+                <View style={styles.compactDealImgWrap}>
+                  {hasImage ? (
+                    <Image source={{ uri: offerImages[0] }} style={styles.compactDealImg} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.compactDealImg, { backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' }]}>
+                      <Ionicons name="pricetag" size={26} color="#2563EB" />
                     </View>
-
-                    {/* Bottom Details Section */}
-                    <View style={styles.dealCardBottom}>
-                      <Text style={styles.dealCardBottomTitle} numberOfLines={2}>
-                        {language === 'en' ? item.title_en : (item.title_te || item.title_en)}
+                  )}
+                  {item.discountText ? (
+                    <View style={styles.compactDiscountBadge}>
+                      <Text style={styles.compactDiscountBadgeText} numberOfLines={1}>
+                        {item.discountText}
                       </Text>
+                    </View>
+                  ) : null}
+                </View>
 
-                      <View style={styles.dealCardStoreRow}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 }}>
-                          <Ionicons name="storefront" size={14} color="#2563EB" />
-                          <Text style={styles.dealCardStoreName} numberOfLines={1}>
-                            {item.businessName}
-                          </Text>
-                          <Ionicons name="checkmark-circle" size={13} color="#2563EB" />
-                        </View>
-                      </View>
+                {/* Right Details */}
+                <View style={styles.compactDealBody}>
+                  {/* Store Name + Report Flag */}
+                  <View style={styles.compactStoreRow}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, marginRight: 6 }}>
+                      <Ionicons name="storefront" size={12} color="#2563EB" />
+                      <Text style={styles.compactStoreName} numberOfLines={1}>
+                        {item.businessName}
+                      </Text>
+                      <Ionicons name="checkmark-circle" size={11} color="#2563EB" />
+                    </View>
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation?.();
+                        setReportingTarget({ id: item.id, title: item.title_en, type: 'deal' });
+                      }}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      style={{ padding: 2 }}
+                    >
+                      <Ionicons name="flag-outline" size={13} color="#94A3B8" />
+                    </TouchableOpacity>
+                  </View>
 
-                      {/* Actions row */}
-                      <View style={styles.dealCardActionsRow}>
-                        {item.phone ? (
-                          <TouchableOpacity
-                            onPress={() => handleCall(item.phone)}
-                            style={styles.dealCallBtn}
-                          >
-                            <Ionicons name="call" size={12} color="#FFFFFF" />
-                            <Text style={styles.dealCallBtnText}>Call Store</Text>
-                          </TouchableOpacity>
-                        ) : null}
-                        {(item as any).whatsapp ? (
-                          <TouchableOpacity
-                            onPress={() => handleWhatsApp((item as any).whatsapp)}
-                            style={styles.dealWaBtn}
-                          >
-                            <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
-                            <Text style={styles.dealWaBtnText}>WhatsApp</Text>
-                          </TouchableOpacity>
-                        ) : null}
-                        <View style={styles.dealClaimPill}>
-                          <Text style={styles.dealClaimPillText}>Claim Deal &rarr;</Text>
-                        </View>
-                      </View>
+                  {/* Title */}
+                  <Text style={styles.compactDealTitle} numberOfLines={2}>
+                    {language === 'en' ? item.title_en : (item.title_te || item.title_en)}
+                  </Text>
+
+                  {/* Expiry & Claim Button */}
+                  <View style={styles.compactDealFooter}>
+                    <View style={styles.compactExpiryPill}>
+                      <Ionicons name="time-outline" size={10} color="#64748B" />
+                      <Text style={styles.compactExpiryText} numberOfLines={1}>
+                        {item.validUntil || 'Active'}
+                      </Text>
+                    </View>
+
+                    <View style={styles.compactClaimBtn}>
+                      <Text style={styles.compactClaimBtnText}>Claim</Text>
+                      <Ionicons name="arrow-forward" size={10} color="#FFFFFF" />
                     </View>
                   </View>
-                ) : (
-                  // Text-Only Deal: Styled Ticket Voucher
-                  <View style={styles.textOnlyDealWrap}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <View style={styles.textOnlyDiscountBadge}>
-                        <Text style={styles.textOnlyDiscountText}>🔥 {item.discountText || 'SPECIAL DEAL'}</Text>
-                      </View>
-                      <View style={styles.textOnlyValidityBadge}>
-                        <Ionicons name="time-outline" size={11} color="#DBEAFE" />
-                        <Text style={styles.textOnlyValidityText}>{item.validUntil || 'Limited Period'}</Text>
-                      </View>
-                    </View>
-
-                    <Text style={styles.textOnlyTitle} numberOfLines={2}>
-                      {language === 'en' ? item.title_en : (item.title_te || item.title_en)}
-                    </Text>
-
-                    <View style={styles.textOnlyFooter}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 }}>
-                        <Ionicons name="storefront-outline" size={13} color="#DBEAFE" />
-                        <Text style={styles.textOnlyMerchant} numberOfLines={1}>
-                          {item.businessName}
-                        </Text>
-                      </View>
-                      <View style={styles.textOnlyTapCue}>
-                        <Text style={styles.textOnlyTapCueText}>Claim Deal &rarr;</Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
+                </View>
               </TouchableOpacity>
             );
           }}
@@ -768,7 +668,7 @@ export default function OffersScreen({ route, navigation }: any) {
             return (
               <TouchableOpacity
                 activeOpacity={0.88}
-                onPress={() => setSelectedMarketItem(item)}
+                onPress={() => handleOpenMarketItem(item)}
                 style={[styles.gridCard, isSold && { opacity: 0.8 }]}
               >
                 <View style={styles.gridImageWrap}>
@@ -779,9 +679,6 @@ export default function OffersScreen({ route, navigation }: any) {
                       <Ionicons name="cart-outline" size={28} color="#94A3B8" />
                     </View>
                   )}
-                  <View style={styles.gridPriceBadge}>
-                    <Text style={styles.gridPriceBadgeText}>{item.price}</Text>
-                  </View>
                   {isSold && (
                     <View style={styles.soldOverlay}>
                       <View style={styles.soldOverlayBadge}>
@@ -791,9 +688,39 @@ export default function OffersScreen({ route, navigation }: any) {
                   )}
                 </View>
                 <View style={styles.gridBody}>
-                  <Text style={styles.gridTitle} numberOfLines={2}>
-                    {language === 'en' ? item.title_en : (item.title_te || item.title_en)}
-                  </Text>
+                  {/* Price & Seller Source Badge Row */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '900', color: '#059669' }}>{item.price}</Text>
+                    {item.sourceType === 'business' ? (
+                      <View style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 0.5, borderColor: '#BFDBFE' }}>
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#1D4ED8' }}>🏢 Store</Text>
+                      </View>
+                    ) : item.sourceType === 'professional' ? (
+                      <View style={{ backgroundColor: '#F0FDF4', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 0.5, borderColor: '#BBF7D0' }}>
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#15803D' }}>💼 Pro</Text>
+                      </View>
+                    ) : (
+                      <View style={{ backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                        <Text style={{ fontSize: 9, fontWeight: '700', color: '#64748B' }}>👤 Citizen</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Text style={[styles.gridTitle, { flex: 1, marginRight: 4 }]} numberOfLines={2}>
+                      {language === 'en' ? item.title_en : (item.title_te || item.title_en)}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation?.();
+                        setReportingTarget({ id: item.id, title: item.title_en, type: 'marketplace' });
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={{ padding: 2 }}
+                    >
+                      <Ionicons name="flag-outline" size={12} color="#94A3B8" />
+                    </TouchableOpacity>
+                  </View>
                   <Text style={styles.gridSub} numberOfLines={1}>
                     <Ionicons name="location-outline" size={11} color="#6B7280" /> {item.area}
                   </Text>
@@ -816,6 +743,11 @@ export default function OffersScreen({ route, navigation }: any) {
             ? 'Independent civic platform. Deals, offers & marketplace items are posted directly by respective merchants & sellers. Kurnool One is not responsible for pricing or fulfillment.'
             : 'స్వతంత్ర వేదిక. ఆఫర్లు & మార్కెట్‌ప్లేస్ ఉత్పత్తులు సంబంధిత విక్రేతల ద్వారా పోస్ట్ చేయబడతాయి. కర్నూలు వన్ లావాదేవీలకు బాధ్యత వహించదు.'}
         </Text>
+      </View>
+
+      {/* Offers Bottom Banner Ad */}
+      <View style={{ alignItems: 'center', backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingVertical: 4 }}>
+        <SafeBannerAd unitId={BANNER_AD_UNIT} />
       </View>
       {/* Full-Screen Image Viewer Modal */}
       <Modal
@@ -955,13 +887,16 @@ export default function OffersScreen({ route, navigation }: any) {
                 );
               })()}
 
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 8 }}>
-                <View style={styles.gridDiscountBadge}>
-                  <Text style={styles.gridDiscountBadgeText}>{selectedDeal.discountText}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 12, marginBottom: 8 }}>
+                <View style={[styles.gridDiscountBadge, { flexShrink: 1 }]}>
+                  <Text style={styles.gridDiscountBadgeText} numberOfLines={1}>{selectedDeal.discountText}</Text>
                 </View>
-                <Text style={{ fontSize: 11, color: '#64748B', fontWeight: '600' }}>
-                  {language === 'en' ? `Valid until: ${selectedDeal.validUntil}` : `చెల్లుబాటు: ${selectedDeal.validUntil}`}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F8FAFC', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                  <Ionicons name="time-outline" size={12} color="#64748B" />
+                  <Text style={{ fontSize: 11, color: '#475569', fontWeight: '600' }}>
+                    {language === 'en' ? `Valid until: ${selectedDeal.validUntil}` : `చెల్లుబాటు: ${selectedDeal.validUntil}`}
+                  </Text>
+                </View>
               </View>
 
               <Text style={{ fontSize: 20, fontWeight: '900', color: '#0F172A', marginTop: 4 }}>
@@ -978,6 +913,18 @@ export default function OffersScreen({ route, navigation }: any) {
                   {language === 'en' ? selectedDeal.description_en : (selectedDeal.description_te || selectedDeal.description_en)}
                 </Text>
               </View>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setReportingTarget({ id: selectedDeal.id, title: selectedDeal.title_en, type: 'deal' });
+                }}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14, paddingVertical: 8 }}
+              >
+                <Ionicons name="flag-outline" size={13} color="#EF4444" />
+                <Text style={{ fontSize: 12, color: '#EF4444', fontWeight: '700' }}>
+                  {language === 'en' ? 'Report issue with this deal' : 'ఈ ఆఫర్‌పై రిపోర్ట్ చేయండి'}
+                </Text>
+              </TouchableOpacity>
 
               {/* Native Advanced Ad Container */}
               <View style={styles.nativeAdBox}>
@@ -1104,11 +1051,26 @@ export default function OffersScreen({ route, navigation }: any) {
               })()}
 
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 8 }}>
-                <View style={[styles.gridPriceBadge, { paddingHorizontal: 12, paddingVertical: 6 }]}>
-                  <Text style={[styles.gridPriceBadgeText, { fontSize: 18 }]}>{selectedMarketItem.price}</Text>
+                <View style={{ backgroundColor: '#064E3B', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}>
+                  <Text style={{ color: '#34D399', fontWeight: '900', fontSize: 18 }}>{selectedMarketItem.price}</Text>
                 </View>
-                <View style={styles.marketCatPill}>
-                  <Text style={[styles.marketCatText, { fontSize: 11 }]}>{selectedMarketItem.category}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  {selectedMarketItem.sourceType === 'business' ? (
+                    <View style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 0.5, borderColor: '#BFDBFE' }}>
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#1D4ED8' }}>🏢 Store Product</Text>
+                    </View>
+                  ) : selectedMarketItem.sourceType === 'professional' ? (
+                    <View style={{ backgroundColor: '#F0FDF4', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 0.5, borderColor: '#BBF7D0' }}>
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#15803D' }}>💼 Pro Offering</Text>
+                    </View>
+                  ) : (
+                    <View style={{ backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748B' }}>👤 Pre-Owned</Text>
+                    </View>
+                  )}
+                  <View style={styles.marketCatPill}>
+                    <Text style={[styles.marketCatText, { fontSize: 11 }]}>{selectedMarketItem.category}</Text>
+                  </View>
                 </View>
               </View>
 
@@ -1163,18 +1125,21 @@ export default function OffersScreen({ route, navigation }: any) {
                 </View>
               )}
 
+              <TouchableOpacity
+                onPress={() => {
+                  setReportingTarget({ id: selectedMarketItem.id, title: selectedMarketItem.title_en, type: 'marketplace' });
+                }}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14, paddingVertical: 8 }}
+              >
+                <Ionicons name="flag-outline" size={13} color="#EF4444" />
+                <Text style={{ fontSize: 12, color: '#EF4444', fontWeight: '700' }}>
+                  {language === 'en' ? 'Report issue with this listing' : 'ఈ ప్రకటనపై రిపోర్ట్ చేయండి'}
+                </Text>
+              </TouchableOpacity>
+
               {/* Native Advanced Ad Container */}
-              <View style={styles.nativeAdBox}>
-                <View style={styles.nativeAdPill}>
-                  <Text style={styles.nativeAdPillText}>SPONSORED</Text>
-                </View>
-                <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', marginTop: 8 }}>
-                  <Ionicons name="megaphone" size={22} color="#2563EB" />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.nativeAdTitle}>Verified Shifting & Delivery in Kurnool</Text>
-                    <Text style={styles.nativeAdDesc}>Doorstep pickup, packaging & transport service across Kurnool.</Text>
-                  </View>
-                </View>
+              <View style={{ marginTop: 14 }}>
+                <SafeNativeAd />
               </View>
             </ScrollView>
 
@@ -1402,6 +1367,17 @@ export default function OffersScreen({ route, navigation }: any) {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Report Modal */}
+      {reportingTarget && (
+        <ReportModal
+          visible={!!reportingTarget}
+          onClose={() => setReportingTarget(null)}
+          targetId={reportingTarget.id}
+          targetTitle={reportingTarget.title}
+          reportType={reportingTarget.type}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -1409,18 +1385,18 @@ export default function OffersScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
   header: {
-    paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#FFFFFF',
     borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
   },
-  headerTitle: { fontSize: 20, fontWeight: '900', color: '#1E293B', letterSpacing: -0.5 },
-  headerSub: { fontSize: 11, color: '#6B7280', fontWeight: '500', marginTop: 2 },
+  headerTitle: { fontSize: 19, fontWeight: '900', color: '#1E293B', letterSpacing: -0.5 },
+  headerSub: { fontSize: 11, color: '#6B7280', fontWeight: '500', marginTop: 1 },
   tabContainer: {
-    flexDirection: 'row', marginHorizontal: 16, marginTop: 10, marginBottom: 4,
-    backgroundColor: '#E5E7EB', borderRadius: 14, padding: 4,
+    flexDirection: 'row', marginHorizontal: 16, marginTop: 6, marginBottom: 2,
+    backgroundColor: '#E5E7EB', borderRadius: 12, padding: 2.5,
   },
   tabBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 5, paddingVertical: 9, borderRadius: 10,
+    gap: 5, paddingVertical: 7, borderRadius: 9,
   },
   tabBtnActive: { backgroundColor: '#FFFFFF' },
   tabText: { fontSize: 12, fontWeight: '700', color: '#6B7280' },
@@ -1712,16 +1688,16 @@ const styles = StyleSheet.create({
   submitPostBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   filterScroll: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 8,
+    paddingVertical: 6,
+    gap: 7,
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
+    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 5.5,
+    borderRadius: 18,
     backgroundColor: '#F3F4F6',
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -2135,6 +2111,110 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#2563EB',
   },
+  compactDealCard: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    alignItems: 'center',
+  },
+  compactDealImgWrap: {
+    width: 92,
+    height: 92,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#F1F5F9',
+  },
+  compactDealImg: {
+    width: '100%',
+    height: '100%',
+  },
+  compactDiscountBadge: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#DC2626',
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+  },
+  compactDiscountBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  compactDealBody: {
+    flex: 1,
+    marginLeft: 12,
+    justifyContent: 'space-between',
+    minHeight: 88,
+  },
+  compactStoreRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  compactStoreName: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2563EB',
+    flex: 1,
+  },
+  compactDealTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+    lineHeight: 17,
+    marginVertical: 4,
+  },
+  compactDealFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  compactExpiryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    maxWidth: '55%',
+  },
+  compactExpiryText: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  compactClaimBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  compactClaimBtnText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
   dealCardActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2143,6 +2223,28 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
+  },
+  dealClaimBtnPrimary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#DC2626',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  dealClaimBtnPrimaryText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 12.5,
+    letterSpacing: 0.2,
   },
   dealCallBtn: {
     flexDirection: 'row',
@@ -2262,7 +2364,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   swipeGallerySlide: {
-    width: 360,
+    width: SCREEN_WIDTH - 32,
     height: 250,
   },
   swipeGalleryCounterPill: {

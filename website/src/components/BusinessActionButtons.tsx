@@ -65,15 +65,15 @@ export default function BusinessActionButtons({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+    <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto max-w-full">
       {/* Call CTA */}
       <button
         type="button"
         onClick={handleCallClick}
-        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-sm px-6 py-3 rounded-2xl shadow-md transition cursor-pointer"
+        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-xs sm:text-sm px-4 sm:px-6 py-3 rounded-2xl shadow-md transition cursor-pointer whitespace-nowrap"
       >
-        <Phone className="w-4 h-4" />
-        <span>Call {phone}</span>
+        <Phone className="w-4 h-4 shrink-0" />
+        <span>Call Now</span>
       </button>
 
       {/* WhatsApp CTA */}
@@ -81,9 +81,9 @@ export default function BusinessActionButtons({
         <button
           type="button"
           onClick={handleWhatsAppClick}
-          className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-sm px-6 py-3 rounded-2xl shadow-md transition cursor-pointer"
+          className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs sm:text-sm px-4 sm:px-6 py-3 rounded-2xl shadow-md transition cursor-pointer whitespace-nowrap"
         >
-          <MessageCircle className="w-4 h-4" />
+          <MessageCircle className="w-4 h-4 shrink-0" />
           <span>WhatsApp</span>
         </button>
       )}
@@ -93,21 +93,21 @@ export default function BusinessActionButtons({
         href={mapsUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 active:scale-95 text-white font-black text-sm px-6 py-3 rounded-2xl shadow-md transition"
+        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 active:scale-95 text-white font-black text-xs sm:text-sm px-4 sm:px-6 py-3 rounded-2xl shadow-md transition whitespace-nowrap"
       >
-        <Navigation className="w-4 h-4" />
+        <Navigation className="w-4 h-4 shrink-0" />
         <span>Directions</span>
       </a>
 
       {/* Website CTA */}
       {website && (
         <a
-          href={website}
+          href={website.startsWith('http') ? website : `https://${website}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-black text-sm px-6 py-3 rounded-2xl shadow-md transition"
+          className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-black text-xs sm:text-sm px-4 sm:px-6 py-3 rounded-2xl shadow-md transition whitespace-nowrap"
         >
-          <Globe className="w-4 h-4" />
+          <Globe className="w-4 h-4 shrink-0" />
           <span>Website</span>
         </a>
       )}
@@ -116,20 +116,10 @@ export default function BusinessActionButtons({
       <button
         type="button"
         onClick={handleShareClick}
-        className="flex-none flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 font-bold text-sm px-4 py-3 rounded-2xl border border-slate-200 transition cursor-pointer"
-        title="Share Business Profile"
+        className="p-3 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 rounded-2xl transition cursor-pointer border border-slate-200"
+        title="Share Business Listing"
       >
-        {copied ? (
-          <>
-            <Check className="w-4 h-4 text-emerald-600" />
-            <span className="text-emerald-700 text-xs">Copied</span>
-          </>
-        ) : (
-          <>
-            <Share2 className="w-4 h-4" />
-            <span className="hidden sm:inline text-xs">Share</span>
-          </>
-        )}
+        {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
       </button>
     </div>
   );

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
+import { pickImageWithFreeStyleCrop } from '../utils/imageUploadHelper';
 import { updateUserProfile, uploadProfilePhoto } from '../services/firestoreService';
 
 export default function EditProfileScreen({ navigation }: any) {
@@ -32,14 +33,13 @@ export default function EditProfileScreen({ navigation }: any) {
   };
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
+    const result = await pickImageWithFreeStyleCrop({
+      title: 'Profile Photo',
+      message: 'Choose photo source to crop profile picture:',
+      quality: 0.8,
     });
-    if (!result.canceled) {
-      setPhotoUri(result.assets[0].uri);
+    if (result && result.uri) {
+      setPhotoUri(result.uri);
     }
   };
 

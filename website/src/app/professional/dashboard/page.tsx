@@ -27,6 +27,7 @@ import {
 import {
   fetchMyProfessionalProfile,
   updateProfessionalProfile,
+  uploadProfessionalAvatar,
   ProfessionalItem,
   PROFESSIONAL_CATEGORIES,
 } from '@/services/directoryService';
@@ -59,6 +60,22 @@ export default function ProfessionalDashboardPage() {
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const url = await uploadProfessionalAvatar(file);
+      setAvatarUrl(url);
+    } catch (err) {
+      console.error('Failed to upload headshot:', err);
+      alert('Could not upload image. Please try again.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -442,35 +459,63 @@ export default function ProfessionalDashboardPage() {
                 />
               </div>
 
-              {/* Profile Photo / Headshot */}
+              {/* Profile Photo / Headshot Upload */}
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Profile Photo / Headshot URL (Add your photo)
+                    Profile Photo / Headshot
                   </label>
                   <span className="text-[10px] text-teal-700 font-semibold bg-white px-2 py-0.5 rounded-full border border-slate-200">
                     Displayed on your profile
                   </span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="url"
-                    value={avatarUrl}
-                    onChange={(e) => setAvatarUrl(e.target.value)}
-                    className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-teal-600 focus:outline-none"
-                    placeholder="https://example.com/your-photo.jpg"
-                  />
-                  {avatarUrl && (
-                    <div className="w-12 h-12 rounded-xl overflow-hidden border border-slate-300 shrink-0">
+                <div className="flex items-center gap-4">
+                  {avatarUrl ? (
+                    <div className="relative w-16 h-16 rounded-2xl overflow-hidden border-2 border-teal-500 shadow-sm shrink-0">
                       <img
                         src={avatarUrl}
                         alt="Avatar Preview"
                         className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = 'none';
-                        }}
                       />
                     </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-2xl bg-teal-50 border-2 border-dashed border-teal-300 flex items-center justify-center text-teal-600 font-bold text-xl shrink-0">
+                      📷
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold cursor-pointer transition shadow-sm">
+                      {uploadingAvatar ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Uploading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-4 h-4" />
+                          <span>{avatarUrl ? 'Change Profile Photo' : 'Upload Profile Photo'}</span>
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploadingAvatar}
+                        onChange={handleAvatarFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                    <p className="text-[11px] text-slate-500 mt-1.5">
+                      JPG, PNG or WebP. Choose a clear face photo.
+                    </p>
+                  </div>
+                  {avatarUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setAvatarUrl('')}
+                      className="text-xs text-red-500 hover:text-red-700 font-semibold px-2 py-1"
+                    >
+                      Remove
+                    </button>
                   )}
                 </div>
               </div>

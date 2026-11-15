@@ -73,8 +73,9 @@ export interface BusinessItem {
   customFeatures?: string[];
   priceRange?: '₹' | '₹₹' | '₹₹₹' | '₹₹₹₹';
   ownerUid?: string;
+  ownerEmail?: string;
   claimStatus: 'unclaimed' | 'pending' | 'verified';
-  tier: 'free' | 'featured' | 'premium';
+  tier: 'free' | 'featured' | 'premium' | 'standard';
   verificationBadge: 'none' | 'verified_business';
   planId?: 'monthly' | 'half_yearly' | 'yearly' | 'free' | 'verified' | 'premium';
   paymentStatus?: 'free' | 'unpaid' | 'paid';
@@ -119,11 +120,15 @@ export interface ProfessionalItem {
   facebookUrl?: string;
   websiteUrl?: string;
   email?: string;
+  ownerEmail?: string;
+  ownerUid?: string;
+  createdAt?: string;
   verifiedProfessional: boolean;
   ratingAvg: number;
   ratingCount: number;
   reviewCount?: number;
   planId?: string;
+  tier?: string;
   status: 'active' | 'pending' | 'suspended';
 }
 
@@ -198,6 +203,7 @@ export interface LeadItem {
   citizenArea?: string;
   targetId?: string;
   targetName?: string;
+  targetTitle?: string;
   targetType?: 'business' | 'professional' | string;
   actionType?: 'call' | 'whatsapp' | 'inquiry' | 'quote' | 'view';
   notes?: string;
@@ -216,8 +222,11 @@ export interface OfferItem {
   businessName: string;
   validUntil: string;
   bannerUrl?: string;
+  images?: string[];
   phone?: string;
   category: string;
+  status?: string;
+  isFeatured?: boolean;
 }
 
 export interface EventItem {
@@ -1001,9 +1010,70 @@ export const SEED_WORSHIP_PLACES: PlaceItem[] = [
   },
 ];
 
-export const SEED_OFFERS: OfferItem[] = [];
+export const SEED_OFFERS: OfferItem[] = [
+  {
+    id: 'offer_silk_saree_kurnool',
+    title_en: 'Festive Season Saree Offer',
+    title_te: 'పండుగల పట్టుచీరల ప్రత్యేక ఆఫర్',
+    description_en: 'Get flat 20% off on all bridal silk sarees & traditional dhotis with complimentary fall and edging.',
+    description_te: 'అన్ని వివాహ పట్టుచీరలపై 20% ఫ్లాట్ డిస్కౌంట్ మరియు ఉచిత ఫాల్ అండ్ పీకో.',
+    discountText: 'FLAT 20% OFF',
+    businessName: 'Sri Sai Silk Palace, Kurnool',
+    validUntil: 'Valid till 31 Oct 2026',
+    category: 'clothing_fashion',
+    phone: '+919848012345',
+    bannerUrl: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80',
+    ],
+  },
+  {
+    id: 'offer_uggani_bajji_combo',
+    title_en: 'Rayalaseema Dining Special',
+    title_te: 'రాయలసీమ స్పెషల్ భోజనం & ఉగ్గాని బజ్జీ',
+    description_en: 'Enjoy special Rayalaseema authentic combos with complimentary famous Kurnool Uggani Bajji sampler on orders over ₹399.',
+    description_te: '₹399 పై ఆర్డర్లపై ప్రసిద్ధ కర్నూలు ఉగ్గాని బజ్జీ ఉచితం.',
+    discountText: 'COMPLIMENTARY DISH',
+    businessName: 'Kurnool Ruchulu Restaurant',
+    validUntil: 'Valid this Month',
+    category: 'restaurants_dining',
+    phone: '+919440054321',
+    bannerUrl: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=800&auto=format&fit=crop&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=800&auto=format&fit=crop&q=80',
+    ],
+  },
+];
 
-export const SEED_EVENTS: EventItem[] = [];
+export const SEED_EVENTS: EventItem[] = [
+  {
+    id: 'event_konda_reddy_walk',
+    title_en: 'Konda Reddy Buruju Historic Heritage Walk',
+    title_te: 'కొండారెడ్డి బురుజు హెరిటేజ్ వాక్',
+    dateStr: 'Every Sunday Morning',
+    timeStr: '06:30 AM - 08:30 AM',
+    venue: 'Konda Reddy Fort Bastion Gate, Kurnool',
+    organizerName: 'Kurnool Heritage Society',
+    contactPhone: '+919849067890',
+    posterUrl: 'https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?w=800',
+    entryType: 'free',
+    status: 'approved',
+  },
+  {
+    id: 'event_kurnool_expo',
+    title_en: 'Kurnool Handloom & Artisans Trade Expo',
+    title_te: 'కర్నూలు చేనేత & కుటీర పరిశ్రమల ప్రదర్శన',
+    dateStr: 'Upcoming Weekend',
+    timeStr: '10:00 AM - 09:00 PM',
+    venue: 'Municipal Corporation Grounds, Kurnool',
+    organizerName: 'Rayalaseema Crafts Forum',
+    contactPhone: '+919441122334',
+    posterUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800',
+    entryType: 'free',
+    status: 'approved',
+  },
+];
 
 // ─── FIRESTORE API METHODS ───────────────────────────────────────────────────
 
@@ -1013,23 +1083,26 @@ export const fetchBusinesses = async (
 ): Promise<BusinessItem[]> => {
   try {
     const coll = collection(db, 'businesses');
-    let q = query(coll, where('status', '==', 'published'), limit(60));
-    let targetCategory = categoryId;
-    if (categoryId && categoryId !== 'all') {
-      const mapped = LEGACY_BUSINESS_CATEGORY_MAP[categoryId];
-      if (mapped) targetCategory = mapped;
-      q = query(coll, where('status', '==', 'published'), where('categoryId', 'in', [categoryId, targetCategory]), limit(60));
-    }
+    const q = query(coll, where('status', 'in', ['active', 'published', 'approved']), limit(100));
     const snap = await getDocs(q);
-    if (snap.empty) {
-      return [];
+
+    let results: BusinessItem[] = [];
+    if (!snap.empty) {
+      results = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessItem));
+    } else {
+      results = [...SEED_BUSINESSES];
     }
 
-    let results = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessItem));
+    if (categoryId && categoryId !== 'all') {
+      const mapped = LEGACY_BUSINESS_CATEGORY_MAP[categoryId];
+      const matchCats = [categoryId, mapped].filter(Boolean);
+      results = results.filter(b => matchCats.includes(b.categoryId));
+    }
+
     if (searchQuery) {
       const queryLower = searchQuery.toLowerCase();
       results = results.filter(b =>
-        b.name_en.toLowerCase().includes(queryLower) ||
+        b.name_en?.toLowerCase().includes(queryLower) ||
         b.name_te?.includes(searchQuery) ||
         b.description_en?.toLowerCase().includes(queryLower) ||
         b.address?.toLowerCase().includes(queryLower)
@@ -1037,7 +1110,24 @@ export const fetchBusinesses = async (
     }
     return results;
   } catch {
-    return [];
+    return [...SEED_BUSINESSES];
+  }
+};
+
+export const fetchProfessionals = async (): Promise<ProfessionalItem[]> => {
+  try {
+    const coll = collection(db, 'professionals');
+    const q = query(coll, where('status', 'in', ['active', 'published', 'approved']), limit(100));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const liveItems = snap.docs.map(d => ({ id: d.id, ...d.data() } as ProfessionalItem));
+      const liveIds = new Set(liveItems.map(p => p.id));
+      const nonDuplicateSeeds = SEED_PROFESSIONALS.filter(s => !liveIds.has(s.id));
+      return [...liveItems, ...nonDuplicateSeeds];
+    }
+    return [...SEED_PROFESSIONALS];
+  } catch {
+    return [...SEED_PROFESSIONALS];
   }
 };
 
@@ -1051,18 +1141,6 @@ export const fetchBusinessById = async (id: string): Promise<BusinessItem | null
     return null;
   } catch {
     return null;
-  }
-};
-
-export const fetchProfessionals = async (): Promise<ProfessionalItem[]> => {
-  try {
-    const coll = collection(db, 'professionals');
-    const q = query(coll, where('status', '==', 'active'), limit(30));
-    const snap = await getDocs(q);
-    if (snap.empty) return [];
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as ProfessionalItem));
-  } catch {
-    return [];
   }
 };
 
@@ -1085,10 +1163,10 @@ export const fetchPlaces = async (): Promise<PlaceItem[]> => {
   try {
     const coll = collection(db, 'places');
     const snap = await getDocs(coll);
-    if (snap.empty) return SEED_PLACES;
+    if (snap.empty) return [];
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as PlaceItem));
   } catch {
-    return SEED_PLACES;
+    return [];
   }
 };
 
@@ -1096,15 +1174,14 @@ export const fetchWorshipPlaces = async (type?: string): Promise<PlaceItem[]> =>
   try {
     const coll = collection(db, 'places_of_worship');
     const snap = await getDocs(coll);
-    if (snap.empty) {
-      if (type && type !== 'all') {
-        return SEED_WORSHIP_PLACES.filter(p => p.type === type);
-      }
-      return SEED_WORSHIP_PLACES;
+    if (snap.empty) return [];
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as PlaceItem));
+    if (type && type !== 'all') {
+      return items.filter(p => p.type === type);
     }
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as PlaceItem));
+    return items;
   } catch {
-    return SEED_WORSHIP_PLACES;
+    return [];
   }
 };
 
@@ -1167,11 +1244,42 @@ export const fetchOffers = async (): Promise<OfferItem[]> => {
   try {
     const coll = collection(db, 'promotions');
     const snap = await getDocs(coll);
-    if (snap.empty) return [];
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as OfferItem));
+    if (!snap.empty) {
+      const now = Date.now();
+      return snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as OfferItem))
+        .filter((o: any) => {
+          if (o.expiresAt) {
+            const exp = new Date(o.expiresAt).getTime();
+            if (!isNaN(exp) && exp < now) return false;
+          }
+          return true;
+        });
+    }
+    return [];
   } catch {
     return [];
   }
+};
+
+export const fetchAllOffersAdmin = async (): Promise<OfferItem[]> => {
+  try {
+    const coll = collection(db, 'promotions');
+    const snap = await getDocs(coll);
+    if (!snap.empty) {
+      return snap.docs.map(d => ({ id: d.id, ...d.data() } as OfferItem));
+    }
+    return [];
+  } catch {
+    return [];
+  }
+};
+
+export const uploadMediaFile = async (file: File, folder = 'media'): Promise<string> => {
+  const filename = `${folder}_${Date.now()}_${Math.random().toString(36).substring(7)}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+  const storageRef = ref(storage, `${folder}/${filename}`);
+  const task = await uploadBytesResumable(storageRef, file);
+  return await getDownloadURL(task.ref);
 };
 
 export const uploadBusinessImage = async (file: File): Promise<string> => {
@@ -1361,6 +1469,26 @@ export const createBusinessOffer = async (
     status: 'active',
     createdAt: serverTimestamp(),
   });
+
+  // Automatically broadcast push alert for this new Hot Deal
+  try {
+    const notifColl = collection(db, 'broadcast_notifications');
+    const discount = data.discountText || 'Special Offer';
+    const store = data.businessName || 'Local Merchant';
+    const dealTitle = data.title_en || data.title_te || 'Exclusive Deal';
+    await addDoc(notifColl, {
+      title: `🔥 Hot Deal: ${discount} at ${store}`,
+      body: `${dealTitle} • Tap to view deal on Kurnool One!`,
+      category: 'deal',
+      targetAudience: 'all',
+      actionUrl: '/offers',
+      imageUrl: data.bannerUrl || (data.images && data.images[0]) || '',
+      createdAt: serverTimestamp(),
+    });
+  } catch (notifErr) {
+    console.warn('Failed to broadcast deal notification:', notifErr);
+  }
+
   return docRef.id;
 };
 
@@ -1501,98 +1629,96 @@ export interface PricingPlan {
 
 export const BUSINESS_PRICING_PLANS: PricingPlan[] = [
   {
-    id: 'biz_monthly',
-    name: 'Monthly Plan',
-    name_te: 'నెలవారీ ప్లాన్',
-    price: 199,
-    period: 'per month',
-    badge: 'Flexible',
+    id: 'biz_free',
+    name: 'Free Basic',
+    name_te: 'ఉచిత బేసిక్',
+    price: 0,
+    period: 'always free',
+    badge: 'Free Forever',
     features: [
-      'Full business listing in 50 Categories',
-      'Monday to Sunday operating hours',
-      'Direct Call & WhatsApp lead buttons',
-      'Google Maps directions embed',
-      'Basic search visibility',
+      'Basic listing in selected category',
+      'Address & basic contact details',
+      'Operating hours display',
+      'Standard civic search visibility',
     ],
   },
   {
-    id: 'biz_half_yearly',
-    name: '6 Months Plan',
-    name_te: '6 నెలల ప్లాన్',
-    price: 999,
+    id: 'biz_standard',
+    name: 'Standard Verified',
+    name_te: 'స్టాండర్డ్ వెరిఫైడ్',
+    price: 399,
     period: 'for 6 months',
     badge: 'Popular Choice',
+    recommended: true,
     features: [
-      'Everything in Monthly plan',
-      'Verified Merchant badge',
-      'Full Photo Gallery & Video embed',
-      'Offers & Festival Deals publishing',
-      'Lead and call click analytics',
+      'Official Verified Merchant checkmark',
+      'Direct Call & WhatsApp lead buttons',
+      'Google Maps directions link',
+      'Logo & storefront cover photo',
+      'Priority ranking above free listings',
     ],
   },
   {
-    id: 'biz_yearly',
-    name: 'Yearly Plan',
-    name_te: 'సంవత్సర ప్లాన్',
-    price: 2000,
-    period: 'per year',
-    badge: 'Best Value (Save ₹388)',
-    recommended: true,
+    id: 'biz_premium',
+    name: 'Premium Featured',
+    name_te: 'ప్రీమియం ఫీచర్డ్',
+    price: 999,
+    period: 'for 1 year',
+    badge: 'Best Value (1 Year)',
     features: [
-      'All features for full 12 Months',
-      'Top priority category ranking',
-      'Homepage Featured showcase',
-      'Social media boost on Kurnool One handles',
-      'Dedicated manager support',
+      'Top priority category ranking for 1 Full Year',
+      'Homepage Featured showcase placement',
+      'Hot Deals & Offers publishing privileges',
+      'Complete photo gallery & social media links',
+      'Verified Merchant trust badge',
     ],
   },
 ];
 
 export const PROFESSIONAL_PRICING_PLANS: PricingPlan[] = [
   {
-    id: 'pro_monthly',
-    name: 'Monthly Plan',
-    name_te: 'నెలవారీ ప్లాన్',
-    price: 99,
-    period: 'per month',
-    badge: 'Flexible',
+    id: 'pro_free',
+    name: 'Free Basic',
+    name_te: 'ఉచిత బేసిక్',
+    price: 0,
+    period: 'always free',
+    badge: 'Free Forever',
     features: [
-      'Profile in 30 Personal Categories',
-      'Direct Call & WhatsApp lead buttons',
-      'Visiting / consultation charge display',
+      'Personal profile in 1 skill category',
+      'Direct contact phone number',
       'Service area coverage listing',
-      'Direct client contact',
+      'Standard search visibility',
     ],
   },
   {
-    id: 'pro_half_yearly',
-    name: '6 Months Plan',
-    name_te: '6 నెలల ప్లాన్',
-    price: 500,
+    id: 'pro_standard',
+    name: 'Standard Verified',
+    name_te: 'స్టాండర్డ్ వెరిఫైడ్',
+    price: 199,
     period: 'for 6 months',
-    badge: 'Popular',
-    features: [
-      'Everything in Monthly plan',
-      'Official verified pro checkmark',
-      'Instagram & YouTube handle links',
-      'Priority ranking in professional search',
-      'Customer reviews and rating badge',
-    ],
-  },
-  {
-    id: 'pro_yearly',
-    name: 'Yearly Plan',
-    name_te: 'సంవత్సర ప్లాన్',
-    price: 900,
-    period: 'per year',
-    badge: 'Best Value (Save ₹288)',
+    badge: 'Most Popular',
     recommended: true,
     features: [
-      'Full 12 Months pro listing',
-      'Top placement in category search',
-      'Featured Spotlight on Kurnool One homepage',
-      'Social media showcase on Kurnool One channels',
-      'Direct verified lead inquiries',
+      'Official Verified Pro checkmark',
+      'Direct 1-tap Call & WhatsApp inquiry buttons',
+      'Visiting charges & experience display',
+      'Priority ranking above unverified profiles',
+      'Customer review ratings badge',
+    ],
+  },
+  {
+    id: 'pro_premium',
+    name: 'Elite Pro',
+    name_te: 'ఎలైట్ ప్రో',
+    price: 499,
+    period: 'for 1 year',
+    badge: 'Best Value (1 Year)',
+    features: [
+      'Top placement in category search for 12 Months',
+      'Direct 1-tap client inquiry calls',
+      'Full portfolio showcase',
+      'Homepage Featured Spotlight placement',
+      'Official Verified Pro badge',
     ],
   },
 ];
@@ -1621,8 +1747,12 @@ export const fetchEvents = async (category?: string): Promise<EventItem[]> => {
   try {
     const coll = collection(db, 'events');
     const snap = await getDocs(coll);
-    if (snap.empty) return [];
-    let list = snap.docs.map(d => ({ id: d.id, ...d.data() } as EventItem));
+    let list: EventItem[] = [];
+    if (!snap.empty) {
+      list = snap.docs.map(d => ({ id: d.id, ...d.data() } as EventItem));
+    } else {
+      list = [];
+    }
     if (category && category !== 'all') {
       list = list.filter(e => e.category === category);
     }
@@ -1689,6 +1819,47 @@ export const syncMasterCategoriesToFirestore = async (): Promise<{ count: number
   return { count };
 };
 
+export const syncAllSeedsToFirestore = async (): Promise<{ totalCount: number }> => {
+  let totalCount = 0;
+  try {
+    for (const cat of MASTER_CATEGORIES) {
+      await setDoc(doc(db, 'categories', cat.id), cat, { merge: true });
+      totalCount++;
+    }
+    for (const biz of SEED_BUSINESSES) {
+      await setDoc(doc(db, 'businesses', biz.id), { ...biz, status: 'published' }, { merge: true });
+      totalCount++;
+    }
+    for (const pro of SEED_PROFESSIONALS) {
+      await setDoc(doc(db, 'professionals', pro.id), { ...pro, status: 'active' }, { merge: true });
+      totalCount++;
+    }
+    for (const off of SEED_OFFERS) {
+      await setDoc(doc(db, 'promotions', off.id), { ...off, status: 'published' }, { merge: true });
+      totalCount++;
+    }
+    for (const plc of SEED_PLACES) {
+      await setDoc(doc(db, 'places', plc.id), plc, { merge: true });
+      totalCount++;
+    }
+    for (const wor of SEED_WORSHIP_PLACES) {
+      await setDoc(doc(db, 'places_of_worship', wor.id), wor, { merge: true });
+      totalCount++;
+    }
+    for (const ev of SEED_EVENTS) {
+      await setDoc(doc(db, 'events', ev.id), ev, { merge: true });
+      totalCount++;
+    }
+    for (const n of SEED_NEWS) {
+      await setDoc(doc(db, 'news', n.id), { ...n, status: 'approved' }, { merge: true });
+      totalCount++;
+    }
+  } catch (err) {
+    console.error('syncAllSeedsToFirestore error:', err);
+  }
+  return { totalCount };
+};
+
 export const saveCategoryToFirestore = async (category: Partial<CategoryItem> & { id: string }): Promise<void> => {
   try {
     await setDoc(doc(db, 'categories', category.id), category, { merge: true });
@@ -1724,6 +1895,11 @@ export interface MarketplaceItem {
   images?: string[];
   description: string;
   status: 'active' | 'sold' | 'suspended';
+  sourceType?: 'user' | 'business' | 'professional';
+  businessId?: string;
+  businessName?: string;
+  proId?: string;
+  proName?: string;
   createdAt?: any;
 }
 
@@ -1798,14 +1974,12 @@ export async function fetchMarketplaceItems(): Promise<MarketplaceItem[]> {
     const snap = await getDocs(q);
     if (!snap.empty) {
       const live = snap.docs.map(d => ({ id: d.id, ...d.data() } as MarketplaceItem));
-      const liveIds = new Set(live.map(l => l.id));
-      const seeds = SEED_MARKET_ITEMS.filter(s => !liveIds.has(s.id));
-      return [...live, ...seeds];
+      return live;
     }
   } catch (err) {
     console.warn('fetchMarketplaceItems non-fatal:', err);
   }
-  return SEED_MARKET_ITEMS;
+  return [];
 }
 
 export async function createMarketplaceItem(item: Omit<MarketplaceItem, 'id' | 'createdAt'>): Promise<string> {
@@ -1920,22 +2094,15 @@ export async function fetchBloodDonors(bloodGroup?: string): Promise<BloodDonorI
     }
     const snap = await getDocs(q);
     const liveItems = snap.docs.map(d => ({ id: d.id, ...d.data() } as BloodDonorItem));
-    if (liveItems.length > 0) {
-      const liveIds = new Set(liveItems.map(i => i.id));
-      const filteredSeeds = SEED_BLOOD_DONORS.filter(s => {
-        if (liveIds.has(s.id)) return false;
-        if (bloodGroup && bloodGroup !== 'all' && bloodGroup !== 'All') return s.bloodGroup === bloodGroup;
-        return true;
-      });
-      return [...liveItems, ...filteredSeeds];
-    }
+    return liveItems.sort((a, b) => {
+      const tA = (a.createdAt as any)?.seconds || (a.createdAt instanceof Date ? a.createdAt.getTime() / 1000 : 0);
+      const tB = (b.createdAt as any)?.seconds || (b.createdAt instanceof Date ? b.createdAt.getTime() / 1000 : 0);
+      return tB - tA;
+    });
   } catch (err) {
     console.warn('fetchBloodDonors error:', err);
   }
-  if (bloodGroup && bloodGroup !== 'all' && bloodGroup !== 'All') {
-    return SEED_BLOOD_DONORS.filter(s => s.bloodGroup === bloodGroup);
-  }
-  return SEED_BLOOD_DONORS;
+  return [];
 }
 
 export async function registerBloodDonor(donor: Omit<BloodDonorItem, 'id' | 'createdAt'>): Promise<string> {
@@ -2104,15 +2271,12 @@ export async function fetchNews(): Promise<NewsItem[]> {
     );
     const snap = await getDocs(q);
     if (!snap.empty) {
-      const live = snap.docs.map(d => ({ id: d.id, ...d.data() } as NewsItem));
-      const liveIds = new Set(live.map(l => l.id));
-      const seeds = SEED_NEWS.filter(s => !liveIds.has(s.id));
-      return [...live, ...seeds];
+      return snap.docs.map(d => ({ id: d.id, ...d.data() } as NewsItem));
     }
   } catch (err) {
-    console.warn('fetchNews non-fatal fallback:', err);
+    console.warn('fetchNews error:', err);
   }
-  return SEED_NEWS;
+  return [];
 }
 
 export async function submitNewsStory(newsData: Omit<NewsItem, 'id' | 'createdAt' | 'status'> & { status?: 'pending_approval' | 'published' }): Promise<string> {
@@ -2309,23 +2473,11 @@ export async function fetchHouseRentals(bhkFilter?: string): Promise<HouseRental
       q = query(coll, where('status', '==', 'available'), limit(50));
     }
     const snap = await getDocs(q);
-    const liveItems = snap.docs.map(d => ({ id: d.id, ...d.data() } as HouseRentalItem));
-    if (liveItems.length > 0) {
-      const liveIds = new Set(liveItems.map(i => i.id));
-      const filteredSeeds = SEED_HOUSE_RENTALS.filter(s => {
-        if (liveIds.has(s.id)) return false;
-        if (bhkFilter && bhkFilter !== 'all' && bhkFilter !== 'All') return s.bhk === bhkFilter;
-        return true;
-      });
-      return [...liveItems, ...filteredSeeds];
-    }
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as HouseRentalItem));
   } catch (err) {
-    console.warn('fetchHouseRentals fallback to seeds:', err);
+    console.warn('fetchHouseRentals error:', err);
+    return [];
   }
-  if (bhkFilter && bhkFilter !== 'all' && bhkFilter !== 'All') {
-    return SEED_HOUSE_RENTALS.filter(s => s.bhk === bhkFilter);
-  }
-  return SEED_HOUSE_RENTALS;
 }
 
 export async function createHouseRental(rental: Omit<HouseRentalItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
@@ -2422,5 +2574,73 @@ export const addBusinessReview = async (
     console.warn('Error updating business rating aggregate:', err);
   }
 };
+
+export interface ReportSubmission {
+  targetId: string;
+  targetTitle: string;
+  reportType: 'business' | 'professional' | 'deal' | 'news' | 'community_post' | 'marketplace';
+  reason: string;
+  details?: string;
+  reporterPhone?: string;
+  reporterUid?: string;
+}
+
+export const submitContentReport = async (report: ReportSubmission): Promise<boolean> => {
+  try {
+    const targetCollection =
+      report.reportType === 'business' ? 'businesses' :
+        report.reportType === 'professional' ? 'professionals' :
+          report.reportType === 'deal' ? 'promotions' :
+            report.reportType === 'news' ? 'news' :
+              report.reportType === 'marketplace' ? 'marketplace' :
+                report.reportType === 'community_post' ? 'posts' : 'businesses';
+
+    const coll = collection(db, 'reports');
+    await addDoc(coll, {
+      ...report,
+      targetCollection,
+      itemType: report.reportType,
+      title_en: report.targetTitle,
+      status: 'pending',
+      reportCount: 1,
+      createdAt: serverTimestamp(),
+    });
+    return true;
+  } catch (e) {
+    console.error('submitContentReport error:', e);
+    return false;
+  }
+};
+
+export interface SubscriptionLedgerItem {
+  id?: string;
+  transactionId: string;
+  orderId?: string;
+  userId: string;
+  userEmail?: string;
+  userPhone?: string;
+  entityId: string;
+  entityName: string;
+  entityType: 'business' | 'professional';
+  planId: string;
+  planName: string;
+  amount: number;
+  currency: string;
+  startDate: string;
+  expiresAt: string;
+  status: 'active' | 'expired' | 'cancelled';
+  createdAt?: any;
+}
+
+export async function recordSubscriptionPayment(sub: Omit<SubscriptionLedgerItem, 'id' | 'createdAt'>): Promise<string> {
+  const coll = collection(db, 'subscriptions');
+  const payload = sanitizeFirestoreData({
+    ...sub,
+    status: sub.status || 'active',
+    createdAt: serverTimestamp(),
+  });
+  const docRef = await addDoc(coll, payload);
+  return docRef.id;
+}
 
 

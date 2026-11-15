@@ -48,6 +48,7 @@ import {
   fetchEvents,
 } from '@/services/directoryService';
 import AppDownloadBanner from '@/components/AppDownloadBanner';
+import FeaturedBusinessTicker from '@/components/FeaturedBusinessTicker';
 
 export const revalidate = 60; // ISR cache for 60 seconds
 
@@ -85,17 +86,17 @@ export default async function HomePage() {
           {/* Civic Badge */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/20 text-blue-200 text-xs font-bold tracking-wide">
             <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>Kurnool City&apos;s Verified Digital Platform • కర్నూలు వన్</span>
+            <span>Kurnool City&apos;s Community Platform • కర్నూలు వన్</span>
           </div>
 
           {/* Heading */}
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight">
             Find Anything in Kurnool.{' '}
-            <span className="text-amber-400">Direct & Verified.</span>
+            <span className="text-amber-400">Direct & Trusted.</span>
           </h1>
 
           <p className="text-blue-100 text-sm sm:text-base max-w-2xl mx-auto font-normal leading-relaxed">
-            Search 50 commercial sectors, connect with 30+ verified doctors, technicians & creators, explore Rayalaseema heritage, and get exclusive city deals.
+            Search 50 commercial sectors, connect with 30+ certified doctors, technicians & specialists, explore local heritage, and get exclusive city deals.
           </p>
 
           {/* Practical Search Box */}
@@ -271,20 +272,22 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ─── 3. FEATURED VERIFIED BUSINESSES ──────────────────────────────── */}
+      {/* ─── 3. FEATURED BUSINESSES TICKER & SPOTLIGHT ──────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-8">
-        <div className="flex items-center justify-between mb-8">
+        <FeaturedBusinessTicker businesses={businesses} />
+
+        <div className="flex items-center justify-between mb-8 mt-4">
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                Verified Listings
+                Top Rated
               </span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
               Featured Businesses in Kurnool
             </h2>
             <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-              Locally verified stores with real operating hours and direct contact numbers.
+              Popular local stores with real operating hours and direct contact numbers.
             </p>
           </div>
 
@@ -336,7 +339,7 @@ export default async function HomePage() {
                 <div className="p-5 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600">
-                      {biz.categoryId.replace(/_/g, ' ')}
+                      {(biz.categoryId || 'General').replace(/_/g, ' ')}
                     </span>
                     <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1">
                       <Clock className="w-3 h-3" />
@@ -371,7 +374,7 @@ export default async function HomePage() {
 
                 {biz.whatsapp && (
                   <a
-                    href={`https://wa.me/91${biz.whatsapp.replace(/[^0-9]/g, '')}`}
+                    href={`https://wa.me/91${(biz.whatsapp || '').replace(/[^0-9]/g, '')}`}
                     target="_blank"
                     rel="noreferrer"
                     className="flex-1 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center gap-1.5 transition"
@@ -488,7 +491,7 @@ export default async function HomePage() {
                   </a>
                   {pro.whatsapp && (
                     <a
-                      href={`https://wa.me/91${pro.whatsapp.replace(/[^0-9]/g, '')}`}
+                      href={`https://wa.me/91${(pro.whatsapp || '').replace(/[^0-9]/g, '')}`}
                       target="_blank"
                       rel="noreferrer"
                       className="flex-1 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold text-center transition flex items-center justify-center gap-1"

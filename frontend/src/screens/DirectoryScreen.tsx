@@ -1,15 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
-  View, Text, SafeAreaView, FlatList, TouchableOpacity,
+  View, Text, FlatList, TouchableOpacity,
   TextInput, Image, ActivityIndicator, StatusBar, Linking, StyleSheet, Modal, ScrollView, RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
+import { SafeBannerAd } from '../components/SafeBannerAd';
+import { getAdUnitId } from '../config/ads';
 import {
   MASTER_CATEGORIES, PROFESSIONAL_CATEGORIES, fetchBusinesses, fetchProfessionals,
   BusinessItem, ProfessionalItem, CategoryItem,
 } from '../services/directoryService';
+
+const BANNER_AD_UNIT = getAdUnitId('BANNER_DIRECTORY');
 
 export default function DirectoryScreen({ route, navigation }: any) {
   const { initialCategory, initialTab } = route.params || {};
@@ -23,8 +28,27 @@ export default function DirectoryScreen({ route, navigation }: any) {
   );
   const [businesses, setBusinesses] = useState<BusinessItem[]>([]);
   const [professionals, setProfessionals] = useState<ProfessionalItem[]>([]);
+  const [totalBizCount, setTotalBizCount] = useState<number | null>(null);
+  const [totalProCount, setTotalProCount] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [showCategoryModal, setShowCategoryModal] = useState<boolean>(false);
+
+  // Preload counts on mount so tabs never display false 0
+  useEffect(() => {
+    Promise.all([
+      fetchBusinesses('all', '').catch(() => []),
+      fetchProfessionals('all', '').catch(() => []),
+    ]).then(([bList, pList]) => {
+      if (activeTab === 'businesses') {
+        setBusinesses(bList);
+      } else {
+        setProfessionals(pList);
+      }
+      setTotalBizCount(bList.length);
+      setTotalProCount(pList.length);
+      setLoading(false);
+    });
+  }, []);
 
   useEffect(() => {
     if (route.params?.initialTab === 'professionals') {
@@ -32,13 +56,11 @@ export default function DirectoryScreen({ route, navigation }: any) {
     } else if (route.params?.initialTab === 'businesses') {
       setActiveTab('businesses');
     }
-  }, [route.params?.initialTab]);
-
-  useEffect(() => {
     if (route.params?.initialCategory) {
       setSelectedCategory(route.params.initialCategory);
+      setSelectedSubcategory('all');
     }
-  }, [route.params?.initialCategory]);
+  }, [route.params?.initialTab, route.params?.initialCategory, route.params?.timestamp]);
 
   useEffect(() => {
     loadData();
@@ -119,9 +141,9 @@ export default function DirectoryScreen({ route, navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* Search Input */}
+      {/* Search Input with Integrated Category Filter Icon */}
       <View style={styles.searchBarContainer}>
-        <Ionicons name="search" size={20} color="#6B7280" />
+        <Ionicons name="search" size={18} color="#6B7280" />
         <TextInput
           style={styles.searchInput}
           placeholder={language === 'en' ? 'Search by name, category or service...' : 'పేరు, వర్గం లేదా సేవ ద్వారా వెతకండి...'}
@@ -130,10 +152,23 @@ export default function DirectoryScreen({ route, navigation }: any) {
           onChangeText={handleSearch}
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => handleSearch('')}>
+          <TouchableOpacity onPress={() => handleSearch('')} style={{ padding: 4 }}>
             <Ionicons name="close-circle" size={18} color="#9CA3AF" />
           </TouchableOpacity>
         )}
+        <TouchableOpacity
+          onPress={() => setShowCategoryModal(true)}
+          style={[
+            styles.filterIconBtn,
+            selectedCategory !== 'all' && styles.filterIconBtnActive,
+          ]}
+        >
+          <Ionicons
+            name={selectedCategory !== 'all' ? 'funnel' : 'funnel-outline'}
+            size={16}
+            color={selectedCategory !== 'all' ? '#FFFFFF' : '#2563EB'}
+          />
+        </TouchableOpacity>
       </View>
 
       {/* Mode Tabs: Businesses vs Skilled Professionals */}
@@ -144,11 +179,13 @@ export default function DirectoryScreen({ route, navigation }: any) {
         >
           <Ionicons
             name="business"
-            size={16}
+            size={15}
             color={activeTab === 'businesses' ? '#2563EB' : '#6B7280'}
           />
           <Text style={[styles.typeTabText, activeTab === 'businesses' && styles.typeTabTextActive]}>
-            {language === 'en' ? 'Shops & Businesses' : 'దుకాణాలు & వ్యాపారాలు'}
+            {language === 'en'
+              ? `Shops & Businesses (${selectedCategory === 'all' && !searchQuery ? (totalBizCount ?? businesses.length) : businesses.length})`
+              : `వ్యాపారాలు (${selectedCategory === 'all' && !searchQuery ? (totalBizCount ?? businesses.length) : businesses.length})`}
           </Text>
         </TouchableOpacity>
 
@@ -158,49 +195,15 @@ export default function DirectoryScreen({ route, navigation }: any) {
         >
           <Ionicons
             name="hammer"
-            size={16}
+            size={15}
             color={activeTab === 'professionals' ? '#2563EB' : '#6B7280'}
           />
           <Text style={[styles.typeTabText, activeTab === 'professionals' && styles.typeTabTextActive]}>
-            {language === 'en' ? 'Skilled Pros / Near You' : 'నైపుణ్య నిపుణులు'}
+            {language === 'en'
+              ? `Skilled Pros (${selectedCategory === 'all' && !searchQuery ? (totalProCount ?? professionals.length) : professionals.length})`
+              : `నైపుణ్య నిపుణులు (${selectedCategory === 'all' && !searchQuery ? (totalProCount ?? professionals.length) : professionals.length})`}
           </Text>
         </TouchableOpacity>
-      </View>
-
-      {/* Category Dropdown and Filter Bar */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 10, marginBottom: 4 }}>
-        <TouchableOpacity
-          onPress={() => setShowCategoryModal(true)}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: '#EFF6FF',
-            paddingHorizontal: 12,
-            paddingVertical: 7,
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: '#BFDBFE',
-            gap: 6,
-          }}
-        >
-          <Ionicons name="grid-outline" size={14} color="#2563EB" />
-          <Text style={{ fontSize: 12, fontWeight: '700', color: '#1D4ED8' }}>
-            {selectedCategory === 'all'
-              ? (activeTab === 'professionals' ? 'All Professions ▼' : 'All Categories ▼')
-              : ((activeTab === 'professionals'
-                  ? PROFESSIONAL_CATEGORIES.find(c => c.id === selectedCategory)
-                  : MASTER_CATEGORIES.find(c => c.id === selectedCategory))?.name_en || 'Category') + ' ▼'}
-          </Text>
-        </TouchableOpacity>
-
-        {selectedCategory !== 'all' && (
-          <TouchableOpacity
-            onPress={() => setSelectedCategory('all')}
-            style={{ paddingHorizontal: 8, paddingVertical: 4 }}
-          >
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#EF4444' }}>Clear Filter ✕</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
       {/* Category Horizontal Filter (Businesses & Professionals) */}
@@ -211,10 +214,10 @@ export default function DirectoryScreen({ route, navigation }: any) {
           data={
             activeTab === 'professionals'
               ? [{ id: 'all', name_en: 'All Pros', name_te: 'అందరూ' }, ...PROFESSIONAL_CATEGORIES]
-              : [{ id: 'all', name_en: 'All', name_te: 'అన్నీ' }, ...MASTER_CATEGORIES]
+              : [{ id: 'all', name_en: 'All Shops', name_te: 'అన్నీ' }, ...MASTER_CATEGORIES]
           }
           keyExtractor={item => item.id}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, gap: 8 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 6, gap: 6 }}
           renderItem={({ item }) => {
             const isSelected = selectedCategory === item.id;
             const catColor = (item as any).color || '#2563EB';
@@ -250,9 +253,7 @@ export default function DirectoryScreen({ route, navigation }: any) {
                 <Text
                   style={[
                     styles.categoryChipText,
-                    isSelected
-                      ? { color: '#FFFFFF', fontWeight: '800' }
-                      : { color: catColor, fontWeight: '700' }
+                    isSelected ? styles.categoryChipTextActive : { color: isSelected ? '#FFFFFF' : catColor },
                   ]}
                 >
                   {language === 'en' ? item.name_en : item.name_te}
@@ -343,7 +344,7 @@ export default function DirectoryScreen({ route, navigation }: any) {
                   </View>
 
                   {/* Location Landmark */}
-                  <Text style={styles.compactBizAddress} numberOfLines={1}>
+                  <Text style={styles.compactBizAddress} numberOfLines={2}>
                     <Ionicons name="location-outline" size={11} color="#64748B" /> {item.landmark ? `${item.landmark}, ` : ''}{item.address}
                   </Text>
 
@@ -464,7 +465,7 @@ export default function DirectoryScreen({ route, navigation }: any) {
                   </View>
 
                   {/* Experience & Charges */}
-                  <Text style={styles.compactBizAddress} numberOfLines={1}>
+                  <Text style={styles.compactBizAddress} numberOfLines={2}>
                     <Ionicons name="time-outline" size={11} color="#64748B" /> {item.experienceYears} Yrs Exp • {item.visitingCharges ? `Visit: ${item.visitingCharges}` : 'Kurnool'}
                   </Text>
 
@@ -512,6 +513,11 @@ export default function DirectoryScreen({ route, navigation }: any) {
         }
       />
     )}
+
+      {/* Directory Bottom Banner Ad */}
+      <View style={{ alignItems: 'center', backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingVertical: 4 }}>
+        <SafeBannerAd unitId={BANNER_AD_UNIT} />
+      </View>
 
       {/* Category Dropdown Selection Modal */}
       <Modal
@@ -627,53 +633,67 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#FFFFFF',
     borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
   },
-  headerTitle: { fontSize: 22, fontWeight: '900', color: '#1D4ED8', letterSpacing: -0.5 },
+  headerTitle: { fontSize: 21, fontWeight: '900', color: '#1D4ED8', letterSpacing: -0.5 },
   headerSub: { fontSize: 11, color: '#6B7280', fontWeight: '500', marginTop: 2 },
   addBizBtn: {
     backgroundColor: '#2563EB', flexDirection: 'row', alignItems: 'center',
-    gap: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
+    gap: 4, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 18,
   },
   addBizText: { color: '#FFFFFF', fontWeight: '700', fontSize: 12 },
   searchBarContainer: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF',
-    marginHorizontal: 16, marginTop: 10, paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 14, borderWidth: 1, borderColor: '#E5E7EB',
+    marginHorizontal: 16, marginTop: 8, paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB',
   },
-  searchInput: { flex: 1, marginLeft: 8, fontSize: 14, color: '#111827' },
+  searchInput: { flex: 1, marginLeft: 8, fontSize: 13.5, color: '#111827' },
+  filterIconBtn: {
+    backgroundColor: '#EFF6FF',
+    padding: 6.5,
+    borderRadius: 8,
+    marginLeft: 6,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterIconBtnActive: {
+    backgroundColor: '#2563EB',
+    borderColor: '#2563EB',
+  },
   typeTabsContainer: {
-    flexDirection: 'row', marginHorizontal: 16, marginTop: 10,
-    backgroundColor: '#E5E7EB', borderRadius: 12, padding: 3,
+    flexDirection: 'row', marginHorizontal: 16, marginTop: 7,
+    backgroundColor: '#E5E7EB', borderRadius: 10, padding: 2.5,
   },
   typeTab: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: 8, borderRadius: 10,
+    gap: 6, paddingVertical: 6, borderRadius: 8,
   },
   typeTabActive: { backgroundColor: '#FFFFFF' },
-  typeTabText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
+  typeTabText: { fontSize: 12.5, fontWeight: '600', color: '#6B7280' },
   typeTabTextActive: { color: '#2563EB', fontWeight: '800' },
   categoryScrollWrap: { marginTop: 4, backgroundColor: '#FFFFFF' },
   categoryChip: {
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 5.5, borderRadius: 16,
     backgroundColor: '#F3F4F6',
   },
   categoryChipActive: { backgroundColor: '#2563EB' },
-  categoryChipText: { fontSize: 12, fontWeight: '700', color: '#4B5563' },
+  categoryChipText: { fontSize: 11.5, fontWeight: '700', color: '#4B5563' },
   categoryChipTextActive: { color: '#FFFFFF' },
   compactBizCard: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 10,
-    marginBottom: 10,
+    borderRadius: 18,
+    padding: 12,
+    marginBottom: 12,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   cardBasic: {
     borderWidth: 1,
@@ -681,18 +701,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   cardVerified: {
-    borderWidth: 1.3,
-    borderColor: '#93C5FD',
+    borderWidth: 1.5,
+    borderColor: '#60A5FA',
     backgroundColor: '#F8FAFC',
   },
   cardFeatured: {
-    borderWidth: 1.8,
+    borderWidth: 2,
     borderColor: '#F59E0B',
     backgroundColor: '#FFFDF5',
   },
   compactBizLeft: {
-    width: 95,
-    height: 95,
+    width: 110,
+    height: 110,
     borderRadius: 14,
     overflow: 'hidden',
     position: 'relative',
@@ -700,68 +720,68 @@ const styles = StyleSheet.create({
   },
   compactBizImg: { width: '100%', height: '100%' },
   compactBizFallback: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },
-  proInitialText: { fontSize: 32, fontWeight: '900' },
+  proInitialText: { fontSize: 36, fontWeight: '900' },
   featuredBadgePill: {
     position: 'absolute',
-    top: 4,
-    left: 4,
+    top: 5,
+    left: 5,
     backgroundColor: '#FEF3C7',
     borderRadius: 6,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderWidth: 0.5,
-    borderColor: '#FDE68A',
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
+    borderWidth: 1,
+    borderColor: '#F59E0B',
   },
-  featuredBadgePillText: { fontSize: 8.5, fontWeight: '900', color: '#92400E', letterSpacing: 0.3 },
+  featuredBadgePillText: { fontSize: 9, fontWeight: '900', color: '#92400E', letterSpacing: 0.4 },
   verifiedBadgePill: {
     position: 'absolute',
-    top: 4,
-    left: 4,
+    top: 5,
+    left: 5,
     backgroundColor: '#EFF6FF',
     borderRadius: 6,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderWidth: 0.5,
-    borderColor: '#BFDBFE',
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
+    borderWidth: 1,
+    borderColor: '#60A5FA',
   },
-  verifiedBadgePillText: { fontSize: 8.5, fontWeight: '900', color: '#1D4ED8', letterSpacing: 0.3 },
-  compactBizRight: { flex: 1, marginLeft: 12, justifyContent: 'center' },
-  compactBizTitle: { fontSize: 15, fontWeight: '800', color: '#0F172A', flex: 1 },
+  verifiedBadgePillText: { fontSize: 9, fontWeight: '900', color: '#1D4ED8', letterSpacing: 0.4 },
+  compactBizRight: { flex: 1, minWidth: 0, marginLeft: 12, justifyContent: 'center' },
+  compactBizTitle: { fontSize: 15, fontWeight: '800', color: '#0F172A', flexShrink: 1 },
   compactCatPill: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
     borderRadius: 6,
     borderWidth: 1,
-    maxWidth: 140,
+    flexShrink: 1,
   },
-  compactCatText: { fontSize: 10, fontWeight: '700' },
-  compactRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  compactRatingScore: { fontSize: 11, fontWeight: '800', color: '#92400E' },
-  compactBizAddress: { fontSize: 11.5, color: '#64748B', marginTop: 3 },
-  compactActionRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 8 },
+  compactCatText: { fontSize: 10.5, fontWeight: '700' },
+  compactRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 3, flexShrink: 0 },
+  compactRatingScore: { fontSize: 11.5, fontWeight: '800', color: '#92400E' },
+  compactBizAddress: { fontSize: 12, color: '#64748B', marginTop: 4, lineHeight: 16 },
+  compactActionRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 9 },
   compactCallBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: '#2563EB',
-    paddingHorizontal: 10,
-    paddingVertical: 5.5,
+    paddingHorizontal: 12,
+    paddingVertical: 6.5,
     borderRadius: 8,
   },
-  compactCallBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 11 },
+  compactCallBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 11.5 },
   compactWaBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: '#16A34A',
-    paddingHorizontal: 10,
-    paddingVertical: 5.5,
+    paddingHorizontal: 12,
+    paddingVertical: 6.5,
     borderRadius: 8,
   },
-  compactWaBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 11 },
+  compactWaBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 11.5 },
   compactViewBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 5.5,
+    paddingHorizontal: 9,
+    paddingVertical: 6.5,
     borderRadius: 8,
     backgroundColor: '#F1F5F9',
     marginLeft: 'auto',
@@ -828,10 +848,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 6,
     borderRadius: 8, marginTop: 10,
   },
-  serviceAreasText: { fontSize: 11, color: '#1E40AF', fontWeight: '600' },
+  serviceAreasText: { fontSize: 11, color: '#1E40AF', fontWeight: '600', flex: 1 },
   proActionsRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginTop: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 10,
+    flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between',
+    gap: 8, marginTop: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 10,
   },
   proChargeText: { fontSize: 12, color: '#6B7280' },
   emptyWrap: { alignItems: 'center', justifyContent: 'center', marginTop: 60, opacity: 0.5 },

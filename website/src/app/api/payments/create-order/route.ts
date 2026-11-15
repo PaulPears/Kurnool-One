@@ -38,13 +38,21 @@ export async function POST(req: NextRequest) {
     }
 
     const plan = PLAN_PRICES[planId];
-    const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_Tj21FRIRtpaQcO';
-    const keySecret = process.env.RAZORPAY_KEY_SECRET || 'Pdnh16bOuzcNxdufHJjE6NcD';
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!keyId || !keySecret) {
+      console.error('Razorpay API keys missing in environment variables');
+      return NextResponse.json(
+        { success: false, error: 'Payment gateway configuration error. Please contact support.' },
+        { status: 500 }
+      );
+    }
 
     let orderId = '';
 
-    // If live/test credentials exist, call Razorpay API
-    if (keyId && keySecret && !keyId.includes('kurnool_one')) {
+    // Call Razorpay API
+    if (keyId && keySecret) {
       const razorpay = new Razorpay({
         key_id: keyId,
         key_secret: keySecret,

@@ -12,16 +12,12 @@ import {
   AlertCircle,
   CheckCircle2,
   Compass,
-  Phone,
   ShieldCheck,
-  User,
-  HeartPulse,
-  Home,
-  Newspaper,
-  Tag,
+  Mail,
+  Lock,
+  User as UserIcon,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { sanitizePhone } from '@/services/directoryService';
 
 function GoogleIcon() {
   return (
@@ -58,15 +54,15 @@ function LoginFormContent() {
     hasBloodDonor,
     isAdmin,
     loginWithGoogle,
-    loginWithPhone,
+    loginWithEmail,
+    signupWithEmail,
     logout,
   } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'google' | 'phone'>('google');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [phoneName, setPhoneName] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -78,37 +74,47 @@ function LoginFormContent() {
       router.push(returnUrl);
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Google Sign-In failed. Please try again.');
+      if (err.code === 'auth/popup-blocked') {
+        setErrorMsg('Google sign-in popup was blocked by your browser. Please allow popups or use Email & Password below.');
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setErrorMsg('Domain authorization in progress. Please use Email & Password sign-in below to log in instantly.');
+      } else {
+        setErrorMsg(err.message || 'Google Sign-In failed. Please try again or use Email & Password below.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSendPhoneOtp = (e: React.FormEvent) => {
+  const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
-    const cleaned = sanitizePhone(phoneNumber);
-    if (!cleaned || cleaned.replace(/\D/g, '').length < 10) {
-      setErrorMsg('Please enter a valid 10-digit mobile number.');
+    if (!email.trim() || !password.trim()) {
+      setErrorMsg('Please enter both email and password.');
       return;
     }
-    setOtpSent(true);
-  };
+    if (password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters long.');
+      return;
+    }
 
-  const handleVerifyPhoneOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg('');
-    if (!otpCode.trim() || otpCode.trim().length !== 6) {
-      setErrorMsg('Please enter the 6-digit OTP code.');
-      return;
-    }
     setLoading(true);
     try {
-      const cleaned = sanitizePhone(phoneNumber);
-      await loginWithPhone(cleaned, 'user', phoneName.trim() || 'Kurnool Resident');
+      if (authMode === 'signin') {
+        await loginWithEmail(email, password);
+      } else {
+        await signupWithEmail(email, password, displayName.trim() || 'Kurnool Resident');
+      }
       router.push(returnUrl);
     } catch (err: any) {
-      setErrorMsg(err.message || 'OTP verification failed.');
+      console.error(err);
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setErrorMsg('Invalid email or password. If you are new, click "Create Account" below.');
+      } else if (err.code === 'auth/email-already-in-use') {
+        setErrorMsg('An account already exists with this email. Please switch to "Sign In".');
+      } else {
+        setErrorMsg(err.message || 'Authentication failed. Please check your credentials.');
+      }
     } finally {
       setLoading(false);
     }
@@ -135,7 +141,7 @@ function LoginFormContent() {
           </span>
           {hasBusiness && (
             <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200">
-              🏪 Verified Business Owner
+              🏪 Business Owner
             </span>
           )}
           {hasProfessional && (
@@ -220,34 +226,8 @@ function LoginFormContent() {
             Sign in to Kurnool One
           </h1>
           <p className="text-slate-600 text-xs sm:text-sm">
-            One single account for citizens, shop owners, doctors, and specialists. All your services and dashboards in one place.
+            Access citizen services, manage your registered business, or update your professional profile.
           </p>
-        </div>
-
-        {/* Method Toggle: Google vs Mobile Phone */}
-        <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
-          <button
-            type="button"
-            onClick={() => { setActiveTab('google'); setErrorMsg(''); }}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-              activeTab === 'google'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Google (1-Tap)
-          </button>
-          <button
-            type="button"
-            onClick={() => { setActiveTab('phone'); setErrorMsg(''); }}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-              activeTab === 'phone'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Mobile Number (OTP)
-          </button>
         </div>
 
         {/* Error Alert */}
@@ -258,97 +238,119 @@ function LoginFormContent() {
           </div>
         )}
 
-        {/* Google 1-Tap Tab */}
-        {activeTab === 'google' && (
-          <div className="space-y-4">
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={loading}
-              className="w-full py-4 px-4 bg-white hover:bg-slate-50 border-2 border-slate-300 hover:border-slate-400 text-slate-800 font-bold text-sm rounded-2xl shadow-sm transition flex items-center justify-center gap-3 cursor-pointer disabled:opacity-60 active:scale-98"
-            >
-              <GoogleIcon />
-              <span>{loading ? 'Connecting with Google...' : 'Continue with Google'}</span>
-            </button>
+        {/* Primary 1-Click Google Sign-In */}
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+            className="w-full py-3.5 px-4 bg-white hover:bg-slate-50 border-2 border-slate-300 hover:border-slate-400 text-slate-800 font-bold text-sm rounded-2xl shadow-sm transition flex items-center justify-center gap-3 cursor-pointer disabled:opacity-60 active:scale-98"
+          >
+            <GoogleIcon />
+            <span>{loading ? 'Connecting...' : 'Continue with Google'}</span>
+          </button>
 
-            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-[11px] text-slate-500 leading-relaxed text-center">
-              Works seamlessly with your Google Account across phone and web. Automatically links your registered businesses and specialist profiles.
+          <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-slate-200"></div>
+            <span className="flex-shrink mx-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              Or Sign In with Email
+            </span>
+            <div className="flex-grow border-t border-slate-200"></div>
+          </div>
+        </div>
+
+        {/* Email & Password Authentication Form */}
+        <form onSubmit={handleEmailAuth} className="space-y-4">
+          {authMode === 'signup' && (
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Your Full Name</label>
+              <div className="relative">
+                <UserIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="e.g. Ramesh Kumar"
+                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium text-slate-900 outline-none focus:border-blue-600"
+                />
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
+            <div className="relative">
+              <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@example.com"
+                className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium text-slate-900 outline-none focus:border-blue-600"
+              />
             </div>
           </div>
-        )}
 
-        {/* Phone OTP Tab */}
-        {activeTab === 'phone' && (
-          <div className="space-y-4">
-            {!otpSent ? (
-              <form onSubmit={handleSendPhoneOtp} className="space-y-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Your Name</label>
-                  <input
-                    type="text"
-                    value={phoneName}
-                    onChange={(e) => setPhoneName(e.target.value)}
-                    placeholder="Enter your name"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium text-slate-900 outline-none focus:border-blue-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">10-Digit Mobile Number</label>
-                  <div className="flex">
-                    <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-slate-300 bg-slate-50 text-slate-600 text-xs font-bold">
-                      +91
-                    </span>
-                    <input
-                      type="tel"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      placeholder="98480 12345"
-                      maxLength={10}
-                      className="w-full px-3.5 py-2.5 rounded-r-xl border border-slate-300 text-xs font-medium text-slate-900 outline-none focus:border-blue-600"
-                    />
-                  </div>
-                </div>
-                <button
-                  type="submit"
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md transition cursor-pointer"
-                >
-                  Send OTP Code
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyPhoneOtp} className="space-y-3">
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900">
-                  OTP sent to <strong>+91 {phoneNumber}</strong>.
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Enter 6-Digit OTP</label>
-                  <input
-                    type="text"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
-                    placeholder="123456"
-                    maxLength={6}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-center tracking-widest text-lg font-black text-slate-900 outline-none focus:border-blue-600"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition cursor-pointer disabled:opacity-60"
-                >
-                  {loading ? 'Verifying OTP...' : 'Verify OTP & Sign In'}
-                </button>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Password</label>
+            <div className="relative">
+              <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-medium text-slate-900 outline-none focus:border-blue-600"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md transition cursor-pointer disabled:opacity-60"
+          >
+            {loading
+              ? 'Processing...'
+              : authMode === 'signin'
+              ? 'Sign In with Email'
+              : 'Create New Account'}
+          </button>
+
+          <div className="text-center pt-1">
+            {authMode === 'signin' ? (
+              <p className="text-xs text-slate-600">
+                Don&apos;t have an account?{' '}
                 <button
                   type="button"
-                  onClick={() => setOtpSent(false)}
-                  className="w-full text-center text-xs text-slate-500 hover:underline pt-1"
+                  onClick={() => {
+                    setAuthMode('signup');
+                    setErrorMsg('');
+                  }}
+                  className="font-bold text-blue-600 hover:underline cursor-pointer"
                 >
-                  Change mobile number
+                  Create one now
                 </button>
-              </form>
+              </p>
+            ) : (
+              <p className="text-xs text-slate-600">
+                Already registered?{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('signin');
+                    setErrorMsg('');
+                  }}
+                  className="font-bold text-blue-600 hover:underline cursor-pointer"
+                >
+                  Sign In instead
+                </button>
+              </p>
             )}
           </div>
-        )}
+        </form>
 
         {/* Guest Exploration Option */}
         <div className="pt-2 border-t border-slate-100 text-center">

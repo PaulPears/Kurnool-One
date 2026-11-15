@@ -1,29 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, SafeAreaView, FlatList, TouchableOpacity,
-  Image, Linking, ActivityIndicator, StatusBar, Share, StyleSheet, Modal, ScrollView,
+  View, Text, FlatList, TouchableOpacity,
+  Image, Linking, ActivityIndicator, StatusBar, Share, StyleSheet, Modal, ScrollView, Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
+import { SafeNativeAd } from '../components/SafeNativeAd';
 import {
   fetchPlaces,
   fetchWorshipPlaces,
   fetchEvents,
   PlaceItem,
   EventItem,
-  SEED_PLACES,
-  SEED_WORSHIP_PLACES,
-  SEED_EVENTS,
 } from '../services/directoryService';
 
 export default function ExploreScreen({ navigation }: any) {
   const { language } = useLanguage();
   const [activeTab, setActiveTab] = useState<'tourist' | 'worship' | 'events'>('tourist');
   const [worshipFilter, setWorshipFilter] = useState<'all' | 'temple' | 'masjid' | 'church'>('all');
-  const [places, setPlaces] = useState<PlaceItem[]>(SEED_PLACES);
-  const [events, setEvents] = useState<EventItem[]>(SEED_EVENTS);
+  const [places, setPlaces] = useState<PlaceItem[]>([]);
+  const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedPlace, setSelectedPlace] = useState<PlaceItem | null>(null);
+  const [selectedPhotoIdx, setSelectedPhotoIdx] = useState<number>(0);
+  const [fullScreenPhoto, setFullScreenPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     loadPlaces();
@@ -33,20 +34,20 @@ export default function ExploreScreen({ navigation }: any) {
     setLoading(true);
     try {
       if (activeTab === 'tourist') {
-        const data = await fetchPlaces().catch(() => SEED_PLACES);
-        setPlaces(data && data.length > 0 ? data : SEED_PLACES);
+        const data = await fetchPlaces();
+        setPlaces(data || []);
       } else if (activeTab === 'worship') {
-        const data = await fetchWorshipPlaces().catch(() => SEED_WORSHIP_PLACES);
-        setPlaces(data && data.length > 0 ? data : SEED_WORSHIP_PLACES);
+        const data = await fetchWorshipPlaces();
+        setPlaces(data || []);
       } else {
-        const data = await fetchEvents().catch(() => SEED_EVENTS);
-        setEvents(data && data.length > 0 ? data : SEED_EVENTS);
+        const data = await fetchEvents();
+        setEvents(data || []);
       }
     } catch (e) {
-      console.warn('Explore load error, using fallbacks:', e);
-      if (activeTab === 'tourist') setPlaces(SEED_PLACES);
-      else if (activeTab === 'worship') setPlaces(SEED_WORSHIP_PLACES);
-      else setEvents(SEED_EVENTS);
+      console.warn('Explore load error:', e);
+      if (activeTab === 'tourist') setPlaces([]);
+      else if (activeTab === 'worship') setPlaces([]);
+      else setEvents([]);
     } finally {
       setLoading(false);
     }
@@ -323,10 +324,41 @@ export default function ExploreScreen({ navigation }: any) {
               contentContainerStyle={{ padding: 16, paddingBottom: 110 }}
               showsVerticalScrollIndicator={false}
             >
-              {/* Photo */}
+              {/* Photo Gallery Carousel */}
               {selectedPlace.photos && selectedPlace.photos.length > 0 ? (
                 <View style={styles.modalPhotoWrap}>
-                  <Image source={{ uri: selectedPlace.photos[0] }} style={styles.modalPhoto} resizeMode="cover" />
+                  <ScrollView
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    onMomentumScrollEnd={(e) => {
+                      const w = e.nativeEvent.layoutMeasurement.width;
+                      const idx = Math.round(e.nativeEvent.contentOffset.x / w);
+                      setSelectedPhotoIdx(idx);
+                    }}
+                  >
+                    {selectedPlace.photos.map((pUrl, pIdx) => (
+                      <TouchableOpacity
+                        key={pIdx}
+                        activeOpacity={0.9}
+                        onPress={() => setFullScreenPhoto(pUrl)}
+                      >
+                        <Image
+                          source={{ uri: pUrl }}
+                          style={[styles.modalPhoto, { width: Dimensions.get('window').width - 32 }]}
+                          resizeMode="cover"
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                  {selectedPlace.photos.length > 1 && (
+                    <View style={styles.galleryCounterBadge}>
+                      <Ionicons name="images" size={12} color="#FFFFFF" />
+                      <Text style={styles.galleryCounterText}>
+                        {selectedPhotoIdx + 1} / {selectedPlace.photos.length}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               ) : null}
 
@@ -375,17 +407,8 @@ export default function ExploreScreen({ navigation }: any) {
               </View>
 
               {/* Native Advanced Ad Container */}
-              <View style={styles.nativeAdBox}>
-                <View style={styles.nativeAdPill}>
-                  <Text style={styles.nativeAdPillText}>SPONSORED</Text>
-                </View>
-                <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', marginTop: 8 }}>
-                  <Ionicons name="car" size={24} color="#2563EB" />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.nativeAdTitle}>Kurnool City Cabs & Pilgrimage Tours</Text>
-                    <Text style={styles.nativeAdDesc}>Safe, verified AC cabs for Yaganti, Mahanandi, Ahobilam & Srisailam.</Text>
-                  </View>
-                </View>
+              <View style={{ marginTop: 16 }}>
+                <SafeNativeAd />
               </View>
             </ScrollView>
 
@@ -409,6 +432,30 @@ export default function ExploreScreen({ navigation }: any) {
             </View>
           </SafeAreaView>
         )}
+      </Modal>
+
+      {/* Full Screen Image Modal */}
+      <Modal
+        visible={!!fullScreenPhoto}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setFullScreenPhoto(null)}
+      >
+        <SafeAreaView style={styles.fullScreenOverlay}>
+          <TouchableOpacity
+            style={styles.fullScreenCloseBtn}
+            onPress={() => setFullScreenPhoto(null)}
+          >
+            <Ionicons name="close-circle" size={36} color="#FFFFFF" />
+          </TouchableOpacity>
+          {fullScreenPhoto && (
+            <Image
+              source={{ uri: fullScreenPhoto }}
+              style={styles.fullScreenImg}
+              resizeMode="contain"
+            />
+          )}
+        </SafeAreaView>
       </Modal>
     </SafeAreaView>
   );
@@ -764,5 +811,39 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
+  },
+  galleryCounterBadge: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  galleryCounterText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  fullScreenOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenCloseBtn: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 10,
+    padding: 8,
+  },
+  fullScreenImg: {
+    width: '100%',
+    height: '80%',
   },
 });

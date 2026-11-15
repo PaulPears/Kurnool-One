@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
   Image, Linking, ActivityIndicator, StatusBar, StyleSheet, Modal, Share,
-  TextInput, Alert, RefreshControl, ScrollView,
+  TextInput, Alert, RefreshControl, ScrollView, BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
 import { useLanguage } from '../context/LanguageContext';
 import { pickImageWithFreeStyleCrop } from '../utils/imageUploadHelper';
+import { playRewardedAdForPhotoUnlock } from '../services/adService';
 import {
   fetchHouseRentals,
   createHouseRental,
@@ -32,6 +33,23 @@ export default function HouseRentScreen({ navigation }: any) {
   const [selectedRental, setSelectedRental] = useState<HouseRentalItem | null>(null);
   const [activeSwipeIdx, setActiveSwipeIdx] = useState(0);
 
+  useEffect(() => {
+    const backAction = () => {
+      if (selectedRental) {
+        setSelectedRental(null);
+        return true;
+      }
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.replace('Main');
+      }
+      return true;
+    };
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, [selectedRental]);
+
   // Full-screen Image Viewer
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerImages, setViewerImages] = useState<string[]>([]);
@@ -49,8 +67,8 @@ export default function HouseRentScreen({ navigation }: any) {
   const [furnishing, setFurnishing] = useState<'Unfurnished' | 'Semi-Furnished' | 'Fully Furnished'>('Semi-Furnished');
   const [area, setArea] = useState('');
   const [addressDetails, setAddressDetails] = useState('');
-  const [waterFacility, setWaterFacility] = useState('24/7 Borewell + Municipal Tap');
-  const [parking, setParking] = useState('Bike & Car Parking');
+  const [waterFacility, setWaterFacility] = useState('');
+  const [parking, setParking] = useState('');
   const [phone, setPhone] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [description, setDescription] = useState('');
@@ -133,7 +151,12 @@ export default function HouseRentScreen({ navigation }: any) {
           : `1వ ఫోటో ఉచితం. ఫోటో #${images.length + 1} అన్‌లాక్ చేయడానికి వీడియో ప్రకటన చూడాలా?`,
         [
           { text: language === 'en' ? 'Cancel' : 'వద్దు', style: 'cancel' },
-          { text: language === 'en' ? 'Watch Ad & Unlock' : 'ప్రకటన చూసి అన్‌లాక్ చేయండి', onPress: pickAndAdd },
+          {
+            text: language === 'en' ? 'Watch Ad & Unlock' : 'ప్రకటన చూసి అన్‌లాక్ చేయండి',
+            onPress: () => {
+              playRewardedAdForPhotoUnlock(pickAndAdd);
+            },
+          },
         ]
       );
     } else {
@@ -231,6 +254,10 @@ export default function HouseRentScreen({ navigation }: any) {
       setDeposit('');
       setArea('');
       setAddressDetails('');
+      setWaterFacility('');
+      setParking('');
+      setPhone('');
+      setWhatsapp('');
       setDescription('');
       setImages([]);
       loadRentals();

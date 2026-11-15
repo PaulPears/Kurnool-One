@@ -15,14 +15,20 @@ import {
   uploadOfferImage,
   fetchMyLeads,
   deleteBusiness,
+  createMarketplaceItem,
+  fetchMyMarketplaceItems,
+  updateMarketplaceItem,
+  deleteMarketplaceItem,
   BusinessItem,
   LeadItem,
+  MarketplaceItem,
 } from '../services/directoryService';
 import { auth, db } from '../config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import RazorpayModal from '../components/RazorpayModal';
 import BusinessHoursSelector, { OperatingHoursSchedule } from '../components/BusinessHoursSelector';
+import { CalendarDatePickerModal } from '../components/CalendarDatePickerModal';
 import { pickImageWithFreeStyleCrop } from '../utils/imageUploadHelper';
 
 export default function ManageBusinessScreen({ navigation, route }: any) {
@@ -105,11 +111,28 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
 
   // Offer Modal
   const [offerModalVisible, setOfferModalVisible] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [validUntilDate, setValidUntilDate] = useState<Date>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 15);
+    d.setHours(23, 59, 59, 999);
+    return d;
+  });
   const [offerTitle, setOfferTitle] = useState('');
   const [discountTag, setDiscountTag] = useState('FLAT 20% OFF');
   const [validUntil, setValidUntil] = useState('Valid for next 15 days');
   const [publishingOffer, setPublishingOffer] = useState(false);
   const [offerImages, setOfferImages] = useState<string[]>([]);
+
+  // Bazaar Product Posting State
+  const [bazaarModalVisible, setBazaarModalVisible] = useState(false);
+  const [myBazaarItems, setMyBazaarItems] = useState<MarketplaceItem[]>([]);
+  const [bazaarTitle, setBazaarTitle] = useState('');
+  const [bazaarPrice, setBazaarPrice] = useState('');
+  const [bazaarCategory, setBazaarCategory] = useState('Electronics');
+  const [bazaarDescription, setBazaarDescription] = useState('');
+  const [bazaarImages, setBazaarImages] = useState<string[]>([]);
+  const [publishingBazaar, setPublishingBazaar] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -186,6 +209,101 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
 
     const leadsList = await fetchMyLeads(b.ownerUid || uid, b.id);
     setLeads(leadsList);
+    try {
+      const mkt = await fetchMyMarketplaceItems(b.ownerUid || uid || '', b.id);
+      setMyBazaarItems(mkt);
+    } catch {}
+  };
+
+  const handlePickBazaarImage = async () => {
+    try {
+      const res = await pickImageWithFreeStyleCrop();
+      if (res?.uri) {
+        setBazaarImages(prev => [...prev, res.uri].slice(0, 3));
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to select product image');
+    }
+  };
+
+  const handlePublishBazaarItem = async () => {
+    if (!business || !bazaarTitle.trim() || !bazaarPrice.trim()) {
+      Alert.alert('Required', 'Please enter product title and price');
+      return;
+    }
+    setPublishingBazaar(true);
+    try {
+      let uploadedUrls: string[] = [];
+      for (const uri of bazaarImages) {
+        const url = await uploadOfferImage(uri);
+        uploadedUrls.push(url);
+      }
+      if (uploadedUrls.length === 0 && business.images && business.images.length > 0) {
+        uploadedUrls.push(business.images[0]);
+      }
+
+      await createMarketplaceItem({
+        title_en: bazaarTitle.trim(),
+        price: bazaarPrice.trim().startsWith('₹') ? bazaarPrice.trim() : `₹${bazaarPrice.trim()}`,
+        category: bazaarCategory,
+        description: bazaarDescription.trim() || `Available at ${business.name_en}. Contact store for purchase.`,
+        sellerName: business.name_en,
+        sellerPhone: business.phone,
+        sellerWhatsapp: business.whatsapp || business.phone,
+        sellerUid: business.ownerUid || auth.currentUser?.uid || '',
+        area: business.area || 'Kurnool',
+        condition: 'Brand New',
+        imageUrl: uploadedUrls[0] || '',
+        images: uploadedUrls,
+        status: 'active',
+        sourceType: 'business',
+        businessId: business.id,
+        businessName: business.name_en,
+      });
+
+      Alert.alert('Product Published!', 'Your store product is now visible in Kurnool Bazaar.');
+      setBazaarTitle('');
+      setBazaarPrice('');
+      setBazaarDescription('');
+      setBazaarImages([]);
+      setBazaarModalVisible(false);
+      const updated = await fetchMyMarketplaceItems(business.ownerUid || '', business.id);
+      setMyBazaarItems(updated);
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to list product in Bazaar');
+    } finally {
+      setPublishingBazaar(false);
+    }
+  };
+
+  const handleMarkSoldBazaar = async (item: MarketplaceItem) => {
+    try {
+      await updateMarketplaceItem(item.id, { status: item.status === 'sold' ? 'active' : 'sold' });
+      const updated = await fetchMyMarketplaceItems(business?.ownerUid || '', business?.id);
+      setMyBazaarItems(updated);
+      Alert.alert('Updated', item.status === 'sold' ? 'Product marked as Active' : 'Product marked as SOLD');
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to update status');
+    }
+  };
+
+  const handleDeleteBazaarItem = (id: string) => {
+    Alert.alert('Delete Product', 'Remove this listing from Kurnool Bazaar?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteMarketplaceItem(id);
+            const updated = await fetchMyMarketplaceItems(business?.ownerUid || '', business?.id);
+            setMyBazaarItems(updated);
+          } catch (e: any) {
+            Alert.alert('Error', e.message || 'Failed to delete listing');
+          }
+        },
+      },
+    ]);
   };
 
   const pickAndUploadLogo = async () => {
@@ -327,6 +445,7 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
         businessId: business.id,
         businessName: business.name_en,
         validUntil: validUntil.trim(),
+        expiresAt: validUntilDate.toISOString(),
         bannerUrl: uploadedUrls[0] || '',
         images: uploadedUrls,
         phone: business.phone,
@@ -731,6 +850,88 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
           <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
         </TouchableOpacity>
 
+        {/* ─── POST PRODUCT TO BAZAAR CTA ─── */}
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => {
+            if (business.paymentStatus !== 'paid') {
+              Alert.alert(
+                language === 'en' ? 'Store Product Feature' : 'స్టోర్ ప్రొడక్ట్ ఫీచర్',
+                language === 'en'
+                  ? 'Posting verified merchant products in Kurnool Bazaar is exclusive to Standard and Premium subscribers. Upgrade to start selling your products online.'
+                  : 'కర్నూలు బజార్‌లో స్టోర్ ఉత్పత్తులను జాబితా చేయడానికి మీ ప్లాన్‌ను అప్‌గ్రేడ్ చేయండి.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Upgrade Plan', onPress: () => setShowUpgradeModal(true) },
+                ]
+              );
+              return;
+            }
+            setBazaarModalVisible(true);
+          }}
+          style={[styles.offerCtaCard, { backgroundColor: '#059669', marginTop: 10 }]}
+        >
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.offerCtaTitle}>📦 Post Product to Kurnool Bazaar</Text>
+              {business.paymentStatus !== 'paid' && (
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.25)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                  <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '800' }}>🔒 UPGRADE</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.offerCtaSub}>List store products with blue verified merchant tag</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        {/* ─── MY BAZAAR PRODUCTS LIST ─── */}
+        {myBazaarItems.length > 0 && (
+          <View style={{ marginTop: 16, backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#0F172A' }}>
+                🏪 My Bazaar Products ({myBazaarItems.length})
+              </Text>
+              <TouchableOpacity onPress={() => setBazaarModalVisible(true)}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669' }}>+ Add New</Text>
+              </TouchableOpacity>
+            </View>
+            {myBazaarItems.map((item) => (
+              <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                <View style={{ flex: 1, marginRight: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#1E293B' }} numberOfLines={1}>
+                      {item.title_en}
+                    </Text>
+                    {item.status === 'sold' && (
+                      <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 }}>
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#DC2626' }}>SOLD</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669', marginTop: 2 }}>{item.price}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => handleMarkSoldBazaar(item)}
+                    style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: item.status === 'sold' ? '#ECFDF5' : '#F1F5F9' }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: item.status === 'sold' ? '#059669' : '#64748B' }}>
+                      {item.status === 'sold' ? 'Activate' : 'Mark Sold'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDeleteBazaarItem(item.id)}
+                    style={{ padding: 6, borderRadius: 6, backgroundColor: '#FEE2E2' }}
+                  >
+                    <Ionicons name="trash-outline" size={14} color="#DC2626" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
         {/* ─── EDIT PROFILE FORM ────────────────────────────────────────── */}
         <Text style={[styles.sectionHeader, { marginTop: 24 }]}>Edit Listing Information</Text>
 
@@ -1003,6 +1204,42 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
               onChangeText={setDiscountTag}
             />
 
+            <Text style={styles.label}>Offer Expiry Date *</Text>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setShowDatePicker(true)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 12,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: '#BFDBFE',
+                backgroundColor: '#EFF6FF',
+                marginBottom: 14,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="calendar" size={18} color="#2563EB" />
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#1D4ED8' }}>{validUntil}</Text>
+              </View>
+              <Text style={{ fontSize: 12, fontWeight: '800', color: '#2563EB' }}>Pick Date ▼</Text>
+            </TouchableOpacity>
+
+            <CalendarDatePickerModal
+              visible={showDatePicker}
+              selectedDate={validUntilDate}
+              onClose={() => setShowDatePicker(false)}
+              onSelectDate={(date) => {
+                const endOfDay = new Date(date);
+                endOfDay.setHours(23, 59, 59, 999);
+                setValidUntilDate(endOfDay);
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                setValidUntil(`Valid till ${date.getDate()} ${months[date.getMonth()]}, ${date.getFullYear()}`);
+              }}
+            />
+
             <Text style={styles.label}>Deal Photos (Up to 2)</Text>
             <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
               {offerImages.map((uri, idx) => (
@@ -1232,6 +1469,94 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
           }
         }}
       />
+
+      {/* ─── POST PRODUCT TO BAZAAR MODAL ───────────────────────── */}
+      <Modal visible={bazaarModalVisible} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContent}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <View>
+                <Text style={styles.modalTitle}>📦 List Store Product</Text>
+                <Text style={{ fontSize: 11, color: '#64748B' }}>Showcase in Kurnool Bazaar with verified store badge</Text>
+              </View>
+              <TouchableOpacity onPress={() => setBazaarModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.label}>Product Title *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. 32-inch Smart LED TV (Brand New)"
+                value={bazaarTitle}
+                onChangeText={setBazaarTitle}
+              />
+
+              <Text style={styles.label}>Selling Price (₹) *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. ₹14,999"
+                value={bazaarPrice}
+                onChangeText={setBazaarPrice}
+              />
+
+              <Text style={styles.label}>Category</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Electronics, Clothing, Home, etc."
+                value={bazaarCategory}
+                onChangeText={setBazaarCategory}
+              />
+
+              <Text style={styles.label}>Description / Warranty Details</Text>
+              <TextInput
+                style={[styles.input, { height: 70, textAlignVertical: 'top' }]}
+                placeholder="Brand new showroom unit, 1 year warranty, invoice available..."
+                multiline
+                value={bazaarDescription}
+                onChangeText={setBazaarDescription}
+              />
+
+              <Text style={styles.label}>Product Photos (Up to 3)</Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+                {bazaarImages.map((uri, idx) => (
+                  <View key={idx} style={styles.offerThumbnailWrap}>
+                    <Image source={{ uri }} style={styles.offerThumbnailImg} />
+                    <TouchableOpacity
+                      onPress={() => setBazaarImages(prev => prev.filter((_, i) => i !== idx))}
+                      style={styles.removeThumbnailBtn}
+                    >
+                      <Ionicons name="close" size={14} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {bazaarImages.length < 3 && (
+                  <TouchableOpacity
+                    onPress={handlePickBazaarImage}
+                    style={styles.addOfferPhotoBtn}
+                  >
+                    <Ionicons name="camera-outline" size={24} color="#059669" />
+                    <Text style={[styles.addOfferPhotoText, { color: '#059669' }]}>+ Add Photo</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <TouchableOpacity
+                onPress={handlePublishBazaarItem}
+                disabled={publishingBazaar}
+                style={[styles.saveBtn, { backgroundColor: '#059669', marginTop: 8 }]}
+              >
+                {publishingBazaar ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.saveBtnText}>Publish to Kurnool Bazaar</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

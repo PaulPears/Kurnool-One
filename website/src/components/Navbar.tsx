@@ -37,13 +37,13 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-xs">
-      {/* Top Civic Utility Bar - Professional Light Design */}
+      {/* Top Civic Utility Bar */}
       <div className="bg-slate-50 text-slate-700 text-xs py-2 px-4 sm:px-8 border-b border-slate-200">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-slate-700 font-medium tracking-wide">
-              Kurnool One (కర్నూలు వన్) • Premier Digital City Directory & Local Services
+            <span className="text-slate-700 font-semibold tracking-wide">
+              Kurnool One (కర్నూలు వన్)
             </span>
           </div>
 
@@ -131,13 +131,10 @@ export default function Navbar() {
               <span className="font-black text-2xl text-slate-900 tracking-tight">
                 Kurnool One
               </span>
-              <span className="bg-blue-100 text-blue-800 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
-                City Portal
-              </span>
             </div>
             <div className="flex items-center gap-1 text-slate-500 text-xs font-semibold">
               <MapPin className="w-3 h-3 text-blue-600" />
-              <span>కర్నూలు • Rayalaseema, AP</span>
+              <span>కర్నూలు, ఆంధ్రప్రదేశ్</span>
             </div>
           </div>
         </Link>

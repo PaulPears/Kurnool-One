@@ -35,6 +35,8 @@ import {
   Sparkles,
   Check,
   X,
+  Menu,
+  Loader2,
   Sliders,
   HelpCircle,
   PhoneCall,
@@ -49,6 +51,11 @@ import {
   HeartPulse,
   Home,
   ShoppingBag,
+  Flame,
+  Flag,
+  Upload,
+  Users,
+  CreditCard,
 } from 'lucide-react';
 import { db, auth } from '@/config/firebase';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
@@ -63,12 +70,14 @@ import {
   query,
   orderBy,
   limit,
+  where,
 } from 'firebase/firestore';
 import {
   MASTER_CATEGORIES,
   PROFESSIONAL_CATEGORIES,
   fetchPlatformLeads,
   syncMasterCategoriesToFirestore,
+  syncAllSeedsToFirestore,
   saveCategoryToFirestore,
   deleteCategoryFromFirestore,
   sendBroadcastNotification,
@@ -85,6 +94,10 @@ import {
   BloodDonorItem,
   HouseRentalItem,
   MarketplaceItem,
+  OfferItem,
+  fetchOffers,
+  fetchAllOffersAdmin,
+  uploadMediaFile,
 } from '@/services/directoryService';
 
 export interface AuditLogItem {
@@ -100,8 +113,12 @@ export interface AuditLogItem {
 
 type AdminTab =
   | 'overview'
+  | 'users'
+  | 'subscriptions'
   | 'businesses'
   | 'professionals'
+  | 'hot_deals'
+  | 'reported_content'
   | 'places'
   | 'worship'
   | 'events'
@@ -121,20 +138,29 @@ const ADMIN_DEFAULT_PASS = 'Kurnool@2026'; // Standard fallback administrator pa
 export default function DedicatedAdminConsole() {
   // ─── AUTHENTICATION STATE ──────────────────────────────────────────────────
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [passcode, setPasscode] = useState('');
   const [loginError, setLoginError] = useState('');
   const [authChecking, setAuthChecking] = useState(true);
 
   // ─── TAB NAVIGATION ────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+
+  const selectTab = (tab: AdminTab) => {
+    setActiveTab(tab);
+    setMobileMenuOpen(false);
+  };
 
   // ─── DATA STATES ───────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  const [registeredUsers, setRegisteredUsers] = useState<any[]>([]);
+  const [subscriptionsList, setSubscriptionsList] = useState<any[]>([]);
   const [businesses, setBusinesses] = useState<BusinessItem[]>([]);
   const [professionals, setProfessionals] = useState<ProfessionalItem[]>([]);
+  const [offersList, setOffersList] = useState<OfferItem[]>([]);
+  const [reportsList, setReportsList] = useState<any[]>([]);
   const [places, setPlaces] = useState<PlaceItem[]>([]);
   const [worshipPlaces, setWorshipPlaces] = useState<PlaceItem[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
@@ -160,12 +186,33 @@ export default function DedicatedAdminConsole() {
     actionUrl: '/offers',
     imageUrl: '',
   });
-  const [adminEmail, setAdminEmail] = useState('');
 
+  // Deal Form & Modal
+  const [showDealModal, setShowDealModal] = useState(false);
+  const [editingDeal, setEditingDeal] = useState<OfferItem | null>(null);
+  const [dealForm, setDealForm] = useState({
+    title_en: '',
+    title_te: '',
+    description_en: '',
+    description_te: '',
+    discountText: '',
+    businessName: '',
+    validUntil: '',
+    category: 'clothing_fashion',
+    phone: '',
+    bannerUrl: '',
+  });
+
+  // Upload progress indicators
+  const [uploadingDealBanner, setUploadingDealBanner] = useState(false);
+  const [uploadingPlacePhoto, setUploadingPlacePhoto] = useState(false);
+  const [uploadingEventPoster, setUploadingEventPoster] = useState(false);
+  const [uploadingNotifBanner, setUploadingNotifBanner] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
-  const [loginMode, setLoginMode] = useState<'email' | 'passcode'>('email');
   const [showAdminHelpModal, setShowAdminHelpModal] = useState(false);
   const [syncingCategories, setSyncingCategories] = useState(false);
+  const [syncingAllSeeds, setSyncingAllSeeds] = useState(false);
   const [showAddCatModal, setShowAddCatModal] = useState(false);
   const [newCatForm, setNewCatForm] = useState({ id: '', name_en: '', name_te: '', icon: 'Tag', color: '#2563EB', subcategories: '' });
   const [showAddSubcatModal, setShowAddSubcatModal] = useState<string | null>(null);
@@ -191,6 +238,18 @@ export default function DedicatedAdminConsole() {
     title: string;
     phone?: string;
   } | null>(null);
+
+  const [manualSubModal, setManualSubModal] = useState<{
+    open: boolean;
+    entityType: 'business' | 'professional';
+    entityId: string;
+    entityName: string;
+    phone?: string;
+  } | null>(null);
+  const [subPlanChoice, setSubPlanChoice] = useState<'standard' | 'premium' | 'elite'>('premium');
+  const [subExpiryDays, setSubExpiryDays] = useState<number>(365);
+  const [subPaymentRef, setSubPaymentRef] = useState<string>('Admin Manual Upgrade');
+  const [grantingSub, setGrantingSub] = useState<boolean>(false);
 
   // Forms
   const [placeForm, setPlaceForm] = useState({
@@ -295,22 +354,19 @@ export default function DedicatedAdminConsole() {
       return;
     }
 
-    // Direct password match for administrator
-    if ((email === 'admin@kurnoolone.com' || email === 'pearsrobert174@gmail.com') && (pass === ADMIN_DEFAULT_PASS || pass === 'Kurnool@Admin2026')) {
-      try { localStorage.setItem('kurnool_admin_session', 'active'); } catch {}
-      setIsAuthenticated(true);
-      setToast(`Logged in as Administrator (${email})`);
-      await logAdminAction('admin_login', 'auth', email, `Email Login by ${email}`);
-      return;
-    }
-
     try {
       const res = await signInWithEmailAndPassword(auth, email, pass);
       try { localStorage.setItem('kurnool_admin_session', 'active'); } catch {}
       setIsAuthenticated(true);
-      setToast(`Logged in as Administrator (${email})`);
+      setToast(`Logged in as Administrator (${res.user.email || email})`);
       await logAdminAction('admin_login', 'auth', res.user.uid, `Email Login by ${email}`);
-    } catch (err: any) {
+      return;
+    } catch (firebaseErr: any) {
+      // Fallback for offline/pre-configured local console password ONLY if Firebase Auth account isn't created yet
+      if ((email === 'admin@kurnoolone.com' || email === 'pearsrobert174@gmail.com' || email === 'kurnoolone1@gmail.com') && (pass === ADMIN_DEFAULT_PASS || pass === 'Kurnool@Admin2026')) {
+        setLoginError('Note: Please sign in using "Continue with Google" below so Firebase database permissions are authorized for editing/deleting.');
+        return;
+      }
       setLoginError('Authentication failed: Invalid administrator email or password.');
     }
   };
@@ -320,7 +376,7 @@ export default function DedicatedAdminConsole() {
       localStorage.removeItem('kurnool_admin_session');
     } catch {}
     setIsAuthenticated(false);
-    setPasscode('');
+    setAdminPassword('');
   };
 
   // Toast Helper
@@ -358,7 +414,7 @@ export default function DedicatedAdminConsole() {
       setPlaces(placeList);
 
       // 4. Worship Places
-      const worshipSnap = await getDocs(collection(db, 'worship_places'));
+      const worshipSnap = await getDocs(collection(db, 'places_of_worship'));
       const worshipList: PlaceItem[] = [];
       worshipSnap.forEach((d) => {
         worshipList.push({ id: d.id, ...d.data() } as PlaceItem);
@@ -429,12 +485,113 @@ export default function DedicatedAdminConsole() {
         setPartnersList(pItems);
       } catch (e) { console.warn('Could not load partners:', e); }
 
-      // 14. Activity Audit Logs
+      // 14. Hot Deals & Offers (Full Admin View - All Statuses)
       try {
-        const logsSnap = await getDocs(query(collection(db, 'admin_audit_logs'), orderBy('timestamp', 'desc'), limit(150)));
-        const lItems = logsSnap.docs.map(d => ({ id: d.id, ...d.data() } as AuditLogItem));
-        setAuditLogs(lItems);
+        const offersData = await fetchAllOffersAdmin();
+        setOffersList(offersData);
+      } catch (e) { console.warn('Could not load offers:', e); }
+
+      // 15. Reported Content (Posts & Direct Reports)
+      try {
+        const directRepSnap = await getDocs(query(collection(db, 'reports'), limit(100))).catch(() => null);
+        const postRepSnap = await getDocs(query(collection(db, 'posts'), where('reportCount', '>', 0), limit(100))).catch(() => null);
+        const aggregatedReports: any[] = [];
+        if (directRepSnap && !directRepSnap.empty) {
+          directRepSnap.forEach(d => aggregatedReports.push({ id: d.id, reportType: 'listing_or_general', ...d.data() }));
+        }
+        if (postRepSnap && !postRepSnap.empty) {
+          postRepSnap.forEach(d => aggregatedReports.push({ id: d.id, reportType: 'community_post', ...d.data() }));
+        }
+        setReportsList(aggregatedReports);
+      } catch (e) { console.warn('Could not load reports:', e); }
+
+      // 16. Activity & Audit Logs (Merged Admin & User Streams)
+      try {
+        const [adminLogsSnap, userLogsSnap] = await Promise.all([
+          getDocs(query(collection(db, 'admin_audit_logs'), orderBy('timestamp', 'desc'), limit(150))).catch(() => null),
+          getDocs(query(collection(db, 'activity_logs'), orderBy('timestamp', 'desc'), limit(150))).catch(() => null),
+        ]);
+        const adminLogs = adminLogsSnap ? adminLogsSnap.docs.map(d => ({ id: d.id, ...d.data(), actorType: 'admin' } as unknown as AuditLogItem)) : [];
+        const userLogs = userLogsSnap ? userLogsSnap.docs.map(d => {
+          const data = d.data();
+          return {
+            id: d.id,
+            timestamp: data.timestamp,
+            adminEmail: data.actorPhone || data.actorEmail || (data.actorUid && data.actorUid !== 'guest' ? `UID: ${data.actorUid.slice(0, 8)}...` : 'Citizen User'),
+            action: data.actionType || 'user_action',
+            targetType: data.metadata?.category || data.metadata?.reportType || 'user_activity',
+            targetId: data.metadata?.dealId || data.metadata?.itemId || data.metadata?.donorId || d.id,
+            targetName: data.details || 'User Action',
+            details: data.details || 'User event recorded on Kurnool One',
+            actorType: 'user',
+          } as AuditLogItem;
+        }) : [];
+        const combined = [...adminLogs, ...userLogs].sort((a, b) => {
+          const tA = (a.timestamp as any)?.seconds || (a.timestamp instanceof Date ? a.timestamp.getTime() / 1000 : 0);
+          const tB = (b.timestamp as any)?.seconds || (b.timestamp instanceof Date ? b.timestamp.getTime() / 1000 : 0);
+          return tB - tA;
+        });
+        setAuditLogs(combined);
       } catch (e) { console.warn('Could not load audit logs:', e); }
+
+      // 17. Registered Users, Subscriptions & Activation Directory
+      try {
+        const [phonesSnap, usersSnap, subsSnap] = await Promise.all([
+          getDocs(query(collection(db, 'registered_phones'), limit(200))).catch(() => null),
+          getDocs(query(collection(db, 'users'), limit(200))).catch(() => null),
+          getDocs(query(collection(db, 'subscriptions'), orderBy('createdAt', 'desc'), limit(150))).catch(() => null),
+        ]);
+        const userMap = new Map();
+        if (usersSnap) {
+          usersSnap.docs.forEach(d => {
+            userMap.set(d.id, d.data());
+          });
+        }
+
+        // Enrich businesses and professionals with resolved email addresses
+        setBusinesses(prev => prev.map(b => ({
+          ...b,
+          ownerEmail: b.ownerEmail || (b.ownerUid ? userMap.get(b.ownerUid)?.email : '') || (b as any).email || 'Registered User',
+        })));
+
+        setProfessionals(prev => prev.map(p => ({
+          ...p,
+          email: p.email || (p.userId ? userMap.get(p.userId)?.email : '') || 'Registered Pro',
+        })));
+
+        const userItems: any[] = [];
+        if (phonesSnap) {
+          phonesSnap.docs.forEach(d => {
+            const data = d.data();
+            const phone = d.id;
+            const uData = userMap.get(data.userId) || {};
+            const userBiz = bizList.find(b => b.ownerUid === data.userId || b.phone === phone);
+            const userPro = proList.find(p => p.userId === data.userId || p.phone === phone);
+            userItems.push({
+              id: phone,
+              phone: phone,
+              userId: data.userId || '',
+              role: data.role || uData.role || 'user',
+              fullName: uData.fullName || uData.displayName || data.name || 'Citizen User',
+              email: uData.email || '',
+              createdAt: data.createdAt || uData.createdAt,
+              activationCode: `KNL-${phone.slice(-4)}`,
+              plan: uData.planId || (data.role === 'business' ? 'Merchant Listing' : data.role === 'professional' ? 'Professional' : 'Standard Citizen'),
+              status: uData.isBanned ? 'banned' : 'active',
+              linkedBusiness: userBiz ? userBiz.name_en : null,
+              linkedProfessional: userPro ? `${userPro.fullName} (${userPro.category})` : null,
+            });
+          });
+        }
+        setRegisteredUsers(userItems);
+
+        // Subscriptions ledger
+        if (subsSnap && !subsSnap.empty) {
+          setSubscriptionsList(subsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        } else {
+          setSubscriptionsList([]);
+        }
+      } catch (e) { console.warn('Could not load registered users and subscriptions:', e); }
     } catch (err) {
       console.error('Failed to load admin data:', err);
     } finally {
@@ -449,7 +606,220 @@ export default function DedicatedAdminConsole() {
     }
   }, [isAuthenticated]);
 
-    // ─── ACTIONS: NEWS & CITIZEN JOURNALISM ─────────────────────────────────
+  // ─── ACTIONS: HOT DEALS & OFFERS ──────────────────────────────────────────
+  const handleSaveDeal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dealForm.title_en.trim() || !dealForm.discountText.trim() || !dealForm.businessName.trim()) {
+      alert('Please fill in Title, Discount Text, and Business Name.');
+      return;
+    }
+    try {
+      const dealData: any = {
+        title_en: dealForm.title_en.trim(),
+        title_te: dealForm.title_te.trim() || dealForm.title_en.trim(),
+        description_en: dealForm.description_en.trim(),
+        description_te: dealForm.description_te.trim(),
+        discountText: dealForm.discountText.trim(),
+        businessName: dealForm.businessName.trim(),
+        validUntil: dealForm.validUntil.trim() || 'Valid this month',
+        category: dealForm.category || 'clothing_fashion',
+        phone: dealForm.phone.trim(),
+        bannerUrl: dealForm.bannerUrl.trim() || 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800',
+        images: dealForm.bannerUrl ? [dealForm.bannerUrl.trim()] : ['https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800'],
+        updatedAt: serverTimestamp(),
+      };
+      if (editingDeal) {
+        await updateDoc(doc(db, 'promotions', editingDeal.id), dealData);
+        await logAdminAction('update_deal', 'promotions', editingDeal.id, `Updated deal "${dealForm.title_en}"`);
+        setToast('Offer updated successfully!');
+      } else {
+        dealData.createdAt = serverTimestamp();
+        dealData.status = 'active';
+        dealData.isFeatured = true;
+        const res = await addDoc(collection(db, 'promotions'), dealData);
+        await logAdminAction('create_deal', 'promotions', res.id, `Created deal "${dealForm.title_en}"`);
+
+        // Immediate Push Notification Broadcast to all users
+        try {
+          const discount = dealForm.discountText.trim() || 'Special Offer';
+          const store = dealForm.businessName.trim() || 'Kurnool Merchant';
+          await addDoc(collection(db, 'broadcast_notifications'), {
+            title: `🔥 Hot Deal: ${discount} at ${store}`,
+            body: `${dealForm.title_en.trim()} • Tap to view deal on Kurnool One!`,
+            category: 'deal',
+            targetAudience: 'all',
+            actionUrl: '/offers',
+            imageUrl: dealData.bannerUrl || '',
+            createdAt: serverTimestamp(),
+          });
+        } catch (notifErr) {
+          console.warn('Push broadcast note:', notifErr);
+        }
+
+        setToast('New deal published live & Broadcasted to all users!');
+      }
+      setShowDealModal(false);
+      setEditingDeal(null);
+      setDealForm({
+        title_en: '',
+        title_te: '',
+        description_en: '',
+        description_te: '',
+        discountText: '',
+        businessName: '',
+        validUntil: '',
+        category: 'clothing_fashion',
+        phone: '',
+        bannerUrl: '',
+      });
+      loadData();
+    } catch (err: any) {
+      alert('Error saving deal: ' + err.message);
+    }
+  };
+
+  const handleDeleteDeal = async (dealId: string) => {
+    if (!confirm('Are you sure you want to permanently delete this deal?')) return;
+    try {
+      await deleteDoc(doc(db, 'promotions', dealId));
+      await logAdminAction('delete_deal', 'promotions', dealId, 'Deleted deal');
+      setToast('Deal deleted from platform.');
+      loadData();
+    } catch (err: any) {
+      alert('Error deleting deal: ' + err.message);
+    }
+  };
+
+  const handleToggleDealFeature = async (dealId: string, current: boolean = false) => {
+    try {
+      await updateDoc(doc(db, 'promotions', dealId), { isFeatured: !current });
+      setToast(current ? 'Deal unfeatured' : 'Deal marked as Featured on app & website!');
+      loadData();
+    } catch (err: any) {
+      alert('Error updating deal: ' + err.message);
+    }
+  };
+
+  const handleBroadcastDealPush = async (deal: any) => {
+    try {
+      const discount = deal.discountText || 'Special Offer';
+      const store = deal.businessName || 'Kurnool Merchant';
+      await addDoc(collection(db, 'broadcast_notifications'), {
+        title: `🔥 Hot Deal: ${discount} at ${store}`,
+        body: `${deal.title_en} • Tap to view deal on Kurnool One!`,
+        category: 'deal',
+        targetAudience: 'all',
+        actionUrl: '/offers',
+        imageUrl: deal.bannerUrl || (deal.images && deal.images[0]) || '',
+        createdAt: serverTimestamp(),
+      });
+      await logAdminAction('broadcast_push', 'promotions', deal.id, `Broadcasted push notification for deal "${deal.title_en}"`);
+      setToast(`Instant push notification sent to all users for "${deal.title_en}"!`);
+    } catch (e: any) {
+      alert('Broadcast push failed: ' + e.message);
+    }
+  };
+
+  // ─── ACTIONS: REPORTED CONTENT MODERATION ──────────────────────────────────
+  const handleDismissReport = async (reportItem: any) => {
+    try {
+      if (reportItem.reportType === 'community_post') {
+        await updateDoc(doc(db, 'posts', reportItem.id), { reportCount: 0 });
+      } else {
+        await deleteDoc(doc(db, 'reports', reportItem.id));
+      }
+      await logAdminAction('dismiss_report', 'report', reportItem.id, 'Report dismissed by admin');
+      setToast('Report dismissed.');
+      loadData();
+    } catch (err: any) {
+      alert('Error dismissing report: ' + err.message);
+    }
+  };
+
+  const handleDeleteReportedItem = async (reportItem: any) => {
+    if (!confirm('Are you sure you want to delete this reported item from the platform?')) return;
+    try {
+      if (reportItem.reportType === 'community_post') {
+        await deleteDoc(doc(db, 'posts', reportItem.id));
+      } else if (reportItem.targetCollection && reportItem.targetId) {
+        await deleteDoc(doc(db, reportItem.targetCollection, reportItem.targetId));
+        await deleteDoc(doc(db, 'reports', reportItem.id));
+      } else {
+        await deleteDoc(doc(db, 'reports', reportItem.id));
+      }
+      await logAdminAction('delete_reported_item', 'report', reportItem.id, 'Offending reported item removed by admin');
+      setToast('Reported content deleted from platform.');
+      loadData();
+    } catch (err: any) {
+      alert('Error deleting reported item: ' + err.message);
+    }
+  };
+
+  // ─── DIRECT FILE UPLOAD HELPERS ───────────────────────────────────────────
+  const handleUploadDealBanner = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingDealBanner(true);
+    try {
+      const url = await uploadMediaFile(file, 'deals');
+      setDealForm(prev => ({ ...prev, bannerUrl: url }));
+      setToast('Deal image uploaded successfully!');
+    } catch (err: any) {
+      alert('Upload failed: ' + err.message);
+    } finally {
+      setUploadingDealBanner(false);
+    }
+  };
+
+  const handleUploadPlacePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPlacePhoto(true);
+    try {
+      const url = await uploadMediaFile(file, 'places');
+      setPlaceForm(prev => ({
+        ...prev,
+        photos: prev.photos ? `${prev.photos}\n${url}` : url,
+      }));
+      setToast('Place photo uploaded!');
+    } catch (err: any) {
+      alert('Upload failed: ' + err.message);
+    } finally {
+      setUploadingPlacePhoto(false);
+    }
+  };
+
+  const handleUploadEventPoster = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingEventPoster(true);
+    try {
+      const url = await uploadMediaFile(file, 'events');
+      setEventForm(prev => ({ ...prev, posterUrl: url }));
+      setToast('Event poster uploaded!');
+    } catch (err: any) {
+      alert('Upload failed: ' + err.message);
+    } finally {
+      setUploadingEventPoster(false);
+    }
+  };
+
+  const handleUploadNotifBanner = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingNotifBanner(true);
+    try {
+      const url = await uploadMediaFile(file, 'notifications');
+      setNotificationForm(prev => ({ ...prev, imageUrl: url }));
+      setToast('Notification banner uploaded!');
+    } catch (err: any) {
+      alert('Upload failed: ' + err.message);
+    } finally {
+      setUploadingNotifBanner(false);
+    }
+  };
+
+  // ─── ACTIONS: NEWS & CITIZEN JOURNALISM ─────────────────────────────────
   const handleApproveNews = async (newsId: string) => {
     try {
       await updateDoc(doc(db, 'news', newsId), { status: 'published' });
@@ -569,6 +939,20 @@ export default function DedicatedAdminConsole() {
       alert('Failed to sync categories: ' + err.message);
     } finally {
       setSyncingCategories(false);
+    }
+  };
+
+  const handleSyncAllSeeds = async () => {
+    if (!confirm('This will sync all Businesses, Professionals, Hot Deals, Places, and News from seeds directly into live Firestore. Proceed?')) return;
+    setSyncingAllSeeds(true);
+    try {
+      const res = await syncAllSeedsToFirestore();
+      setToast(`Successfully synced ${res.totalCount} items to live Firestore!`);
+      await loadData();
+    } catch (err: any) {
+      alert('Failed to sync all seeds: ' + err.message);
+    } finally {
+      setSyncingAllSeeds(false);
     }
   };
 
@@ -697,7 +1081,10 @@ export default function DedicatedAdminConsole() {
         await deleteDoc(doc(db, 'professionals', id));
         setProfessionals((prev) => prev.filter((p) => p.id !== id));
       } else if (type === 'place') {
-        await deleteDoc(doc(db, 'places', id));
+        await Promise.allSettled([
+          deleteDoc(doc(db, 'places', id)),
+          deleteDoc(doc(db, 'places_of_worship', id)),
+        ]);
         setPlaces((prev) => prev.filter((p) => p.id !== id));
         setWorshipPlaces((prev) => prev.filter((p) => p.id !== id));
       } else if (type === 'event') {
@@ -720,6 +1107,64 @@ export default function DedicatedAdminConsole() {
       setDeleteConfirmModal(null);
     } catch (err) {
       alert('Delete failed: ' + err);
+    }
+  };
+
+  // ─── ACTIONS: MANUAL SUBSCRIPTION GRANT / UPGRADE ────────────────────────
+  const executeManualSubscription = async () => {
+    if (!manualSubModal) return;
+    setGrantingSub(true);
+    const { entityType, entityId, entityName, phone } = manualSubModal;
+    const expiryDate = new Date(Date.now() + subExpiryDays * 86400000).toISOString().split('T')[0];
+    const targetColl = entityType === 'business' ? 'businesses' : 'professionals';
+    const amount = subPlanChoice === 'premium' || subPlanChoice === 'elite' ? 999 : 399;
+
+    try {
+      // 1. Update listing document
+      await updateDoc(doc(db, targetColl, entityId), {
+        tier: subPlanChoice === 'premium' || subPlanChoice === 'elite' ? 'premium' : 'standard',
+        planId: subPlanChoice,
+        paymentStatus: 'paid',
+        verificationBadge: 'verified',
+        verifiedProfessional: true,
+        planExpiresAt: expiryDate,
+        updatedAt: serverTimestamp(),
+      });
+
+      // 2. Add entry to subscriptions revenue ledger
+      await addDoc(collection(db, 'subscriptions'), {
+        entityId,
+        entityName,
+        entityType,
+        planId: subPlanChoice,
+        planName: subPlanChoice === 'premium' ? 'Premium Featured (1 Year)' : 'Standard Verified (6 Months)',
+        amount,
+        currency: 'INR',
+        startDate: new Date().toISOString().split('T')[0],
+        expiresAt: expiryDate,
+        paymentId: `admin_grant_${Date.now()}`,
+        orderId: subPaymentRef || 'ADMIN_MANUAL',
+        status: 'active',
+        customerPhone: phone || '',
+        createdAt: serverTimestamp(),
+      });
+
+      // 3. Log audit event
+      await logAdminAction(
+        'manual_subscription_grant',
+        targetColl,
+        entityId,
+        `Granted ${subPlanChoice} subscription until ${expiryDate} (Ref: ${subPaymentRef})`,
+        entityName
+      );
+
+      setToast(`Subscription successfully granted to "${entityName}" until ${expiryDate}!`);
+      setManualSubModal(null);
+      await loadData();
+    } catch (err: any) {
+      alert('Failed to grant subscription: ' + (err.message || err));
+    } finally {
+      setGrantingSub(false);
     }
   };
 
@@ -755,7 +1200,7 @@ export default function DedicatedAdminConsole() {
     };
 
     const targetCollection =
-      ['temple', 'church', 'masjid'].includes(placeForm.type) ? 'worship_places' : 'places';
+      ['temple', 'church', 'masjid'].includes(placeForm.type) ? 'places_of_worship' : 'places';
 
     try {
       if (editingPlace) {
@@ -930,27 +1375,6 @@ export default function DedicatedAdminConsole() {
             </div>
           )}
 
-          {/* 1-Click Google Admin Sign-in */}
-          <button
-            type="button"
-            onClick={handleGoogleAdminLogin}
-            className="w-full py-3.5 bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs rounded-xl shadow-lg transition active:scale-98 cursor-pointer flex items-center justify-center gap-3 border border-slate-200"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-            </svg>
-            <span>Sign In with Google (1-Click)</span>
-          </button>
-
-          <div className="flex items-center gap-3">
-            <div className="h-px bg-slate-800 flex-1" />
-            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">or email login</span>
-            <div className="h-px bg-slate-800 flex-1" />
-          </div>
-
           <form onSubmit={handleAdminEmailLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-bold uppercase text-slate-400 tracking-wider mb-1.5">
@@ -1023,9 +1447,9 @@ export default function DedicatedAdminConsole() {
       {/* ─── SIDEBAR ───────────────────────────────────────────────────────── */}
       <aside className="w-full lg:w-72 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800/80 flex flex-col shrink-0">
         {/* Brand Bar */}
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-4 sm:p-6 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black shadow-md shadow-blue-600/30">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black shadow-md shadow-blue-600/30">
               K1
             </div>
             <div>
@@ -1037,19 +1461,29 @@ export default function DedicatedAdminConsole() {
               </span>
             </div>
           </div>
-          <button
-            onClick={handleAdminLogout}
-            title="Lock & Exit"
-            className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Mobile Menu Toggle Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden px-3 py-1.5 text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 transition flex items-center gap-1.5 text-xs font-bold"
+            >
+              {mobileMenuOpen ? <X className="w-4 h-4 text-red-400" /> : <Menu className="w-4 h-4 text-blue-400" />}
+              <span>{mobileMenuOpen ? 'Close' : 'Tabs'}</span>
+            </button>
+            <button
+              onClick={handleAdminLogout}
+              title="Lock & Exit"
+              className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <nav className="p-4 space-y-1.5 flex-1">
+        {/* Navigation Tabs - Collapsible on Mobile */}
+        <nav className={`p-4 space-y-1.5 flex-1 ${mobileMenuOpen ? 'block' : 'hidden lg:block'}`}>
           <button
-            onClick={() => setActiveTab('overview')}
+            onClick={() => selectTab('overview')}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
               activeTab === 'overview'
                 ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
@@ -1062,9 +1496,57 @@ export default function DedicatedAdminConsole() {
             </div>
           </button>
 
+          {/* Registered Users & Activation Codes */}
           <button
             onClick={() => {
-              setActiveTab('businesses');
+              selectTab('users');
+              setSearchQuery('');
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
+              activeTab === 'users'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Users className="w-4 h-4 text-emerald-400" />
+              <div className="text-left">
+                <span className="block">Users & Activations</span>
+                <span className="block text-[10px] text-emerald-300 font-normal">Active Codes & Logins</span>
+              </div>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono font-bold">
+              {registeredUsers.length}
+            </span>
+          </button>
+
+          {/* Subscriptions & Revenue Ledger */}
+          <button
+            onClick={() => {
+              selectTab('subscriptions');
+              setSearchQuery('');
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
+              activeTab === 'subscriptions'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <CreditCard className="w-4 h-4 text-amber-400" />
+              <div className="text-left">
+                <span className="block">Subscriptions & Ledger</span>
+                <span className="block text-[10px] text-amber-300 font-normal">Razorpay Payments & History</span>
+              </div>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold">
+              {subscriptionsList.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              selectTab('businesses');
               setSearchQuery('');
               setStatusFilter('all');
             }}
@@ -1085,7 +1567,7 @@ export default function DedicatedAdminConsole() {
 
           <button
             onClick={() => {
-              setActiveTab('professionals');
+              selectTab('professionals');
               setSearchQuery('');
               setStatusFilter('all');
             }}
@@ -1104,9 +1586,57 @@ export default function DedicatedAdminConsole() {
             </span>
           </button>
 
+          {/* Hot Deals & Offers */}
           <button
             onClick={() => {
-              setActiveTab('places');
+              selectTab('hot_deals');
+              setSearchQuery('');
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
+              activeTab === 'hot_deals'
+                ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Flame className="w-4 h-4 text-rose-500" />
+              <div className="text-left">
+                <span className="block">Hot Deals & Offers</span>
+                <span className="block text-[10px] text-rose-300/80 font-normal">Active Deals & Promos</span>
+              </div>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/30 font-mono font-bold">
+              {offersList.length}
+            </span>
+          </button>
+
+          {/* Reported Content & Moderation */}
+          <button
+            onClick={() => {
+              selectTab('reported_content');
+              setSearchQuery('');
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
+              activeTab === 'reported_content'
+                ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Flag className="w-4 h-4 text-amber-500" />
+              <div className="text-left">
+                <span className="block">Reported Content</span>
+                <span className="block text-[10px] text-amber-300/80 font-normal">Flagged Posts & Reports</span>
+              </div>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold">
+              {reportsList.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              selectTab('places');
               setSearchQuery('');
             }}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
@@ -1126,7 +1656,7 @@ export default function DedicatedAdminConsole() {
 
           <button
             onClick={() => {
-              setActiveTab('worship');
+              selectTab('worship');
               setSearchQuery('');
             }}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
@@ -1146,7 +1676,7 @@ export default function DedicatedAdminConsole() {
 
           <button
             onClick={() => {
-              setActiveTab('events');
+              selectTab('events');
               setSearchQuery('');
             }}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
@@ -1166,7 +1696,7 @@ export default function DedicatedAdminConsole() {
 
           <button
             onClick={() => {
-              setActiveTab('leads');
+              selectTab('leads');
               setSearchQuery('');
             }}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
@@ -1185,7 +1715,7 @@ export default function DedicatedAdminConsole() {
           </button>
 
           <button
-            onClick={() => setActiveTab('categories')}
+            onClick={() => selectTab('categories')}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
               activeTab === 'categories'
                 ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
@@ -1200,7 +1730,7 @@ export default function DedicatedAdminConsole() {
 
           <button
             onClick={() => {
-              setActiveTab('notifications');
+              selectTab('notifications');
               setSearchQuery('');
             }}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
@@ -1223,7 +1753,7 @@ export default function DedicatedAdminConsole() {
 
           <button
             onClick={() => {
-              setActiveTab('news');
+              selectTab('news');
               setSearchQuery('');
             }}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
@@ -1247,7 +1777,7 @@ export default function DedicatedAdminConsole() {
           {/* Blood Donors Directory */}
           <button
             onClick={() => {
-              setActiveTab('blood_donors');
+              selectTab('blood_donors');
               setSearchQuery('');
             }}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
@@ -1271,7 +1801,7 @@ export default function DedicatedAdminConsole() {
           {/* House Rentals */}
           <button
             onClick={() => {
-              setActiveTab('house_rentals');
+              selectTab('house_rentals');
               setSearchQuery('');
             }}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
@@ -1295,7 +1825,7 @@ export default function DedicatedAdminConsole() {
           {/* Marketplace Classifieds */}
           <button
             onClick={() => {
-              setActiveTab('marketplace');
+              selectTab('marketplace');
               setSearchQuery('');
             }}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
@@ -1319,7 +1849,7 @@ export default function DedicatedAdminConsole() {
           {/* Kurnool One Partners & Payouts */}
           <button
             onClick={() => {
-              setActiveTab('partners');
+              selectTab('partners');
               setSearchQuery('');
             }}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
@@ -1343,7 +1873,7 @@ export default function DedicatedAdminConsole() {
           {/* Activity Logs (Audit Trail) */}
           <button
             onClick={() => {
-              setActiveTab('activity_logs');
+              selectTab('activity_logs');
               setSearchQuery('');
             }}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
@@ -1395,8 +1925,11 @@ export default function DedicatedAdminConsole() {
           <div>
             <h2 className="text-xl font-black text-white capitalize tracking-tight flex items-center gap-2">
               {activeTab === 'overview' && 'System Dashboard & Metrics'}
+              {activeTab === 'users' && 'Registered Users & Activation Codes'}
               {activeTab === 'businesses' && 'Commercial Businesses Management'}
               {activeTab === 'professionals' && 'Skilled Professionals Directory'}
+              {activeTab === 'hot_deals' && 'Hot Deals, Festival Offers & Flash Sales'}
+              {activeTab === 'reported_content' && 'Reported Content & Community Moderation'}
               {activeTab === 'places' && 'Tourist Attractions & Heritage Places'}
               {activeTab === 'leads' && 'Platform Customer Leads & Inquiries'}
               {activeTab === 'categories' && 'Dynamic Category & Subcategory Taxonomy'}
@@ -1408,6 +1941,10 @@ export default function DedicatedAdminConsole() {
             <p className="text-xs text-slate-400 mt-0.5">
               {activeTab === 'notifications'
                 ? 'Send instant push broadcasts to all Kurnool mobile apps, businesses, and website visitors.'
+                : activeTab === 'hot_deals'
+                ? 'Manage active promotions, festival discounts, and merchant deals shown across app and website.'
+                : activeTab === 'reported_content'
+                ? 'Review user-flagged listings, community posts, and reports requiring administrator moderation.'
                 : 'Enterprise management portal for Kurnool One database and real-time app content.'}
             </p>
           </div>
@@ -1421,6 +1958,31 @@ export default function DedicatedAdminConsole() {
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               <span>Refresh</span>
             </button>
+
+            {activeTab === 'hot_deals' && (
+              <button
+                onClick={() => {
+                  setEditingDeal(null);
+                  setDealForm({
+                    title_en: '',
+                    title_te: '',
+                    description_en: '',
+                    description_te: '',
+                    discountText: '',
+                    businessName: '',
+                    validUntil: '',
+                    category: 'clothing_fashion',
+                    phone: '',
+                    bannerUrl: '',
+                  });
+                  setShowDealModal(true);
+                }}
+                className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Publish New Deal</span>
+              </button>
+            )}
 
             {activeTab === 'places' && (
               <button
@@ -1642,6 +2204,255 @@ export default function DedicatedAdminConsole() {
             </div>
           )}
 
+          {/* ─── TAB: USERS & ACTIVATION DIRECTORY ─── */}
+          {activeTab === 'users' && (
+            <div className="space-y-6">
+              {/* Stat Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Registered Users</span>
+                  <span className="text-2xl font-black text-white mt-1 block">{registeredUsers.length}</span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Active Accounts</span>
+                  <span className="text-2xl font-black text-emerald-400 mt-1 block">
+                    {registeredUsers.filter(u => u.status === 'active').length}
+                  </span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">Merchants & Pros</span>
+                  <span className="text-2xl font-black text-blue-400 mt-1 block">
+                    {registeredUsers.filter(u => u.role !== 'user').length}
+                  </span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider block">Unique Activation Codes</span>
+                  <span className="text-2xl font-black text-purple-400 mt-1 block">
+                    {registeredUsers.length}
+                  </span>
+                </div>
+              </div>
+
+              {/* Users Table */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                <div className="p-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-black text-white">Registered Mobile Directory & Activation Codes</h3>
+                    <p className="text-xs text-slate-400">All citizens, shop owners, and professionals registered on Kurnool One</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Search phone, name, code..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                    />
+                    <button
+                      onClick={loadData}
+                      className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white transition"
+                      title="Refresh"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-950/80 border-b border-slate-800 text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                      <tr>
+                        <th className="py-3 px-4">User / Phone</th>
+                        <th className="py-3 px-4">Activation Code</th>
+                        <th className="py-3 px-4">Role</th>
+                        <th className="py-3 px-4">Plan & Subscription</th>
+                        <th className="py-3 px-4">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {registeredUsers.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-12 text-center text-slate-500">
+                            No registered users found yet. Users will stream live when registering via mobile app or web.
+                          </td>
+                        </tr>
+                      ) : (
+                        registeredUsers
+                          .filter(u => {
+                            if (!searchQuery.trim()) return true;
+                            const q = searchQuery.toLowerCase();
+                            return (
+                              (u.phone || '').toLowerCase().includes(q) ||
+                              (u.fullName || '').toLowerCase().includes(q) ||
+                              (u.activationCode || '').toLowerCase().includes(q) ||
+                              (u.role || '').toLowerCase().includes(q)
+                            );
+                          })
+                          .map((u) => (
+                            <tr key={u.id} className="hover:bg-slate-800/40 transition">
+                              <td className="py-3 px-4">
+                                <span className="font-bold text-white block">{u.fullName}</span>
+                                <span className="text-[11px] text-slate-400 font-mono">📱 +91 {u.phone}</span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="px-2.5 py-1 rounded bg-slate-950 border border-purple-500/30 font-mono font-black text-purple-300 text-xs">
+                                  {u.activationCode}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                  u.role === 'business'
+                                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                    : u.role === 'professional'
+                                    ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30'
+                                    : 'bg-slate-800 text-slate-300'
+                                }`}>
+                                  {u.role}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="font-medium text-slate-300 block">{u.plan}</span>
+                                {u.linkedBusiness && (
+                                  <span className="text-[11px] text-blue-400 font-bold block mt-0.5">🏪 {u.linkedBusiness}</span>
+                                )}
+                                {u.linkedProfessional && (
+                                  <span className="text-[11px] text-teal-400 font-bold block mt-0.5">🛠️ {u.linkedProfessional}</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  u.status === 'active'
+                                    ? 'bg-emerald-500/20 text-emerald-300'
+                                    : 'bg-red-500/20 text-red-300'
+                                }`}>
+                                  {u.status === 'active' ? '● Active' : '● Banned'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ─── TAB: SUBSCRIPTIONS & REVENUE LEDGER ──────────────────────── */}
+          {activeTab === 'subscriptions' && (
+            <div className="space-y-6">
+              {/* Stat Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Platform Revenue</span>
+                  <span className="text-2xl font-black text-emerald-400 mt-1 block">
+                    ₹{subscriptionsList.reduce((acc, s) => acc + (Number(s.amount) || 0), 0).toLocaleString()}
+                  </span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">Total Paid Transactions</span>
+                  <span className="text-2xl font-black text-white mt-1 block">
+                    {subscriptionsList.length}
+                  </span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">Business Subscriptions</span>
+                  <span className="text-2xl font-black text-blue-400 mt-1 block">
+                    {subscriptionsList.filter(s => s.entityType === 'business').length}
+                  </span>
+                </div>
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
+                  <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider block">Professional Plans</span>
+                  <span className="text-2xl font-black text-teal-400 mt-1 block">
+                    {subscriptionsList.filter(s => s.entityType === 'professional').length}
+                  </span>
+                </div>
+              </div>
+
+              {/* Ledger Table */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+                <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-white text-sm">Razorpay Subscriptions & Invoicing Ledger</h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Historical and active paid merchant and professional accounts</p>
+                  </div>
+                  <button
+                    onClick={loadData}
+                    className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer"
+                    title="Refresh"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-950/80 border-b border-slate-800 text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                      <tr>
+                        <th className="py-3 px-4">Entity & Merchant</th>
+                        <th className="py-3 px-4">Plan & Amount</th>
+                        <th className="py-3 px-4">Razorpay Transaction ID</th>
+                        <th className="py-3 px-4">Validity (Start → Expiry)</th>
+                        <th className="py-3 px-4">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {subscriptionsList.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-12 text-center text-slate-500">
+                            No subscription payments recorded yet. Paid merchant transactions will appear here live.
+                          </td>
+                        </tr>
+                      ) : (
+                        subscriptionsList
+                          .filter(s => {
+                            if (!searchQuery.trim()) return true;
+                            const q = searchQuery.toLowerCase();
+                            return (
+                              (s.entityName || '').toLowerCase().includes(q) ||
+                              (s.transactionId || '').toLowerCase().includes(q) ||
+                              (s.userEmail || '').toLowerCase().includes(q) ||
+                              (s.planName || '').toLowerCase().includes(q)
+                            );
+                          })
+                          .map((s) => (
+                            <tr key={s.id} className="hover:bg-slate-800/40 transition">
+                              <td className="py-3 px-4">
+                                <span className="font-bold text-white block">{s.entityName}</span>
+                                <span className="text-[11px] text-slate-400 font-mono">
+                                  {s.entityType === 'business' ? '🏪 Business' : '🛠️ Professional'} • {s.userEmail || s.userPhone || 'Verified Account'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="font-bold text-emerald-400 block">₹{s.amount}</span>
+                                <span className="text-[10px] text-slate-400">{s.planName}</span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800 font-mono text-slate-300 text-[11px] block w-fit">
+                                  {s.transactionId}
+                                </span>
+                                {s.orderId && (
+                                  <span className="text-[10px] text-slate-500 font-mono block mt-0.5">{s.orderId}</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="text-slate-300 block">{s.startDate || 'Active'} → <span className="font-bold text-white">{s.expiresAt || '1 Year'}</span></span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                  ● {s.status || 'Active'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ─── TAB 2: BUSINESSES ───────────────────────────────────────────── */}
           {activeTab === 'businesses' && (
             <div className="space-y-4">
@@ -1690,10 +2501,11 @@ export default function DedicatedAdminConsole() {
                 <table className="w-full text-left text-xs text-slate-300">
                   <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
                     <tr>
-                      <th className="p-4">Business</th>
+                      <th className="p-4">Business & Address</th>
+                      <th className="p-4">Registered Account / Owner</th>
                       <th className="p-4">Category</th>
                       <th className="p-4">Contact</th>
-                      <th className="p-4">Tier</th>
+                      <th className="p-4">Plan & Subscription</th>
                       <th className="p-4">Status</th>
                       <th className="p-4 text-right">Actions</th>
                     </tr>
@@ -1701,19 +2513,27 @@ export default function DedicatedAdminConsole() {
                   <tbody className="divide-y divide-slate-800/60 font-medium">
                     {filteredBusinesses.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="p-8 text-center text-slate-500">
+                        <td colSpan={7} className="p-8 text-center text-slate-500">
                           No businesses registered yet.
                         </td>
                       </tr>
                     ) : (
                       filteredBusinesses.map((b) => (
                         <tr key={b.id} className="hover:bg-slate-800/40 transition">
-                          <td className="p-4">
+                          <td className="p-4 max-w-xs">
                             <span className="block font-bold text-white text-sm">
                               {b.name_en}
                             </span>
-                            <span className="block text-[11px] text-slate-400">
+                            <span className="block text-[11px] text-slate-400 truncate">
                               {b.name_te || b.address}
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            <span className="block font-mono text-xs text-blue-400">
+                              {b.ownerEmail || (b as any).createdBy || (b as any).email || 'Registered User'}
+                            </span>
+                            <span className="block text-[10px] text-slate-500 mt-0.5">
+                              {b.createdAt ? (typeof (b.createdAt as any).toDate === 'function' ? (b.createdAt as any).toDate().toLocaleDateString() : 'Active') : 'Registered'}
                             </span>
                           </td>
                           <td className="p-4">
@@ -1732,7 +2552,7 @@ export default function DedicatedAdminConsole() {
                           <td className="p-4">
                             <button
                               onClick={() => toggleBusinessTier(b.id, b.tier)}
-                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition ${
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition block mb-1 ${
                                 b.tier === 'featured'
                                   ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                                   : 'bg-slate-800 text-slate-400'
@@ -1740,6 +2560,9 @@ export default function DedicatedAdminConsole() {
                             >
                               {b.tier === 'featured' ? '★ Featured' : 'Standard'}
                             </button>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              Plan: {b.planId || 'standard'} • {(b as any).paid || (b as any).paymentStatus === 'paid' ? '✅ Paid' : 'Auto-Active'}
+                            </span>
                           </td>
                           <td className="p-4">
                             <select
@@ -1752,27 +2575,48 @@ export default function DedicatedAdminConsole() {
                               }
                               className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-700 text-xs font-bold text-slate-200 outline-none"
                             >
-                              <option value="published">Published</option>
+                              <option value="published">Published (Live)</option>
                               <option value="pending_approval">Pending Approval</option>
                               <option value="suspended">Suspended</option>
                             </select>
                           </td>
                           <td className="p-4 text-right">
-                            <button
-                              onClick={() =>
-                                setDeleteConfirmModal({
-                                  open: true,
-                                  type: 'business',
-                                  id: b.id,
-                                  title: b.name_en,
-                                  phone: b.phone,
-                                })
-                              }
-                              className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition"
-                              title="Delete Business & Release Phone"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => {
+                                  setManualSubModal({
+                                    open: true,
+                                    entityType: 'business',
+                                    entityId: b.id,
+                                    entityName: b.name_en,
+                                    phone: b.phone,
+                                  });
+                                  setSubPlanChoice('premium');
+                                  setSubExpiryDays(365);
+                                  setSubPaymentRef('Admin Manual Grant');
+                                }}
+                                className="px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-[11px] font-bold border border-amber-500/30 transition flex items-center gap-1"
+                                title="Assign or Upgrade Subscription"
+                              >
+                                <Sparkles className="w-3.5 h-3.5" />
+                                <span>Sub</span>
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setDeleteConfirmModal({
+                                    open: true,
+                                    type: 'business',
+                                    id: b.id,
+                                    title: b.name_en,
+                                    phone: b.phone,
+                                  })
+                                }
+                                className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition cursor-pointer"
+                                title="Delete Business & Release Phone"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -1783,130 +2627,251 @@ export default function DedicatedAdminConsole() {
             </div>
           )}
 
-          {/* ─── PARTNERS & PAYOUTS TAB ─── */}
-          {activeTab === 'partners' && (
+          {/* ─── TAB: HOT DEALS & OFFERS ─── */}
+          {activeTab === 'hot_deals' && (
             <div className="space-y-6">
               {/* Top Banner */}
-              <div className="p-6 rounded-2xl bg-gradient-to-r from-purple-900/40 via-indigo-900/30 to-slate-900 border border-purple-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="p-6 rounded-2xl bg-gradient-to-r from-rose-900/40 via-red-900/30 to-slate-900 border border-rose-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 text-[11px] font-black uppercase tracking-wider mb-2">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Kurnool One Partner Program
+                  <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 text-[11px] font-black uppercase tracking-wider mb-2">
+                    <Flame className="w-3.5 h-3.5" />
+                    Hot Deals & Flash Offers
                   </div>
-                  <h2 className="text-xl font-black text-white">Partner Commission & UPI Payouts</h2>
+                  <h2 className="text-xl font-black text-white">Merchant Deals & Festival Discounts</h2>
                   <p className="text-xs text-slate-400 mt-1">
-                    Partners earn ₹150 for every Verified Merchant (₹399/₹999) onboarded with their referral code. Transfer via UPI & record UTR below.
+                    Manage active discount coupons and festival banners shown to Kurnool residents in the Deals tab of App & Website.
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={loadData}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition flex items-center gap-2"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Refresh</span>
-                  </button>
-                </div>
+                <button
+                  onClick={() => {
+                    setEditingDeal(null);
+                    setDealForm({
+                      title_en: '',
+                      title_te: '',
+                      description_en: '',
+                      description_te: '',
+                      discountText: '',
+                      businessName: '',
+                      validUntil: '',
+                      category: 'clothing_fashion',
+                      phone: '',
+                      bannerUrl: '',
+                    });
+                    setShowDealModal(true);
+                  }}
+                  className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl transition flex items-center gap-2 shadow-lg shadow-rose-600/30 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Create New Deal</span>
+                </button>
               </div>
 
-              {/* Stat Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Partners</span>
-                  <span className="text-2xl font-black text-white mt-1 block">{partnersList.length}</span>
+              {/* Deals Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {offersList.length === 0 ? (
+                  <div className="col-span-3 p-12 text-center text-slate-500 bg-slate-900 border border-slate-800 rounded-2xl">
+                    No active deals found. Click "+ Create New Deal" to publish a special festival discount.
+                  </div>
+                ) : (
+                  offersList.map((deal) => (
+                    <div key={deal.id} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg flex flex-col">
+                      <div className="h-44 w-full relative overflow-hidden bg-slate-950">
+                        {deal.bannerUrl || (deal.images && deal.images[0]) ? (
+                          <img
+                            src={deal.bannerUrl || deal.images?.[0]}
+                            alt={deal.title_en}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-slate-700">
+                            <Flame className="w-12 h-12 text-rose-500/40" />
+                          </div>
+                        )}
+                        <span className="absolute top-3 left-3 px-3 py-1 bg-rose-600 text-white font-black text-[11px] rounded-lg shadow-md uppercase">
+                          {deal.discountText || 'SPECIAL OFFER'}
+                        </span>
+                        {deal.isFeatured && (
+                          <span className="absolute top-3 right-3 px-2 py-0.5 bg-amber-500 text-slate-950 font-black text-[10px] rounded-md shadow-md uppercase">
+                            ★ Featured
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
+                              {deal.category}
+                            </span>
+                            <span className="text-[10px] font-bold text-rose-400">
+                              {deal.validUntil || 'Active'}
+                            </span>
+                          </div>
+                          <h3 className="text-base font-black text-white mt-1 leading-snug">
+                            {deal.title_en}
+                          </h3>
+                          {deal.title_te && (
+                            <p className="text-xs text-rose-300/80 font-medium">{deal.title_te}</p>
+                          )}
+                          <p className="text-xs text-slate-400 mt-2 line-clamp-2">
+                            {deal.description_en}
+                          </p>
+                          <div className="text-xs font-bold text-blue-400 mt-2">
+                            🏪 {deal.businessName}
+                          </div>
+                          {deal.phone && (
+                            <div className="text-xs text-slate-400 mt-0.5 font-mono">
+                              📞 {deal.phone}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                          <button
+                            onClick={() => handleToggleDealFeature(deal.id, deal.isFeatured)}
+                            className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition ${
+                              deal.isFeatured
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                : 'bg-slate-800 text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            {deal.isFeatured ? '★ Featured' : 'Feature'}
+                          </button>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setEditingDeal(deal);
+                                setDealForm({
+                                  title_en: deal.title_en,
+                                  title_te: deal.title_te || '',
+                                  description_en: deal.description_en,
+                                  description_te: deal.description_te || '',
+                                  discountText: deal.discountText,
+                                  businessName: deal.businessName,
+                                  validUntil: deal.validUntil || '',
+                                  category: deal.category || 'clothing_fashion',
+                                  phone: deal.phone || '',
+                                  bannerUrl: deal.bannerUrl || (deal.images ? deal.images[0] : ''),
+                                });
+                                setShowDealModal(true);
+                              }}
+                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
+                              title="Edit Deal"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleBroadcastDealPush(deal)}
+                              className="px-2 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 text-[11px] font-bold transition cursor-pointer flex items-center gap-1 border border-amber-500/30"
+                              title="Send Instant Push Alert to All Users"
+                            >
+                              <Bell className="w-3.5 h-3.5" />
+                              <span>Push</span>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteDeal(deal.id)}
+                              className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition cursor-pointer"
+                              title="Delete Deal"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ─── TAB: REPORTED CONTENT MODERATION ─── */}
+          {activeTab === 'reported_content' && (
+            <div className="space-y-6">
+              {/* Top Banner */}
+              <div className="p-6 rounded-2xl bg-gradient-to-r from-amber-900/40 via-orange-900/30 to-slate-900 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 text-[11px] font-black uppercase tracking-wider mb-2">
+                    <Flag className="w-3.5 h-3.5" />
+                    Civic Moderation & Safety
+                  </div>
+                  <h2 className="text-xl font-black text-white">Reported Posts & Abuse Queue</h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Review content reported by Kurnool citizens for community guidelines violations, spam, or inappropriate submissions.
+                  </p>
                 </div>
-                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">Pending Payouts</span>
-                  <span className="text-2xl font-black text-amber-400 mt-1 block">
-                    ₹{partnersList.reduce((sum, p) => sum + (p.pendingCommission || 0), 0)}
-                  </span>
-                </div>
-                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Total Paid Out</span>
-                  <span className="text-2xl font-black text-emerald-400 mt-1 block">
-                    ₹{partnersList.reduce((sum, p) => sum + (p.earnedCommission || 0), 0)}
-                  </span>
-                </div>
-                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">Total Onboarded Shops</span>
-                  <span className="text-2xl font-black text-blue-400 mt-1 block">
-                    {partnersList.reduce((sum, p) => sum + (p.onboardedCount || 0), 0)}
-                  </span>
-                </div>
+                <button
+                  onClick={loadData}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition flex items-center gap-2"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Refresh Queue</span>
+                </button>
               </div>
 
-              {/* Partners Table */}
+              {/* Reports Table / List */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-950/80 border-b border-slate-800 text-[11px] font-black text-slate-400 uppercase tracking-wider">
                       <tr>
-                        <th className="py-3.5 px-4">Partner Details</th>
-                        <th className="py-3.5 px-4">Referral Code</th>
-                        <th className="py-3.5 px-4">UPI VPA</th>
-                        <th className="py-3.5 px-4">Shops Onboarded</th>
-                        <th className="py-3.5 px-4">Pending (₹)</th>
-                        <th className="py-3.5 px-4">Total Paid (₹)</th>
-                        <th className="py-3.5 px-4">Status</th>
-                        <th className="py-3.5 px-4 text-right">Payout Action</th>
+                        <th className="py-3.5 px-4">Item Type</th>
+                        <th className="py-3.5 px-4">Details / Title</th>
+                        <th className="py-3.5 px-4">Report Reason</th>
+                        <th className="py-3.5 px-4">Reports Count</th>
+                        <th className="py-3.5 px-4 text-right">Moderation Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800 text-slate-300">
-                      {partnersList.length === 0 ? (
+                    <tbody className="divide-y divide-slate-800/60 font-medium text-slate-300">
+                      {reportsList.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="py-12 text-center text-slate-500">
-                            No partners registered yet. Citizens join via Partner Program in mobile app.
+                          <td colSpan={5} className="p-8 text-center text-slate-500">
+                            🛡️ No flagged content! The community feed is clean and within guidelines.
                           </td>
                         </tr>
                       ) : (
-                        partnersList.map((partner) => {
-                          const pendingAmt = partner.pendingCommission || 0;
-                          return (
-                            <tr key={partner.id} className="hover:bg-slate-800/40 transition">
-                              <td className="py-3 px-4">
-                                <span className="font-bold text-white block">{partner.fullName || 'Citizen Partner'}</span>
-                                <span className="text-[11px] text-slate-400 font-mono">{partner.phone}</span>
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono font-bold text-purple-300">
-                                  {partner.partnerCode || `KNL-${partner.phone?.slice(-4)}`}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className="font-mono text-emerald-400 font-bold">{partner.upiId || 'Pending Setup'}</span>
-                              </td>
-                              <td className="py-3 px-4 font-mono font-bold text-white">
-                                {partner.onboardedCount || 0}
-                              </td>
-                              <td className="py-3 px-4 font-mono font-bold text-amber-400">
-                                ₹{pendingAmt}
-                              </td>
-                              <td className="py-3 px-4 font-mono text-slate-400">
-                                ₹{partner.earnedCommission || 0}
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                                  pendingAmt > 0
-                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                                }`}>
-                                  {pendingAmt > 0 ? 'Payout Due' : 'All Clear'}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4 text-right">
-                                <button
-                                  onClick={() => {
-                                    setPayoutModalPartner(partner);
-                                    setPayoutUtr('');
-                                  }}
-                                  className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow transition active:scale-95"
-                                >
-                                  Process UPI Payout
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
+                        reportsList.map((rep) => (
+                          <tr key={rep.id} className="hover:bg-slate-800/40 transition">
+                            <td className="p-4">
+                              <span className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 font-mono text-[10px] font-bold uppercase">
+                                {rep.reportType === 'community_post' ? 'Community Post' : (rep.itemType || 'User Report')}
+                              </span>
+                            </td>
+                            <td className="p-4 max-w-sm">
+                              <span className="block font-bold text-white text-sm">
+                                {rep.title_en || rep.postTitle || rep.content || rep.targetTitle || 'Reported media'}
+                              </span>
+                              <span className="block text-[11px] text-slate-400 mt-0.5 truncate">
+                                ID: {rep.id}
+                              </span>
+                            </td>
+                            <td className="p-4">
+                              <span className="text-amber-400 font-medium">
+                                {rep.reason || 'Flagged by users for review'}
+                              </span>
+                            </td>
+                            <td className="p-4">
+                              <span className="px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 font-bold text-[11px]">
+                                {rep.reportCount || 1} Reports
+                              </span>
+                            </td>
+                            <td className="p-4 text-right space-x-2">
+                              <button
+                                onClick={() => handleDismissReport(rep)}
+                                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[11px] transition cursor-pointer"
+                              >
+                                Dismiss
+                              </button>
+                              <button
+                                onClick={() => handleDeleteReportedItem(rep)}
+                                className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-[11px] transition shadow-md cursor-pointer"
+                              >
+                                Delete Content
+                              </button>
+                            </td>
+                          </tr>
+                        ))
                       )}
                     </tbody>
                   </table>
@@ -1915,119 +2880,6 @@ export default function DedicatedAdminConsole() {
             </div>
           )}
 
-      {/* ─── MODAL: PROCESS PARTNER PAYOUT ─── */}
-      {payoutModalPartner && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <h3 className="text-base font-black text-white">Process Partner Payout (UPI)</h3>
-              </div>
-              <button
-                onClick={() => setPayoutModalPartner(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4 text-xs">
-              <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-800/40 space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Partner:</span>
-                  <span className="font-bold text-white text-sm">{payoutModalPartner.fullName || payoutModalPartner.phone}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Mobile:</span>
-                  <span className="font-mono text-slate-200">{payoutModalPartner.phone}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Transfer UPI ID:</span>
-                  <span className="font-mono text-emerald-400 font-black text-sm">{payoutModalPartner.upiId}</span>
-                </div>
-                <div className="flex justify-between items-center pt-2 border-t border-purple-800/40">
-                  <span className="text-slate-400 font-bold">Payout Amount Due:</span>
-                  <span className="font-mono text-amber-400 font-black text-base">
-                    ₹{payoutModalPartner.pendingCommission || 0}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 space-y-1">
-                <span className="font-bold block">Manual Payout Instructions:</span>
-                <p className="text-[11px] leading-relaxed">
-                  1. Open PhonePe, Google Pay, or Paytm on your mobile.<br />
-                  2. Send ₹{payoutModalPartner.pendingCommission || 0} directly to <strong>{payoutModalPartner.upiId}</strong>.<br />
-                  3. Copy the 12-digit Bank UTR / Reference ID from payment receipt and paste below.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5">
-                  Bank UTR / Transaction Reference Number *
-                </label>
-                <input
-                  type="text"
-                  value={payoutUtr}
-                  onChange={(e) => setPayoutUtr(e.target.value)}
-                  placeholder="e.g. 430512849021 (12 digits)"
-                  className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-sm outline-none focus:border-purple-500"
-                  required
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setPayoutModalPartner(null)}
-                  className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={processingPayout || !payoutUtr.trim()}
-                  onClick={async () => {
-                    if (!payoutModalPartner) return;
-                    setProcessingPayout(true);
-                    try {
-                      const due = payoutModalPartner.pendingCommission || 0;
-                      await updateDoc(doc(db, 'partners', payoutModalPartner.id), {
-                        payoutStatus: 'paid',
-                        lastPayoutUtr: payoutUtr.trim(),
-                        lastPayoutAt: new Date().toISOString(),
-                        earnedCommission: (payoutModalPartner.earnedCommission || 0) + due,
-                        pendingCommission: 0,
-                      });
-                      setToast(`₹${due} marked as PAID with UTR ${payoutUtr.trim()}`);
-                      await logAdminAction(
-                        'payout_paid',
-                        'partner',
-                        payoutModalPartner.id,
-                        `Commission ₹${due} paid to UPI: ${payoutModalPartner.upiId} (UTR: ${payoutUtr.trim()})`,
-                        payoutModalPartner.fullName || payoutModalPartner.phone
-                      );
-                      setPayoutModalPartner(null);
-                      setPayoutUtr('');
-                      await loadData();
-                    } catch (e: any) {
-                      alert('Error: ' + e.message);
-                    } finally {
-                      setProcessingPayout(false);
-                    }
-                  }}
-                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow transition"
-                >
-                  {processingPayout ? 'Recording Payout...' : 'Confirm & Mark Paid'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
           {/* ─── TAB 3: PROFESSIONALS ────────────────────────────────────────── */}
           {activeTab === 'professionals' && (
@@ -2136,21 +2988,42 @@ export default function DedicatedAdminConsole() {
                             </select>
                           </td>
                           <td className="p-4 text-right">
-                            <button
-                              onClick={() =>
-                                setDeleteConfirmModal({
-                                  open: true,
-                                  type: 'professional',
-                                  id: p.id,
-                                  title: p.fullName,
-                                  phone: p.phone,
-                                })
-                              }
-                              className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition"
-                              title="Delete Professional & Release Phone"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => {
+                                  setManualSubModal({
+                                    open: true,
+                                    entityType: 'professional',
+                                    entityId: p.id,
+                                    entityName: p.fullName,
+                                    phone: p.phone,
+                                  });
+                                  setSubPlanChoice('premium');
+                                  setSubExpiryDays(365);
+                                  setSubPaymentRef('Admin Manual Grant');
+                                }}
+                                className="px-2.5 py-1.5 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 text-[11px] font-bold border border-teal-500/30 transition flex items-center gap-1"
+                                title="Assign or Upgrade Subscription"
+                              >
+                                <Sparkles className="w-3.5 h-3.5" />
+                                <span>Sub</span>
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setDeleteConfirmModal({
+                                    open: true,
+                                    type: 'professional',
+                                    id: p.id,
+                                    title: p.fullName,
+                                    phone: p.phone,
+                                  })
+                                }
+                                className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition"
+                                title="Delete Professional & Release Phone"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -2161,251 +3034,7 @@ export default function DedicatedAdminConsole() {
             </div>
           )}
 
-          {/* ─── PARTNERS & PAYOUTS TAB ─── */}
-          {activeTab === 'partners' && (
-            <div className="space-y-6">
-              {/* Top Banner */}
-              <div className="p-6 rounded-2xl bg-gradient-to-r from-purple-900/40 via-indigo-900/30 to-slate-900 border border-purple-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 text-[11px] font-black uppercase tracking-wider mb-2">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Kurnool One Partner Program
-                  </div>
-                  <h2 className="text-xl font-black text-white">Partner Commission & UPI Payouts</h2>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Partners earn ₹150 for every Verified Merchant (₹399/₹999) onboarded with their referral code. Transfer via UPI & record UTR below.
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={loadData}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition flex items-center gap-2"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Refresh</span>
-                  </button>
-                </div>
-              </div>
 
-              {/* Stat Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Partners</span>
-                  <span className="text-2xl font-black text-white mt-1 block">{partnersList.length}</span>
-                </div>
-                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">Pending Payouts</span>
-                  <span className="text-2xl font-black text-amber-400 mt-1 block">
-                    ₹{partnersList.reduce((sum, p) => sum + (p.pendingCommission || 0), 0)}
-                  </span>
-                </div>
-                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Total Paid Out</span>
-                  <span className="text-2xl font-black text-emerald-400 mt-1 block">
-                    ₹{partnersList.reduce((sum, p) => sum + (p.earnedCommission || 0), 0)}
-                  </span>
-                </div>
-                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">Total Onboarded Shops</span>
-                  <span className="text-2xl font-black text-blue-400 mt-1 block">
-                    {partnersList.reduce((sum, p) => sum + (p.onboardedCount || 0), 0)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Partners Table */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-950/80 border-b border-slate-800 text-[11px] font-black text-slate-400 uppercase tracking-wider">
-                      <tr>
-                        <th className="py-3.5 px-4">Partner Details</th>
-                        <th className="py-3.5 px-4">Referral Code</th>
-                        <th className="py-3.5 px-4">UPI VPA</th>
-                        <th className="py-3.5 px-4">Shops Onboarded</th>
-                        <th className="py-3.5 px-4">Pending (₹)</th>
-                        <th className="py-3.5 px-4">Total Paid (₹)</th>
-                        <th className="py-3.5 px-4">Status</th>
-                        <th className="py-3.5 px-4 text-right">Payout Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800 text-slate-300">
-                      {partnersList.length === 0 ? (
-                        <tr>
-                          <td colSpan={8} className="py-12 text-center text-slate-500">
-                            No partners registered yet. Citizens join via Partner Program in mobile app.
-                          </td>
-                        </tr>
-                      ) : (
-                        partnersList.map((partner) => {
-                          const pendingAmt = partner.pendingCommission || 0;
-                          return (
-                            <tr key={partner.id} className="hover:bg-slate-800/40 transition">
-                              <td className="py-3 px-4">
-                                <span className="font-bold text-white block">{partner.fullName || 'Citizen Partner'}</span>
-                                <span className="text-[11px] text-slate-400 font-mono">{partner.phone}</span>
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono font-bold text-purple-300">
-                                  {partner.partnerCode || `KNL-${partner.phone?.slice(-4)}`}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className="font-mono text-emerald-400 font-bold">{partner.upiId || 'Pending Setup'}</span>
-                              </td>
-                              <td className="py-3 px-4 font-mono font-bold text-white">
-                                {partner.onboardedCount || 0}
-                              </td>
-                              <td className="py-3 px-4 font-mono font-bold text-amber-400">
-                                ₹{pendingAmt}
-                              </td>
-                              <td className="py-3 px-4 font-mono text-slate-400">
-                                ₹{partner.earnedCommission || 0}
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                                  pendingAmt > 0
-                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                                }`}>
-                                  {pendingAmt > 0 ? 'Payout Due' : 'All Clear'}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4 text-right">
-                                <button
-                                  onClick={() => {
-                                    setPayoutModalPartner(partner);
-                                    setPayoutUtr('');
-                                  }}
-                                  className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow transition active:scale-95"
-                                >
-                                  Process UPI Payout
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-      {/* ─── MODAL: PROCESS PARTNER PAYOUT ─── */}
-      {payoutModalPartner && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <h3 className="text-base font-black text-white">Process Partner Payout (UPI)</h3>
-              </div>
-              <button
-                onClick={() => setPayoutModalPartner(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4 text-xs">
-              <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-800/40 space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Partner:</span>
-                  <span className="font-bold text-white text-sm">{payoutModalPartner.fullName || payoutModalPartner.phone}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Mobile:</span>
-                  <span className="font-mono text-slate-200">{payoutModalPartner.phone}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Transfer UPI ID:</span>
-                  <span className="font-mono text-emerald-400 font-black text-sm">{payoutModalPartner.upiId}</span>
-                </div>
-                <div className="flex justify-between items-center pt-2 border-t border-purple-800/40">
-                  <span className="text-slate-400 font-bold">Payout Amount Due:</span>
-                  <span className="font-mono text-amber-400 font-black text-base">
-                    ₹{payoutModalPartner.pendingCommission || 0}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 space-y-1">
-                <span className="font-bold block">Manual Payout Instructions:</span>
-                <p className="text-[11px] leading-relaxed">
-                  1. Open PhonePe, Google Pay, or Paytm on your mobile.<br />
-                  2. Send ₹{payoutModalPartner.pendingCommission || 0} directly to <strong>{payoutModalPartner.upiId}</strong>.<br />
-                  3. Copy the 12-digit Bank UTR / Reference ID from payment receipt and paste below.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5">
-                  Bank UTR / Transaction Reference Number *
-                </label>
-                <input
-                  type="text"
-                  value={payoutUtr}
-                  onChange={(e) => setPayoutUtr(e.target.value)}
-                  placeholder="e.g. 430512849021 (12 digits)"
-                  className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-sm outline-none focus:border-purple-500"
-                  required
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setPayoutModalPartner(null)}
-                  className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={processingPayout || !payoutUtr.trim()}
-                  onClick={async () => {
-                    if (!payoutModalPartner) return;
-                    setProcessingPayout(true);
-                    try {
-                      const due = payoutModalPartner.pendingCommission || 0;
-                      await updateDoc(doc(db, 'partners', payoutModalPartner.id), {
-                        payoutStatus: 'paid',
-                        lastPayoutUtr: payoutUtr.trim(),
-                        lastPayoutAt: new Date().toISOString(),
-                        earnedCommission: (payoutModalPartner.earnedCommission || 0) + due,
-                        pendingCommission: 0,
-                      });
-                      setToast(`₹${due} marked as PAID with UTR ${payoutUtr.trim()}`);
-                      await logAdminAction(
-                        'payout_paid',
-                        'partner',
-                        payoutModalPartner.id,
-                        `Commission ₹${due} paid to UPI: ${payoutModalPartner.upiId} (UTR: ${payoutUtr.trim()})`,
-                        payoutModalPartner.fullName || payoutModalPartner.phone
-                      );
-                      setPayoutModalPartner(null);
-                      setPayoutUtr('');
-                      await loadData();
-                    } catch (e: any) {
-                      alert('Error: ' + e.message);
-                    } finally {
-                      setProcessingPayout(false);
-                    }
-                  }}
-                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow transition"
-                >
-                  {processingPayout ? 'Recording Payout...' : 'Confirm & Mark Paid'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
           {/* ─── TAB 4: TOURIST PLACES ───────────────────────────────────────── */}
           {activeTab === 'places' && (
@@ -2689,6 +3318,68 @@ export default function DedicatedAdminConsole() {
                 </div>
               </div>
 
+              {/* Business Performance Analytics: Top 10 Leaderboard */}
+              {leads.length > 0 && (
+                <div className="rounded-2xl bg-slate-900 border border-slate-800 p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
+                        <TrendingUp className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-black text-white">🏆 Performance Leaderboard — Top 10 Businesses & Pros</h3>
+                        <p className="text-[11px] text-slate-400">Ranked by total phone calls, WhatsApp leads, and citizen engagement</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {(() => {
+                      const map: Record<string, { title: string; calls: number; whatsapp: number; views: number; total: number }> = {};
+                      leads.forEach((l) => {
+                        const key = l.targetTitle || l.targetName || l.businessName || l.professionalName || 'General Listing';
+                        if (!map[key]) {
+                          map[key] = { title: key, calls: 0, whatsapp: 0, views: 0, total: 0 };
+                        }
+                        if (l.actionType === 'call') map[key].calls += 1;
+                        else if (l.actionType === 'whatsapp') map[key].whatsapp += 1;
+                        else map[key].views += 1;
+                        map[key].total += 1;
+                      });
+                      const sorted = Object.values(map).sort((a, b) => b.total - a.total).slice(0, 10);
+
+                      return sorted.map((item, idx) => (
+                        <div key={idx} className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
+                              idx === 0 ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20' :
+                              idx === 1 ? 'bg-slate-300 text-slate-950' :
+                              idx === 2 ? 'bg-amber-700 text-white' : 'bg-slate-800 text-slate-400'
+                            }`}>
+                              {idx + 1}
+                            </span>
+                            <div className="min-w-0">
+                              <span className="block text-xs font-bold text-white truncate">{item.title}</span>
+                              <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
+                                <span className="text-emerald-400">📞 {item.calls} calls</span>
+                                <span>•</span>
+                                <span className="text-teal-400">💬 {item.whatsapp} WA</span>
+                                <span>•</span>
+                                <span className="text-blue-400">👁️ {item.views} views</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="text-sm font-black text-emerald-400 font-mono">{item.total}</span>
+                            <span className="block text-[9px] text-slate-500 uppercase font-bold">Leads</span>
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
+
               {/* Leads Table */}
               <div className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden">
                 <div className="p-5 border-b border-slate-800 flex items-center justify-between">
@@ -2815,12 +3506,21 @@ export default function DedicatedAdminConsole() {
                     Manage all 36 categories, icons, colors, and subcategories dynamically in Firestore.
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleSyncAllSeeds}
+                    disabled={syncingAllSeeds}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${syncingAllSeeds ? 'animate-spin' : ''}`} />
+                    <span>{syncingAllSeeds ? 'Syncing Seeds...' : '⚡ Sync All Seed Businesses, Pros & Deals'}</span>
+                  </button>
                   <button
                     type="button"
                     onClick={handleSyncCategories}
                     disabled={syncingCategories}
-                    className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold text-xs shadow-md transition flex items-center gap-2"
+                    className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${syncingCategories ? 'animate-spin' : ''}`} />
                     <span>{syncingCategories ? 'Syncing...' : '⚡ Sync 36 Categories to Firestore'}</span>
@@ -3084,19 +3784,54 @@ export default function DedicatedAdminConsole() {
                     </div>
 
                     <div>
-                      <label className="block text-slate-300 font-bold mb-1.5">
-                        Banner Image URL (Optional)
-                      </label>
-                      <input
-                        type="text"
-                        value={notificationForm.imageUrl}
-                        onChange={(e) => setNotificationForm({ ...notificationForm, imageUrl: e.target.value })}
-                        placeholder="https://..."
-                        className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono outline-none focus:border-blue-500 text-[11px]"
-                      />
-                      <span className="text-[10px] text-slate-500 mt-1 block">
-                        Will be displayed as a rich thumbnail inside notification cards.
-                      </span>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-slate-300 font-bold">
+                          Banner Image (Optional)
+                        </label>
+                        <label className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold cursor-pointer transition">
+                          {uploadingNotifBanner ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Uploading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>Upload Image</span>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            disabled={uploadingNotifBanner}
+                            onChange={handleUploadNotifBanner}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                      {notificationForm.imageUrl ? (
+                        <div className="flex items-center gap-3 p-2 bg-slate-950 border border-slate-700 rounded-xl">
+                          <img
+                            src={notificationForm.imageUrl}
+                            alt="Banner Preview"
+                            className="w-14 h-14 object-cover rounded-lg border border-slate-700"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <span className="text-xs text-white truncate block">{notificationForm.imageUrl}</span>
+                            <button
+                              type="button"
+                              onClick={() => setNotificationForm({ ...notificationForm, imageUrl: '' })}
+                              className="text-[11px] text-red-400 hover:underline mt-0.5"
+                            >
+                              Remove Image
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-slate-500 block">
+                          Upload banner image to show rich preview inside notifications.
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -3304,8 +4039,8 @@ export default function DedicatedAdminConsole() {
                   <span>Published Stories Live on Mobile App & Website</span>
                 </h4>
 
-                <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
-                  <table className="w-full text-left text-xs text-slate-300">
+                <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-x-auto">
+                  <table className="w-full text-left text-xs text-slate-300 min-w-[600px]">
                     <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-bold">
                       <tr>
                         <th className="py-3 px-4">Headline</th>
@@ -3372,8 +4107,8 @@ export default function DedicatedAdminConsole() {
               </div>
 
               {/* Donors Table */}
-              <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
-                <table className="w-full text-left text-xs text-slate-300">
+              <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-300 min-w-[600px]">
                   <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-bold">
                     <tr>
                       <th className="py-3 px-4">Donor Name</th>
@@ -3440,251 +4175,7 @@ export default function DedicatedAdminConsole() {
             </div>
           )}
 
-          {/* ─── PARTNERS & PAYOUTS TAB ─── */}
-          {activeTab === 'partners' && (
-            <div className="space-y-6">
-              {/* Top Banner */}
-              <div className="p-6 rounded-2xl bg-gradient-to-r from-purple-900/40 via-indigo-900/30 to-slate-900 border border-purple-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 text-[11px] font-black uppercase tracking-wider mb-2">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Kurnool One Partner Program
-                  </div>
-                  <h2 className="text-xl font-black text-white">Partner Commission & UPI Payouts</h2>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Partners earn ₹150 for every Verified Merchant (₹399/₹999) onboarded with their referral code. Transfer via UPI & record UTR below.
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={loadData}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition flex items-center gap-2"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Refresh</span>
-                  </button>
-                </div>
-              </div>
 
-              {/* Stat Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Partners</span>
-                  <span className="text-2xl font-black text-white mt-1 block">{partnersList.length}</span>
-                </div>
-                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">Pending Payouts</span>
-                  <span className="text-2xl font-black text-amber-400 mt-1 block">
-                    ₹{partnersList.reduce((sum, p) => sum + (p.pendingCommission || 0), 0)}
-                  </span>
-                </div>
-                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Total Paid Out</span>
-                  <span className="text-2xl font-black text-emerald-400 mt-1 block">
-                    ₹{partnersList.reduce((sum, p) => sum + (p.earnedCommission || 0), 0)}
-                  </span>
-                </div>
-                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">Total Onboarded Shops</span>
-                  <span className="text-2xl font-black text-blue-400 mt-1 block">
-                    {partnersList.reduce((sum, p) => sum + (p.onboardedCount || 0), 0)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Partners Table */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-950/80 border-b border-slate-800 text-[11px] font-black text-slate-400 uppercase tracking-wider">
-                      <tr>
-                        <th className="py-3.5 px-4">Partner Details</th>
-                        <th className="py-3.5 px-4">Referral Code</th>
-                        <th className="py-3.5 px-4">UPI VPA</th>
-                        <th className="py-3.5 px-4">Shops Onboarded</th>
-                        <th className="py-3.5 px-4">Pending (₹)</th>
-                        <th className="py-3.5 px-4">Total Paid (₹)</th>
-                        <th className="py-3.5 px-4">Status</th>
-                        <th className="py-3.5 px-4 text-right">Payout Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800 text-slate-300">
-                      {partnersList.length === 0 ? (
-                        <tr>
-                          <td colSpan={8} className="py-12 text-center text-slate-500">
-                            No partners registered yet. Citizens join via Partner Program in mobile app.
-                          </td>
-                        </tr>
-                      ) : (
-                        partnersList.map((partner) => {
-                          const pendingAmt = partner.pendingCommission || 0;
-                          return (
-                            <tr key={partner.id} className="hover:bg-slate-800/40 transition">
-                              <td className="py-3 px-4">
-                                <span className="font-bold text-white block">{partner.fullName || 'Citizen Partner'}</span>
-                                <span className="text-[11px] text-slate-400 font-mono">{partner.phone}</span>
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono font-bold text-purple-300">
-                                  {partner.partnerCode || `KNL-${partner.phone?.slice(-4)}`}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className="font-mono text-emerald-400 font-bold">{partner.upiId || 'Pending Setup'}</span>
-                              </td>
-                              <td className="py-3 px-4 font-mono font-bold text-white">
-                                {partner.onboardedCount || 0}
-                              </td>
-                              <td className="py-3 px-4 font-mono font-bold text-amber-400">
-                                ₹{pendingAmt}
-                              </td>
-                              <td className="py-3 px-4 font-mono text-slate-400">
-                                ₹{partner.earnedCommission || 0}
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                                  pendingAmt > 0
-                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                                }`}>
-                                  {pendingAmt > 0 ? 'Payout Due' : 'All Clear'}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4 text-right">
-                                <button
-                                  onClick={() => {
-                                    setPayoutModalPartner(partner);
-                                    setPayoutUtr('');
-                                  }}
-                                  className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow transition active:scale-95"
-                                >
-                                  Process UPI Payout
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-      {/* ─── MODAL: PROCESS PARTNER PAYOUT ─── */}
-      {payoutModalPartner && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <h3 className="text-base font-black text-white">Process Partner Payout (UPI)</h3>
-              </div>
-              <button
-                onClick={() => setPayoutModalPartner(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4 text-xs">
-              <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-800/40 space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Partner:</span>
-                  <span className="font-bold text-white text-sm">{payoutModalPartner.fullName || payoutModalPartner.phone}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Mobile:</span>
-                  <span className="font-mono text-slate-200">{payoutModalPartner.phone}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Transfer UPI ID:</span>
-                  <span className="font-mono text-emerald-400 font-black text-sm">{payoutModalPartner.upiId}</span>
-                </div>
-                <div className="flex justify-between items-center pt-2 border-t border-purple-800/40">
-                  <span className="text-slate-400 font-bold">Payout Amount Due:</span>
-                  <span className="font-mono text-amber-400 font-black text-base">
-                    ₹{payoutModalPartner.pendingCommission || 0}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 space-y-1">
-                <span className="font-bold block">Manual Payout Instructions:</span>
-                <p className="text-[11px] leading-relaxed">
-                  1. Open PhonePe, Google Pay, or Paytm on your mobile.<br />
-                  2. Send ₹{payoutModalPartner.pendingCommission || 0} directly to <strong>{payoutModalPartner.upiId}</strong>.<br />
-                  3. Copy the 12-digit Bank UTR / Reference ID from payment receipt and paste below.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5">
-                  Bank UTR / Transaction Reference Number *
-                </label>
-                <input
-                  type="text"
-                  value={payoutUtr}
-                  onChange={(e) => setPayoutUtr(e.target.value)}
-                  placeholder="e.g. 430512849021 (12 digits)"
-                  className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-sm outline-none focus:border-purple-500"
-                  required
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setPayoutModalPartner(null)}
-                  className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={processingPayout || !payoutUtr.trim()}
-                  onClick={async () => {
-                    if (!payoutModalPartner) return;
-                    setProcessingPayout(true);
-                    try {
-                      const due = payoutModalPartner.pendingCommission || 0;
-                      await updateDoc(doc(db, 'partners', payoutModalPartner.id), {
-                        payoutStatus: 'paid',
-                        lastPayoutUtr: payoutUtr.trim(),
-                        lastPayoutAt: new Date().toISOString(),
-                        earnedCommission: (payoutModalPartner.earnedCommission || 0) + due,
-                        pendingCommission: 0,
-                      });
-                      setToast(`₹${due} marked as PAID with UTR ${payoutUtr.trim()}`);
-                      await logAdminAction(
-                        'payout_paid',
-                        'partner',
-                        payoutModalPartner.id,
-                        `Commission ₹${due} paid to UPI: ${payoutModalPartner.upiId} (UTR: ${payoutUtr.trim()})`,
-                        payoutModalPartner.fullName || payoutModalPartner.phone
-                      );
-                      setPayoutModalPartner(null);
-                      setPayoutUtr('');
-                      await loadData();
-                    } catch (e: any) {
-                      alert('Error: ' + e.message);
-                    } finally {
-                      setProcessingPayout(false);
-                    }
-                  }}
-                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow transition"
-                >
-                  {processingPayout ? 'Recording Payout...' : 'Confirm & Mark Paid'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
           {/* ─── TAB: HOUSE RENTALS (TO-LET) MODERATION ─── */}
           {activeTab === 'house_rentals' && (
@@ -3711,8 +4202,8 @@ export default function DedicatedAdminConsole() {
               </div>
 
               {/* All Rental Listings Table */}
-              <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
-                <table className="w-full text-left text-xs text-slate-300">
+              <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-300 min-w-[600px]">
                   <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-bold">
                     <tr>
                       <th className="py-3 px-4">Property Title</th>
@@ -3777,251 +4268,7 @@ export default function DedicatedAdminConsole() {
             </div>
           )}
 
-          {/* ─── PARTNERS & PAYOUTS TAB ─── */}
-          {activeTab === 'partners' && (
-            <div className="space-y-6">
-              {/* Top Banner */}
-              <div className="p-6 rounded-2xl bg-gradient-to-r from-purple-900/40 via-indigo-900/30 to-slate-900 border border-purple-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 text-[11px] font-black uppercase tracking-wider mb-2">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Kurnool One Partner Program
-                  </div>
-                  <h2 className="text-xl font-black text-white">Partner Commission & UPI Payouts</h2>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Partners earn ₹150 for every Verified Merchant (₹399/₹999) onboarded with their referral code. Transfer via UPI & record UTR below.
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={loadData}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition flex items-center gap-2"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Refresh</span>
-                  </button>
-                </div>
-              </div>
 
-              {/* Stat Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Partners</span>
-                  <span className="text-2xl font-black text-white mt-1 block">{partnersList.length}</span>
-                </div>
-                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">Pending Payouts</span>
-                  <span className="text-2xl font-black text-amber-400 mt-1 block">
-                    ₹{partnersList.reduce((sum, p) => sum + (p.pendingCommission || 0), 0)}
-                  </span>
-                </div>
-                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Total Paid Out</span>
-                  <span className="text-2xl font-black text-emerald-400 mt-1 block">
-                    ₹{partnersList.reduce((sum, p) => sum + (p.earnedCommission || 0), 0)}
-                  </span>
-                </div>
-                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">Total Onboarded Shops</span>
-                  <span className="text-2xl font-black text-blue-400 mt-1 block">
-                    {partnersList.reduce((sum, p) => sum + (p.onboardedCount || 0), 0)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Partners Table */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-950/80 border-b border-slate-800 text-[11px] font-black text-slate-400 uppercase tracking-wider">
-                      <tr>
-                        <th className="py-3.5 px-4">Partner Details</th>
-                        <th className="py-3.5 px-4">Referral Code</th>
-                        <th className="py-3.5 px-4">UPI VPA</th>
-                        <th className="py-3.5 px-4">Shops Onboarded</th>
-                        <th className="py-3.5 px-4">Pending (₹)</th>
-                        <th className="py-3.5 px-4">Total Paid (₹)</th>
-                        <th className="py-3.5 px-4">Status</th>
-                        <th className="py-3.5 px-4 text-right">Payout Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800 text-slate-300">
-                      {partnersList.length === 0 ? (
-                        <tr>
-                          <td colSpan={8} className="py-12 text-center text-slate-500">
-                            No partners registered yet. Citizens join via Partner Program in mobile app.
-                          </td>
-                        </tr>
-                      ) : (
-                        partnersList.map((partner) => {
-                          const pendingAmt = partner.pendingCommission || 0;
-                          return (
-                            <tr key={partner.id} className="hover:bg-slate-800/40 transition">
-                              <td className="py-3 px-4">
-                                <span className="font-bold text-white block">{partner.fullName || 'Citizen Partner'}</span>
-                                <span className="text-[11px] text-slate-400 font-mono">{partner.phone}</span>
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 font-mono font-bold text-purple-300">
-                                  {partner.partnerCode || `KNL-${partner.phone?.slice(-4)}`}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className="font-mono text-emerald-400 font-bold">{partner.upiId || 'Pending Setup'}</span>
-                              </td>
-                              <td className="py-3 px-4 font-mono font-bold text-white">
-                                {partner.onboardedCount || 0}
-                              </td>
-                              <td className="py-3 px-4 font-mono font-bold text-amber-400">
-                                ₹{pendingAmt}
-                              </td>
-                              <td className="py-3 px-4 font-mono text-slate-400">
-                                ₹{partner.earnedCommission || 0}
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                                  pendingAmt > 0
-                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                                }`}>
-                                  {pendingAmt > 0 ? 'Payout Due' : 'All Clear'}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4 text-right">
-                                <button
-                                  onClick={() => {
-                                    setPayoutModalPartner(partner);
-                                    setPayoutUtr('');
-                                  }}
-                                  className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow transition active:scale-95"
-                                >
-                                  Process UPI Payout
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-      {/* ─── MODAL: PROCESS PARTNER PAYOUT ─── */}
-      {payoutModalPartner && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <h3 className="text-base font-black text-white">Process Partner Payout (UPI)</h3>
-              </div>
-              <button
-                onClick={() => setPayoutModalPartner(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4 text-xs">
-              <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-800/40 space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Partner:</span>
-                  <span className="font-bold text-white text-sm">{payoutModalPartner.fullName || payoutModalPartner.phone}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Mobile:</span>
-                  <span className="font-mono text-slate-200">{payoutModalPartner.phone}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Transfer UPI ID:</span>
-                  <span className="font-mono text-emerald-400 font-black text-sm">{payoutModalPartner.upiId}</span>
-                </div>
-                <div className="flex justify-between items-center pt-2 border-t border-purple-800/40">
-                  <span className="text-slate-400 font-bold">Payout Amount Due:</span>
-                  <span className="font-mono text-amber-400 font-black text-base">
-                    ₹{payoutModalPartner.pendingCommission || 0}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 space-y-1">
-                <span className="font-bold block">Manual Payout Instructions:</span>
-                <p className="text-[11px] leading-relaxed">
-                  1. Open PhonePe, Google Pay, or Paytm on your mobile.<br />
-                  2. Send ₹{payoutModalPartner.pendingCommission || 0} directly to <strong>{payoutModalPartner.upiId}</strong>.<br />
-                  3. Copy the 12-digit Bank UTR / Reference ID from payment receipt and paste below.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1.5">
-                  Bank UTR / Transaction Reference Number *
-                </label>
-                <input
-                  type="text"
-                  value={payoutUtr}
-                  onChange={(e) => setPayoutUtr(e.target.value)}
-                  placeholder="e.g. 430512849021 (12 digits)"
-                  className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-sm outline-none focus:border-purple-500"
-                  required
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setPayoutModalPartner(null)}
-                  className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={processingPayout || !payoutUtr.trim()}
-                  onClick={async () => {
-                    if (!payoutModalPartner) return;
-                    setProcessingPayout(true);
-                    try {
-                      const due = payoutModalPartner.pendingCommission || 0;
-                      await updateDoc(doc(db, 'partners', payoutModalPartner.id), {
-                        payoutStatus: 'paid',
-                        lastPayoutUtr: payoutUtr.trim(),
-                        lastPayoutAt: new Date().toISOString(),
-                        earnedCommission: (payoutModalPartner.earnedCommission || 0) + due,
-                        pendingCommission: 0,
-                      });
-                      setToast(`₹${due} marked as PAID with UTR ${payoutUtr.trim()}`);
-                      await logAdminAction(
-                        'payout_paid',
-                        'partner',
-                        payoutModalPartner.id,
-                        `Commission ₹${due} paid to UPI: ${payoutModalPartner.upiId} (UTR: ${payoutUtr.trim()})`,
-                        payoutModalPartner.fullName || payoutModalPartner.phone
-                      );
-                      setPayoutModalPartner(null);
-                      setPayoutUtr('');
-                      await loadData();
-                    } catch (e: any) {
-                      alert('Error: ' + e.message);
-                    } finally {
-                      setProcessingPayout(false);
-                    }
-                  }}
-                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow transition"
-                >
-                  {processingPayout ? 'Recording Payout...' : 'Confirm & Mark Paid'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
           {/* ─── TAB: MARKETPLACE CLASSIFIEDS ─── */}
           {activeTab === 'marketplace' && (
@@ -4048,8 +4295,8 @@ export default function DedicatedAdminConsole() {
               </div>
 
               {/* All Marketplace Items Table */}
-              <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
-                <table className="w-full text-left text-xs text-slate-300">
+              <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-300 min-w-[600px]">
                   <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-bold">
                     <tr>
                       <th className="py-3 px-4">Item Name</th>
@@ -4116,7 +4363,7 @@ export default function DedicatedAdminConsole() {
             </div>
           )}
 
-          {/* ─── PARTNERS & PAYOUTS TAB ─── */}
+
           {activeTab === 'partners' && (
             <div className="space-y-6">
               {/* Top Banner */}
@@ -4843,14 +5090,54 @@ export default function DedicatedAdminConsole() {
               </div>
 
               <div>
-                <label className="block text-slate-400 font-bold mb-1">Photo URLs (One per line)</label>
-                <textarea
-                  rows={2}
-                  value={placeForm.photos}
-                  onChange={(e) => setPlaceForm({ ...placeForm, photos: e.target.value })}
-                  placeholder="https://...&#10;https://..."
-                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white outline-none font-mono text-[11px]"
-                />
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-slate-400 font-bold">Photos & Gallery</label>
+                  <label className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold cursor-pointer transition">
+                    {uploadingPlacePhoto ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload Photo</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={uploadingPlacePhoto}
+                      onChange={handleUploadPlacePhoto}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+                {placeForm.photos ? (
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      {placeForm.photos.split('\n').filter(Boolean).map((photoUrl, pIdx) => (
+                        <div key={pIdx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-700 group">
+                          <img src={photoUrl} alt="Place" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const remaining = placeForm.photos.split('\n').filter(Boolean).filter((_, i) => i !== pIdx).join('\n');
+                              setPlaceForm({ ...placeForm, photos: remaining });
+                            }}
+                            className="absolute top-0.5 right-0.5 w-5 h-5 bg-red-600 rounded-full text-white text-[10px] font-bold flex items-center justify-center opacity-80 hover:opacity-100"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <span className="text-[11px] text-slate-500 block">
+                    No photos uploaded yet. Click Upload Photo above to add images from device.
+                  </span>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
@@ -4987,14 +5274,52 @@ export default function DedicatedAdminConsole() {
               </div>
 
               <div>
-                <label className="block text-slate-400 font-bold mb-1">Poster Image URL</label>
-                <input
-                  type="text"
-                  value={eventForm.posterUrl}
-                  onChange={(e) => setEventForm({ ...eventForm, posterUrl: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white outline-none font-mono text-[11px]"
-                />
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-slate-400 font-bold">Poster Image</label>
+                  <label className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold cursor-pointer transition">
+                    {uploadingEventPoster ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload Poster</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={uploadingEventPoster}
+                      onChange={handleUploadEventPoster}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+                {eventForm.posterUrl ? (
+                  <div className="flex items-center gap-3 p-2 bg-slate-950 border border-slate-700 rounded-xl">
+                    <img
+                      src={eventForm.posterUrl}
+                      alt="Poster Preview"
+                      className="w-14 h-14 object-cover rounded-lg border border-slate-700"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs text-white truncate block">{eventForm.posterUrl}</span>
+                      <button
+                        type="button"
+                        onClick={() => setEventForm({ ...eventForm, posterUrl: '' })}
+                        className="text-[11px] text-red-400 hover:underline mt-0.5"
+                      >
+                        Remove Poster
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <span className="text-[11px] text-slate-500 block">
+                    Upload official event banner or poster image from device.
+                  </span>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
@@ -5047,6 +5372,119 @@ export default function DedicatedAdminConsole() {
                 className="py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs shadow-md"
               >
                 Delete Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: MANUAL SUBSCRIPTION GRANT / UPGRADE ───────────────────── */}
+      {manualSubModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-base font-black text-white">Assign Subscription Plan</h4>
+                  <p className="text-[11px] text-slate-400">Manual administrative grant or offline payment recording</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setManualSubModal(null)}
+                className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-xs space-y-1">
+              <div className="text-slate-400">Target Listing:</div>
+              <div className="text-sm font-bold text-white">{manualSubModal.entityName}</div>
+              <div className="text-[10px] text-slate-500 font-mono uppercase">
+                {manualSubModal.entityType} • ID: {manualSubModal.entityId} {manualSubModal.phone ? `• 📞 ${manualSubModal.phone}` : ''}
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-400 font-bold mb-1">Select Subscription Tier</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSubPlanChoice('premium');
+                      setSubExpiryDays(365);
+                    }}
+                    className={`p-3 rounded-xl border text-left transition ${
+                      subPlanChoice === 'premium'
+                        ? 'bg-amber-500/20 border-amber-500 text-amber-200'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="block font-black text-xs">👑 Premium (1 Year)</span>
+                    <span className="block text-[10px] text-slate-400 mt-0.5">365 Days • Top Rank & Checkmark</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSubPlanChoice('standard');
+                      setSubExpiryDays(180);
+                    }}
+                    className={`p-3 rounded-xl border text-left transition ${
+                      subPlanChoice === 'standard'
+                        ? 'bg-blue-500/20 border-blue-500 text-blue-200'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="block font-black text-xs">🛡️ Standard (6 Mo)</span>
+                    <span className="block text-[10px] text-slate-400 mt-0.5">180 Days • Verified Checkmark</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-bold mb-1">Duration (Days from Today)</label>
+                <input
+                  type="number"
+                  value={subExpiryDays}
+                  onChange={(e) => setSubExpiryDays(Number(e.target.value) || 30)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none"
+                />
+                <span className="text-[10px] text-slate-500 block mt-1">
+                  Expires on: {new Date(Date.now() + subExpiryDays * 86400000).toISOString().split('T')[0]}
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-bold mb-1">Reason / Payment Reference (UTR / Offline Note)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Cash Paid at Office, Razorpay UTR 487291, Promotional Grant"
+                  value={subPaymentRef}
+                  onChange={(e) => setSubPaymentRef(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setManualSubModal(null)}
+                className="py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={grantingSub}
+                onClick={executeManualSubscription}
+                className="py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 disabled:opacity-50"
+              >
+                {grantingSub ? 'Applying...' : 'Grant Subscription'}
               </button>
             </div>
           </div>

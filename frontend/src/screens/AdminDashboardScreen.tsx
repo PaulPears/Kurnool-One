@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, SafeAreaView, ScrollView, TouchableOpacity,
+  View, Text, ScrollView, TouchableOpacity,
   FlatList, ActivityIndicator, Alert, RefreshControl, Image, Linking,
   Modal, TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -546,9 +547,17 @@ export default function AdminDashboardScreen({ navigation }: any) {
               <Text className="font-bold text-lg text-gray-900" numberOfLines={1}>{item.name_en || item.name_te}</Text>
               <Text className="text-gray-500 text-xs mt-0.5">📞 {item.phone}</Text>
               <View className="flex-row items-center gap-1.5 mt-1.5">
-                <View className={`px-2 py-0.5 rounded-md ${item.planId === 'premium' ? 'bg-amber-100' : item.planId === 'verified' ? 'bg-emerald-100' : 'bg-gray-100'}`}>
-                  <Text className={`text-[9px] font-black uppercase ${item.planId === 'premium' ? 'text-amber-800' : item.planId === 'verified' ? 'text-emerald-800' : 'text-gray-600'}`}>
-                    {item.planId === 'premium' ? '👑 Premium (₹1,499)' : item.planId === 'verified' ? '🛡️ Verified (₹499)' : 'Basic Free'}
+                <View className={`px-2 py-0.5 rounded-md ${item.planId === 'premium' || item.planId === 'biz_premium' || item.planId === 'pro_premium' || item.planId === 'yearly' ? 'bg-amber-100' : item.planId === 'verified' || item.planId === 'biz_standard' || item.planId === 'pro_standard' || item.paymentStatus === 'paid' ? 'bg-emerald-100' : 'bg-gray-100'}`}>
+                  <Text className={`text-[9px] font-black uppercase ${item.planId === 'premium' || item.planId === 'biz_premium' || item.planId === 'pro_premium' || item.planId === 'yearly' ? 'text-amber-800' : item.planId === 'verified' || item.planId === 'biz_standard' || item.planId === 'pro_standard' || item.paymentStatus === 'paid' ? 'text-emerald-800' : 'text-gray-600'}`}>
+                    {item.planId === 'premium' || item.planId === 'biz_premium' || item.planId === 'yearly'
+                      ? '👑 Premium (₹999/yr)'
+                      : item.planId === 'pro_premium'
+                      ? '👑 Elite Pro (₹499/yr)'
+                      : item.planId === 'pro_standard'
+                      ? '🛡️ Verified Pro (₹199/6mo)'
+                      : item.planId === 'verified' || item.planId === 'biz_standard' || item.paymentStatus === 'paid'
+                      ? '🛡️ Standard (₹399/6mo)'
+                      : 'Basic Free'}
                   </Text>
                 </View>
                 <View className={`px-2 py-0.5 rounded-md ${item.paymentStatus === 'paid' ? 'bg-green-100' : 'bg-gray-100'}`}>

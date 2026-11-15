@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import HomeScreen from '../screens/HomeScreen';
@@ -27,6 +28,7 @@ import SplashScreen from '../screens/SplashScreen';
 import NewsScreen from '../screens/NewsScreen';
 import TermsScreen from '../screens/TermsScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
+import DisclaimerScreen from '../screens/DisclaimerScreen';
 import HouseRentScreen from '../screens/HouseRentScreen';
 import BloodDonorsScreen from '../screens/BloodDonorsScreen';
 import PartnerProgramScreen from '../screens/PartnerProgramScreen';
@@ -35,8 +37,10 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function MainTabs() {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
+      backBehavior="history"
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: '#2563EB',
@@ -53,11 +57,12 @@ function MainTabs() {
           bottom: 0,
           left: 0,
           right: 0,
-          height: Platform.OS === 'ios' ? 88 : 68,
+          height: (Platform.OS === 'ios' ? 62 : 60) + insets.bottom,
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: '#F3F4F6',
           paddingTop: 8,
+          paddingBottom: Math.max(insets.bottom, 6),
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -4 },
           shadowOpacity: 0.08,
@@ -112,6 +117,7 @@ export default function AppNavigator() {
         <Stack.Screen name="News" component={NewsScreen} />
         <Stack.Screen name="Terms" component={TermsScreen} />
         <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+        <Stack.Screen name="Disclaimer" component={DisclaimerScreen} />
         <Stack.Screen name="HouseRent" component={HouseRentScreen} />
         <Stack.Screen name="BloodDonors" component={BloodDonorsScreen} />
         <Stack.Screen name="PartnerProgram" component={PartnerProgramScreen} />

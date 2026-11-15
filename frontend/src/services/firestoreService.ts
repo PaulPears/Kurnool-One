@@ -72,14 +72,140 @@ export const updateUserProfile = async (uid: string, data: any) => {
   await updateDoc(doc(db, 'users', uid), data);
 };
 
-export const deleteUserAccount = async (uid: string) => {
-  const postsQ = query(collection(db, 'posts'), where('userId', '==', uid));
-  const postSnap = await getDocs(postsQ);
-  const batch = writeBatch(db);
-  postSnap.forEach(p => batch.delete(p.ref));
-  batch.delete(doc(db, 'users', uid));
-  await batch.commit();
-  if (auth.currentUser) await deleteUser(auth.currentUser);
+export const deleteUserAccount = async (uid: string, userPhone?: string) => {
+  try {
+    // 1. Fetch user's registered phone if not passed
+    let phoneToRelease = userPhone || auth.currentUser?.phoneNumber || '';
+    try {
+      const userDocSnap = await getDoc(doc(db, 'users', uid));
+      if (userDocSnap.exists()) {
+        const uData = userDocSnap.data();
+        if (uData.phone && !phoneToRelease) phoneToRelease = uData.phone;
+      }
+    } catch (e) {
+      console.warn('Could not read user profile for deletion:', e);
+    }
+
+    const batch = writeBatch(db);
+    const businessIdsToDelete: string[] = [];
+
+    // 2. Find and delete all Commercial Businesses owned by this user
+    try {
+      const bizQ = query(collection(db, 'businesses'), where('ownerUid', '==', uid));
+      const bizSnap = await getDocs(bizQ);
+      bizSnap.forEach(d => {
+        businessIdsToDelete.push(d.id);
+        batch.delete(d.ref);
+      });
+
+      if (auth.currentUser?.email) {
+        const bizEmailQ = query(collection(db, 'businesses'), where('ownerEmail', '==', auth.currentUser.email));
+        const bizEmailSnap = await getDocs(bizEmailQ);
+        bizEmailSnap.forEach(d => {
+          if (!businessIdsToDelete.includes(d.id)) {
+            businessIdsToDelete.push(d.id);
+            batch.delete(d.ref);
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Error queuing businesses for deletion:', e);
+    }
+
+    // 3. Delete all promotions/offers associated with user's businesses
+    for (const bId of businessIdsToDelete) {
+      try {
+        const promoQ = query(collection(db, 'promotions'), where('businessId', '==', bId));
+        const promoSnap = await getDocs(promoQ);
+        promoSnap.forEach(p => batch.delete(p.ref));
+      } catch (e) {
+        console.warn('Error deleting business promos:', e);
+      }
+    }
+
+    // 4. Find and delete all Professional profiles owned by this user
+    try {
+      const proQ = query(collection(db, 'professionals'), where('userId', '==', uid));
+      const proSnap = await getDocs(proQ);
+      proSnap.forEach(d => batch.delete(d.ref));
+    } catch (e) {
+      console.warn('Error queuing professionals for deletion:', e);
+    }
+
+    // 5. Delete community posts
+    try {
+      const postsQ = query(collection(db, 'posts'), where('userId', '==', uid));
+      const postSnap = await getDocs(postsQ);
+      postSnap.forEach(p => batch.delete(p.ref));
+    } catch (e) {
+      console.warn('Error queuing posts for deletion:', e);
+    }
+
+    // 6. Delete house rentals
+    try {
+      const rentQ = query(collection(db, 'house_rentals'), where('ownerUid', '==', uid));
+      const rentSnap = await getDocs(rentQ);
+      rentSnap.forEach(r => batch.delete(r.ref));
+    } catch (e) {
+      console.warn('Error queuing rentals for deletion:', e);
+    }
+
+    // 7. Delete classifieds / marketplace items
+    try {
+      const marketQ = query(collection(db, 'marketplace'), where('sellerUid', '==', uid));
+      const marketSnap = await getDocs(marketQ);
+      marketSnap.forEach(m => batch.delete(m.ref));
+
+      const marketItemsQ = query(collection(db, 'marketplace_items'), where('sellerUid', '==', uid));
+      const marketItemsSnap = await getDocs(marketItemsQ);
+      marketItemsSnap.forEach(m => batch.delete(m.ref));
+    } catch (e) {
+      console.warn('Error queuing marketplace items for deletion:', e);
+    }
+
+    // 8. Delete blood donor listings if registered with this phone
+    if (phoneToRelease) {
+      try {
+        const cleanPhone = phoneToRelease.replace(/\D/g, '').slice(-10);
+        const donorQ = query(collection(db, 'blood_donors'));
+        const donorSnap = await getDocs(donorQ);
+        donorSnap.forEach(d => {
+          const dPhone = (d.data().phone || '').replace(/\D/g, '').slice(-10);
+          if (dPhone && dPhone === cleanPhone) {
+            batch.delete(d.ref);
+          }
+        });
+      } catch (e) {
+        console.warn('Error queuing blood donor for deletion:', e);
+      }
+
+      // 9. Release registered phone role from 'registered_phones'
+      try {
+        const formatted = sanitizePhone(phoneToRelease);
+        batch.delete(doc(db, 'registered_phones', formatted));
+      } catch (e) {
+        console.warn('Error releasing registered phone:', e);
+      }
+    }
+
+    // 10. Delete user profile doc
+    batch.delete(doc(db, 'users', uid));
+
+    // Commit all deletions in Firestore atomically
+    await batch.commit();
+
+    // 11. Delete Firebase Auth user
+    if (auth.currentUser) {
+      try {
+        await deleteUser(auth.currentUser);
+      } catch (authErr) {
+        console.warn('Auth user deletion requires recent sign-in:', authErr);
+      }
+    }
+  } catch (err) {
+    console.error('deleteUserAccount critical error:', err);
+    throw err;
+  }
 };
 
 export const uploadProfilePhoto = async (uid: string, uri: string): Promise<string> => {

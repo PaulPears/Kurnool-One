@@ -1,31 +1,89 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, SafeAreaView, ScrollView, TouchableOpacity,
+  View, Text, ScrollView, TouchableOpacity,
   Image, TextInput, ActivityIndicator, StatusBar, Linking, StyleSheet, Modal,
-  Alert,
+  Alert, BackHandler, ToastAndroid, Platform,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { auth } from '../config/firebase';
 import { useLanguage } from '../context/LanguageContext';
 import {
   MASTER_CATEGORIES, SEED_BUSINESSES, SEED_PROFESSIONALS,
-  SEED_PLACES, SEED_WORSHIP_PLACES, SEED_OFFERS,
-  fetchBusinesses, fetchProfessionals, BusinessItem, ProfessionalItem, OfferItem,
+  SEED_OFFERS,
+  fetchBusinesses, fetchProfessionals, fetchOffers, BusinessItem, ProfessionalItem, OfferItem,
 } from '../services/directoryService';
 import { SafeBannerAd, AD_TEST_ID } from '../components/SafeBannerAd';
 
-const BANNER_AD_UNIT = __DEV__ ? AD_TEST_ID : 'ca-app-pub-6894923761807901/6288303254';
+const BANNER_AD_UNIT = __DEV__ ? AD_TEST_ID : 'ca-app-pub-6894923761807901/6222488522';
 
 export default function HomeScreen({ navigation }: any) {
   const { language, toggleLanguage } = useLanguage();
 
-  const [featuredBusinesses, setFeaturedBusinesses] = useState<BusinessItem[]>(SEED_BUSINESSES);
-  const [topPros, setTopPros] = useState<ProfessionalItem[]>(SEED_PROFESSIONALS);
-  const [offers, setOffers] = useState<OfferItem[]>(SEED_OFFERS);
+  const [featuredBusinesses, setFeaturedBusinesses] = useState<BusinessItem[]>([]);
+  const [topPros, setTopPros] = useState<ProfessionalItem[]>([]);
+  const [offers, setOffers] = useState<OfferItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [showRegisterChooser, setShowRegisterChooser] = useState(false);
   const [showMenuDrawer, setShowMenuDrawer] = useState(false);
   const [userPhoto, setUserPhoto] = useState<string | null>(auth.currentUser?.photoURL || null);
+
+  const featuredScrollRef = useRef<ScrollView>(null);
+  const featuredIndexRef = useRef(0);
+  const isUserDraggingRef = useRef(false);
+
+  const prosScrollRef = useRef<ScrollView>(null);
+  const prosIndexRef = useRef(0);
+  const isProsDraggingRef = useRef(false);
+
+  // Double-tap hardware back button to exit
+  useEffect(() => {
+    let lastBackPressed = 0;
+    const backAction = () => {
+      const now = Date.now();
+      if (lastBackPressed && now - lastBackPressed < 2000) {
+        BackHandler.exitApp();
+        return true;
+      }
+      lastBackPressed = now;
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Press back again to exit Kurnool One', ToastAndroid.SHORT);
+      }
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, []);
+
+  // Auto-scroll Featured Businesses every 4.5s
+  useEffect(() => {
+    if (!featuredBusinesses || featuredBusinesses.length <= 1) return;
+    const interval = setInterval(() => {
+      if (isUserDraggingRef.current) return;
+      featuredIndexRef.current = (featuredIndexRef.current + 1) % featuredBusinesses.length;
+      featuredScrollRef.current?.scrollTo({
+        x: featuredIndexRef.current * 212,
+        animated: true,
+      });
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [featuredBusinesses]);
+
+  // Auto-scroll Skilled Professionals every 5s
+  useEffect(() => {
+    if (!topPros || topPros.length <= 1) return;
+    const interval = setInterval(() => {
+      if (isProsDraggingRef.current) return;
+      prosIndexRef.current = (prosIndexRef.current + 1) % topPros.length;
+      prosScrollRef.current?.scrollTo({
+        x: prosIndexRef.current * 152,
+        animated: true,
+      });
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [topPros]);
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((u) => {
@@ -34,25 +92,46 @@ export default function HomeScreen({ navigation }: any) {
     return unsub;
   }, []);
 
-  useEffect(() => {
-    loadHomeData();
-  }, []);
+  // Instant refresh whenever home screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadHomeData();
+    }, [])
+  );
 
   const loadHomeData = async () => {
     try {
-      const [bizs, pros] = await Promise.all([
-        fetchBusinesses().catch(() => SEED_BUSINESSES),
-        fetchProfessionals().catch(() => SEED_PROFESSIONALS),
+      const [bizs, pros, offs] = await Promise.all([
+        fetchBusinesses().catch(() => []),
+        fetchProfessionals().catch(() => []),
+        fetchOffers().catch(() => []),
       ]);
       if (bizs && bizs.length > 0) {
-        // Prioritize yearly plan subscribers for Featured in Kurnool
-        const yearlyBizs = bizs.filter(b => b.planId === 'yearly' || b.planId === 'premium');
-        setFeaturedBusinesses(yearlyBizs.length > 0 ? yearlyBizs : bizs.slice(0, 8));
+        // Prioritize yearly & premium subscribers, backfill with verified merchants
+        const sortedBizs = [...bizs].sort((a: BusinessItem, b: BusinessItem) => {
+          const aPriority = (a.planId === 'yearly' || a.planId === 'premium' || a.tier === 'featured') ? 2 : (a.paymentStatus === 'paid' ? 1 : 0);
+          const bPriority = (b.planId === 'yearly' || b.planId === 'premium' || b.tier === 'featured') ? 2 : (b.paymentStatus === 'paid' ? 1 : 0);
+          return bPriority - aPriority;
+        });
+        setFeaturedBusinesses(sortedBizs);
+      } else {
+        setFeaturedBusinesses([]);
       }
       if (pros && pros.length > 0) {
-        // Prioritize yearly / elite plan subscribers for Need a Service
-        const yearlyPros = pros.filter(p => p.planId === 'yearly' || p.planId === 'elite' || p.planId === 'premium');
-        setTopPros(yearlyPros.length > 0 ? yearlyPros : pros.slice(0, 8));
+        // Prioritize yearly & premium pros, backfill with verified specialists
+        const sortedPros = [...pros].sort((a: ProfessionalItem, b: ProfessionalItem) => {
+          const aPriority = (a.planId === 'yearly' || a.planId === 'elite' || a.planId === 'premium' || a.tier === 'featured') ? 2 : (a.paymentStatus === 'paid' ? 1 : 0);
+          const bPriority = (b.planId === 'yearly' || b.planId === 'elite' || b.planId === 'premium' || b.tier === 'featured') ? 2 : (b.paymentStatus === 'paid' ? 1 : 0);
+          return bPriority - aPriority;
+        });
+        setTopPros(sortedPros);
+      } else {
+        setTopPros([]);
+      }
+      if (offs && offs.length > 0) {
+        setOffers(offs.slice(0, 6));
+      } else {
+        setOffers([]);
       }
     } catch (e) {
       console.error('loadHomeData error:', e);
@@ -82,7 +161,7 @@ export default function HomeScreen({ navigation }: any) {
             style={styles.logoImg}
             resizeMode="contain"
           />
-          <Text style={styles.brandTitle}>
+          <Text style={styles.brandTitle} numberOfLines={1}>
             {language === 'en' ? 'Kurnool One' : 'కర్నూలు వన్'}
           </Text>
         </View>
@@ -174,7 +253,7 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={styles.sectionTitle}>
             {language === 'en' ? 'Explore Kurnool Categories' : 'కర్నూలు వర్గాలు'}
           </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Directory')}>
+          <TouchableOpacity onPress={() => navigation.navigate('Directory', { initialTab: 'businesses', initialCategory: 'all', timestamp: Date.now() })}>
             <Text style={styles.viewAllText}>{language === 'en' ? 'View All' : 'అన్నీ'}</Text>
           </TouchableOpacity>
         </View>
@@ -187,7 +266,7 @@ export default function HomeScreen({ navigation }: any) {
           {MASTER_CATEGORIES.map(cat => (
             <TouchableOpacity
               key={cat.id}
-              onPress={() => navigation.navigate('Directory', { initialCategory: cat.id })}
+              onPress={() => navigation.navigate('Directory', { initialTab: 'businesses', initialCategory: cat.id, timestamp: Date.now() })}
               style={styles.categoryHorizontalCard}
             >
               <View
@@ -225,7 +304,20 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.prosScroll}>
+        <ScrollView
+          ref={prosScrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.prosScroll}
+          onScrollBeginDrag={() => {
+            isProsDraggingRef.current = true;
+          }}
+          onScrollEndDrag={() => {
+            setTimeout(() => {
+              isProsDraggingRef.current = false;
+            }, 2000);
+          }}
+        >
           {topPros.map(pro => (
             <TouchableOpacity
               key={pro.id}
@@ -244,13 +336,12 @@ export default function HomeScreen({ navigation }: any) {
                 <Text style={{ fontSize: 10, color: '#9CA3AF' }}>({pro.ratingCount || 1})</Text>
               </View>
 
-              <TouchableOpacity
-                onPress={() => handleCall(pro.phone)}
-                style={styles.proCallBtn}
-              >
-                <Ionicons name="call" size={12} color="#FFFFFF" />
-                <Text style={styles.proCallText}>Call</Text>
-              </TouchableOpacity>
+              <View style={styles.proCallBtn}>
+                <Text style={styles.proCallText}>
+                  {language === 'en' ? 'View Profile' : 'వివరాలు'}
+                </Text>
+                <Ionicons name="arrow-forward" size={11} color="#FFFFFF" />
+              </View>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -268,7 +359,23 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredScroll}>
+        <ScrollView
+          ref={featuredScrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.featuredScroll}
+          onScrollBeginDrag={() => {
+            isUserDraggingRef.current = true;
+          }}
+          onScrollEndDrag={() => {
+            setTimeout(() => {
+              isUserDraggingRef.current = false;
+            }, 3000);
+          }}
+          onMomentumScrollEnd={(e) => {
+            featuredIndexRef.current = Math.round(e.nativeEvent.contentOffset.x / 212);
+          }}
+        >
           {featuredBusinesses.map(biz => (
             <TouchableOpacity
               key={biz.id}
@@ -313,74 +420,6 @@ export default function HomeScreen({ navigation }: any) {
                     <Ionicons name="call" size={12} color="#2563EB" />
                   </TouchableOpacity>
                 </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Tourist Highlights */}
-        <View style={styles.sectionHeader}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name="compass" size={18} color="#0D9488" />
-            <Text style={styles.sectionTitle}>
-              {language === 'en' ? 'Explore Kurnool Tourism' : 'దర్శనీయ స్థలాలు'}
-            </Text>
-          </View>
-          <TouchableOpacity onPress={() => navigation.navigate('Explore')}>
-            <Text style={styles.viewAllText}>{language === 'en' ? 'Explore' : 'చూడండి'}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredScroll}>
-          {SEED_PLACES.slice(0, 3).map(place => (
-            <TouchableOpacity
-              key={place.id}
-              activeOpacity={0.9}
-              onPress={() => navigation.navigate('Explore')}
-              style={styles.tourismCard}
-            >
-              <Image source={{ uri: place.photos[0] }} style={styles.tourismImg} resizeMode="cover" />
-              <View style={styles.tourismBody}>
-                <Text style={styles.tourismName} numberOfLines={1}>
-                  {language === 'en' ? place.name_en : place.name_te}
-                </Text>
-                <Text style={styles.tourismTime}>
-                  <Ionicons name="time-outline" size={11} color="#6B7280" /> {place.timings}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-
-
-        {/* Places of Worship */}
-        <View style={styles.sectionHeader}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name="sparkles" size={18} color="#D97706" />
-            <Text style={styles.sectionTitle}>
-              {language === 'en' ? 'Temples, Masjids & Churches' : 'పుణ్యక్షేత్రాలు & ప్రార్థనా మందిరాలు'}
-            </Text>
-          </View>
-          <TouchableOpacity onPress={() => navigation.navigate('Explore')}>
-            <Text style={styles.viewAllText}>{language === 'en' ? 'View All' : 'అన్నీ'}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredScroll}>
-          {SEED_WORSHIP_PLACES.map(worship => (
-            <TouchableOpacity
-              key={worship.id}
-              activeOpacity={0.9}
-              onPress={() => navigation.navigate('Explore')}
-              style={styles.worshipCard}
-            >
-              <Image source={{ uri: worship.photos[0] }} style={styles.worshipImg} resizeMode="cover" />
-              <View style={styles.worshipBody}>
-                <Text style={styles.worshipName} numberOfLines={1}>
-                  {language === 'en' ? worship.name_en : worship.name_te}
-                </Text>
-                <Text style={styles.worshipType}>{worship.type.toUpperCase()}</Text>
               </View>
             </TouchableOpacity>
           ))}
@@ -555,12 +594,14 @@ export default function HomeScreen({ navigation }: any) {
                 { icon: 'storefront-outline', label: language === 'en' ? 'Business Directory' : 'దుకాణాల డైరెక్టరీ', screen: 'Directory', params: { initialTab: 'businesses' } },
                 { icon: 'construct-outline', label: language === 'en' ? 'Skilled Professionals' : 'వృత్తి నిపుణులు', screen: 'Directory', params: { initialTab: 'professionals' } },
                 { icon: 'flame-outline', label: language === 'en' ? 'Hot Deals & Offers' : 'హాట్ డీల్స్ & ఆఫర్లు', screen: 'Offers', params: { initialTab: 'offers' } },
-                { icon: 'cart-outline', label: language === 'en' ? 'Kurnool Bazaar (Used Goods)' : 'కర్నూలు బజార్', screen: 'Offers', params: { initialTab: 'marketplace' } },
-                { icon: 'water-outline', label: language === 'en' ? 'Blood Donors Network' : 'రక్తదాతల నెట్‌వర్క్', screen: 'BloodDonation' },
+                { icon: 'cart-outline', label: language === 'en' ? 'Kurnool Bazaar (Buy & Sell)' : 'కర్నూలు బజార్', screen: 'Offers', params: { initialTab: 'marketplace' } },
+                { icon: 'key-outline', label: language === 'en' ? 'House Rentals (TO-LET)' : 'ఇంటి అద్దెలు (TO-LET)', screen: 'HouseRent' },
+                { icon: 'water-outline', label: language === 'en' ? 'Emergency Blood Donors' : 'రక్తదాతల నెట్‌వర్క్', screen: 'BloodDonors' },
                 { icon: 'compass-outline', label: language === 'en' ? 'Explore & Heritage Spots' : 'దర్శనీయ స్థలాలు', screen: 'Explore' },
                 { icon: 'sparkles-outline', label: language === 'en' ? '🤝 Kurnool One Partner (Earn Money)' : '🤝 కర్నూలు వన్ పార్ట్‌నర్ (ఆదాయం)', screen: 'PartnerProgram' },
                 { icon: 'newspaper-outline', label: language === 'en' ? 'City News & Updates' : 'నగర వార్తలు', screen: 'News' },
                 { icon: 'business-outline', label: language === 'en' ? 'Merchant Portal (My Shop)' : 'వ్యాపార పోర్టల్', screen: 'ManageBusiness' },
+                { icon: 'settings-outline', label: language === 'en' ? 'Settings & Legal' : 'సెట్టింగులు & చట్టపరమైన', screen: 'Settings' },
                 { icon: 'person-outline', label: language === 'en' ? 'My Profile' : 'నా ప్రొఫైల్', screen: 'Profile' },
               ].map((item, idx) => (
                 <TouchableOpacity
@@ -587,11 +628,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
   topHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
+    paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
   },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logoImg: { width: 38, height: 38, borderRadius: 10 },
-  brandTitle: { fontSize: 20, fontWeight: '900', color: '#1D4ED8', letterSpacing: -0.5 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, marginRight: 8 },
+  logoImg: { width: 34, height: 34, borderRadius: 10 },
+  brandTitle: { fontSize: 18, fontWeight: '900', color: '#1D4ED8', letterSpacing: -0.5, flexShrink: 1 },
   cityText: { fontSize: 11, fontWeight: '700', color: '#4B5563' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   langBadge: {

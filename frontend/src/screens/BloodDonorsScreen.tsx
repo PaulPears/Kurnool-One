@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
   Linking, ActivityIndicator, StatusBar, StyleSheet, Modal, Share,
-  TextInput, Alert, RefreshControl, ScrollView,
+  TextInput, Alert, RefreshControl, ScrollView, BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -136,27 +136,26 @@ export default function BloodDonorsScreen({ navigation }: any) {
     }
   };
 
+  useEffect(() => {
+    const backAction = () => {
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.replace('Main');
+      }
+      return true;
+    };
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, []);
+
   const loadDonors = async () => {
     setLoading(true);
     try {
       const data = await fetchBloodDonors(selectedGroup);
-      if (data && data.length > 0) {
-        const liveIds = new Set(data.map(d => d.id));
-        const filteredSeeds = SEED_BLOOD_DONORS.filter(s => {
-          if (liveIds.has(s.id)) return false;
-          if (selectedGroup !== 'All') return s.bloodGroup === selectedGroup;
-          return true;
-        });
-        setDonors([...data, ...filteredSeeds]);
-      } else {
-        if (selectedGroup !== 'All') {
-          setDonors(SEED_BLOOD_DONORS.filter(s => s.bloodGroup === selectedGroup));
-        } else {
-          setDonors(SEED_BLOOD_DONORS);
-        }
-      }
+      setDonors(data || []);
     } catch {
-      setDonors(selectedGroup === 'All' ? SEED_BLOOD_DONORS : SEED_BLOOD_DONORS.filter(s => s.bloodGroup === selectedGroup));
+      setDonors([]);
     } finally {
       setLoading(false);
     }

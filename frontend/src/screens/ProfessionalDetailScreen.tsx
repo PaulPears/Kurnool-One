@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, SafeAreaView, ScrollView, TouchableOpacity,
+  View, Text, ScrollView, TouchableOpacity,
   Linking, Share, StyleSheet, Image, ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
 import { ProfessionalItem, recordCustomerLead, fetchProfessionalById } from '../services/directoryService';
 import { auth } from '../config/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ReportModal } from '../components/ReportModal';
 
 export default function ProfessionalDetailScreen({ route, navigation }: any) {
   const { pro: initialPro, proId } = (route.params || {}) as { pro?: ProfessionalItem; proId?: string };
@@ -15,6 +17,7 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
 
   const [pro, setPro] = useState<ProfessionalItem | null>(initialPro || null);
   const [loading, setLoading] = useState<boolean>(!initialPro && !!proId);
+  const [reportModalVisible, setReportModalVisible] = useState<boolean>(false);
   const [currentUserUid, setCurrentUserUid] = useState<string | null>(auth.currentUser?.uid || null);
   const [currentUserPhone, setCurrentUserPhone] = useState<string>('');
 
@@ -171,9 +174,14 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <Text style={styles.navTitle} numberOfLines={1}>{pro.fullName}</Text>
-        <TouchableOpacity onPress={handleShare} style={styles.navBtn}>
-          <Ionicons name="share-social-outline" size={22} color="#111827" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <TouchableOpacity onPress={() => setReportModalVisible(true)} style={styles.navBtn}>
+            <Ionicons name="flag-outline" size={20} color="#DC2626" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleShare} style={styles.navBtn}>
+            <Ionicons name="share-social-outline" size={22} color="#111827" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
@@ -345,7 +353,27 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
             Disclaimer: Rates, credentials, and services are offered directly by this independent professional. Kurnool One is a discovery platform and does not employ or guarantee individual service quality. Users should verify credentials independently.
           </Text>
         </View>
+
+        {/* Report Professional Link */}
+        <TouchableOpacity
+          onPress={() => setReportModalVisible(true)}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 18, paddingVertical: 10 }}
+        >
+          <Ionicons name="flag-outline" size={14} color="#EF4444" />
+          <Text style={{ fontSize: 12, color: '#EF4444', fontWeight: '700' }}>Report profile or conduct issue with this professional</Text>
+        </TouchableOpacity>
       </ScrollView>
+
+      {/* Report Modal */}
+      {pro && (
+        <ReportModal
+          visible={reportModalVisible}
+          onClose={() => setReportModalVisible(false)}
+          targetId={pro.id}
+          targetTitle={pro.fullName}
+          reportType="professional"
+        />
+      )}
     </SafeAreaView>
   );
 }

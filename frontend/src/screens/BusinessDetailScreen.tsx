@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, SafeAreaView, ScrollView, Image, TouchableOpacity,
+  View, Text, ScrollView, Image, TouchableOpacity,
   Linking, Alert, Modal, TextInput, ActivityIndicator, Share, StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
 import {
@@ -12,6 +13,7 @@ import {
 import { MASTER_CATEGORIES } from '../data/masterCategories';
 import { auth } from '../config/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ReportModal } from '../components/ReportModal';
 
 export default function BusinessDetailScreen({ route, navigation }: any) {
   const { businessId } = route.params || {};
@@ -23,6 +25,7 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
 
   // Review Modal state
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
   const [userRating, setUserRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
@@ -208,9 +211,14 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
         <Text style={styles.navTitle} numberOfLines={1}>
           {language === 'en' ? business.name_en : (business.name_te || business.name_en)}
         </Text>
-        <TouchableOpacity onPress={handleShare} style={styles.navBtn}>
-          <Ionicons name="share-social-outline" size={22} color="#111827" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <TouchableOpacity onPress={() => setReportModalVisible(true)} style={styles.navBtn}>
+            <Ionicons name="flag-outline" size={20} color="#DC2626" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleShare} style={styles.navBtn}>
+            <Ionicons name="share-social-outline" size={22} color="#111827" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
@@ -449,8 +457,28 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
               Disclaimer: Information, services, and rates displayed are provided directly by this independent business. Kurnool One does not endorse, guarantee, or warranty any service quality. Users are advised to verify details independently.
             </Text>
           </View>
+
+          {/* Report Business Link */}
+          <TouchableOpacity
+            onPress={() => setReportModalVisible(true)}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 18, paddingVertical: 10 }}
+          >
+            <Ionicons name="flag-outline" size={14} color="#EF4444" />
+            <Text style={{ fontSize: 12, color: '#EF4444', fontWeight: '700' }}>Report incorrect details or issue with this business</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Report Modal */}
+      {business && (
+        <ReportModal
+          visible={reportModalVisible}
+          onClose={() => setReportModalVisible(false)}
+          targetId={business.id}
+          targetTitle={business.name_en}
+          reportType="business"
+        />
+      )}
 
       {/* Review Modal */}
       <Modal visible={reviewModalVisible} transparent animationType="slide">
@@ -533,29 +561,29 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   priceText: { fontSize: 11, fontWeight: '700', color: '#4B5563' },
-  titleEn: { fontSize: 22, fontWeight: '900', color: '#111827' },
-  titleTe: { fontSize: 16, fontWeight: '700', color: '#2563EB', marginTop: 2 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  titleEn: { fontSize: 22, fontWeight: '900', color: '#111827', flexWrap: 'wrap' },
+  titleTe: { fontSize: 16, fontWeight: '700', color: '#2563EB', marginTop: 2, flexWrap: 'wrap' },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap' },
   stars: { flexDirection: 'row', gap: 2 },
   ratingScore: { fontSize: 14, fontWeight: '800', color: '#111827' },
   ratingCount: { fontSize: 12, color: '#6B7280' },
   actionButtonsGrid: {
-    flexDirection: 'row', gap: 10, marginVertical: 18,
+    flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginVertical: 16,
   },
   actionBtnCall: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    flex: 1, minWidth: '47%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, backgroundColor: '#2563EB', paddingVertical: 12, borderRadius: 14,
   },
   actionBtnWa: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    flex: 1, minWidth: '47%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, backgroundColor: '#16A34A', paddingVertical: 12, borderRadius: 14,
   },
   actionBtnDir: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    flex: 1, minWidth: '47%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, backgroundColor: '#0284C7', paddingVertical: 12, borderRadius: 14,
   },
   actionBtnWeb: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    flex: 1, minWidth: '47%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, backgroundColor: '#7C3AED', paddingVertical: 12, borderRadius: 14,
   },
   actionBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
@@ -564,10 +592,10 @@ const styles = StyleSheet.create({
     marginBottom: 14, borderWidth: 1, borderColor: '#F3F4F6',
   },
   sectionTitle: { fontSize: 15, fontWeight: '800', color: '#111827', marginBottom: 12 },
-  infoRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  infoRow: { flexDirection: 'row', alignItems: 'flex-start', flexWrap: 'nowrap' },
   infoLabel: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase' },
-  infoValue: { fontSize: 13, fontWeight: '600', color: '#111827', marginTop: 2 },
-  infoSub: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  infoValue: { fontSize: 13, fontWeight: '600', color: '#111827', marginTop: 2, flexShrink: 1 },
+  infoSub: { fontSize: 12, color: '#6B7280', marginTop: 2, flexShrink: 1 },
   descriptionText: { fontSize: 14, lineHeight: 22, color: '#4B5563' },
   amenitiesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   amenityChip: {

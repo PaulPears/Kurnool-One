@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  SafeAreaView,
   FlatList,
   TouchableOpacity,
   Image,
@@ -15,6 +14,7 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
 import { fetchNews, submitNewsStory, uploadNewsImage, NewsItem } from '../services/directoryService';
@@ -25,6 +25,7 @@ export default function NewsScreen({ navigation }: any) {
   const [newsList, setNewsList] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState<NewsItem | null>(null);
+  const [fullScreenNewsImage, setFullScreenNewsImage] = useState<string | null>(null);
 
   // Citizen Reporter Modal State
   const [submitModalVisible, setSubmitModalVisible] = useState(false);
@@ -282,11 +283,21 @@ export default function NewsScreen({ navigation }: any) {
           {selectedArticle && (
             <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
               {selectedArticle.imageUrl ? (
-                <Image
-                  source={{ uri: selectedArticle.imageUrl }}
-                  style={styles.modalImage}
-                  resizeMode="cover"
-                />
+                <TouchableOpacity
+                  activeOpacity={0.92}
+                  onPress={() => setFullScreenNewsImage(selectedArticle.imageUrl!)}
+                  style={{ position: 'relative' }}
+                >
+                  <Image
+                    source={{ uri: selectedArticle.imageUrl }}
+                    style={styles.modalImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.zoomHintBadge}>
+                    <Ionicons name="expand" size={12} color="#FFFFFF" />
+                    <Text style={styles.zoomHintText}>Tap to view full screen</Text>
+                  </View>
+                </TouchableOpacity>
               ) : null}
 
               <View style={styles.modalMetaRow}>
@@ -473,6 +484,30 @@ export default function NewsScreen({ navigation }: any) {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Full Screen Image Modal */}
+      <Modal
+        visible={!!fullScreenNewsImage}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setFullScreenNewsImage(null)}
+      >
+        <SafeAreaView style={styles.fullScreenOverlay}>
+          <TouchableOpacity
+            style={styles.fullScreenCloseBtn}
+            onPress={() => setFullScreenNewsImage(null)}
+          >
+            <Ionicons name="close-circle" size={36} color="#FFFFFF" />
+          </TouchableOpacity>
+          {fullScreenNewsImage && (
+            <Image
+              source={{ uri: fullScreenNewsImage }}
+              style={styles.fullScreenImg}
+              resizeMode="contain"
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -596,4 +631,38 @@ const styles = StyleSheet.create({
   modalArticleTitle: { fontSize: 20, fontWeight: '900', color: '#111827', lineHeight: 28 },
   modalSourceText: { fontSize: 12, color: '#6B7280', marginTop: 6, marginBottom: 14, fontStyle: 'italic' },
   modalArticleBody: { fontSize: 14, color: '#374151', lineHeight: 22, marginBottom: 20 },
+  zoomHintBadge: {
+    position: 'absolute',
+    bottom: 22,
+    right: 12,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  zoomHintText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  fullScreenOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenCloseBtn: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 10,
+    padding: 8,
+  },
+  fullScreenImg: {
+    width: '100%',
+    height: '80%',
+  },
 });

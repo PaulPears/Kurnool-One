@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, SafeAreaView, ScrollView, TextInput, TouchableOpacity,
+  View, Text, ScrollView, TextInput, TouchableOpacity,
   Alert, ActivityIndicator, StyleSheet, StatusBar, Linking, Image, Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
@@ -14,14 +15,21 @@ import {
   uploadOfferImage,
   fetchMyLeads,
   deleteProfessional,
+  recordSubscriptionPayment,
+  createMarketplaceItem,
+  fetchMyMarketplaceItems,
+  updateMarketplaceItem,
+  deleteMarketplaceItem,
   ProfessionalItem,
   LeadItem,
+  MarketplaceItem,
 } from '../services/directoryService';
 import { auth, db } from '../config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import RazorpayModal from '../components/RazorpayModal';
 import BusinessHoursSelector from '../components/BusinessHoursSelector';
+import { CalendarDatePickerModal } from '../components/CalendarDatePickerModal';
 import { pickImageWithFreeStyleCrop } from '../utils/imageUploadHelper';
 
 export default function ManageProfessionalScreen({ navigation, route }: any) {
@@ -42,7 +50,16 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
   const [visitingCharges, setVisitingCharges] = useState('₹150');
   const [hourlyRate, setHourlyRate] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [portfolioPhotos, setPortfolioPhotos] = useState<string[]>([]);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingPortfolio, setUploadingPortfolio] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [validUntilDate, setValidUntilDate] = useState<Date>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    d.setHours(23, 59, 59, 999);
+    return d;
+  });
   const [operatingHours, setOperatingHours] = useState<any>({
     monday: { closed: false, open: '09:00 AM', close: '09:00 PM' },
     tuesday: { closed: false, open: '09:00 AM', close: '09:00 PM' },
@@ -61,12 +78,30 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   // Offer / Special Deal State
+  const getExpiryDateStr = (days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `Valid till ${d.getDate()} ${months[d.getMonth()]}, ${d.getFullYear()}`;
+  };
+
   const [offerModalVisible, setOfferModalVisible] = useState(false);
   const [offerTitle, setOfferTitle] = useState('');
   const [discountTag, setDiscountTag] = useState('FREE INSPECTION');
-  const [validUntil, setValidUntil] = useState('Valid for next 15 days');
+  const [selectedValidityDays, setSelectedValidityDays] = useState<number>(7);
+  const [validUntil, setValidUntil] = useState(getExpiryDateStr(7));
   const [offerImages, setOfferImages] = useState<string[]>([]);
   const [publishingOffer, setPublishingOffer] = useState(false);
+
+  // Bazaar Product / Equipment Posting State
+  const [bazaarModalVisible, setBazaarModalVisible] = useState(false);
+  const [myBazaarItems, setMyBazaarItems] = useState<MarketplaceItem[]>([]);
+  const [bazaarTitle, setBazaarTitle] = useState('');
+  const [bazaarPrice, setBazaarPrice] = useState('');
+  const [bazaarCategory, setBazaarCategory] = useState('Tools & Equipment');
+  const [bazaarDescription, setBazaarDescription] = useState('');
+  const [bazaarImages, setBazaarImages] = useState<string[]>([]);
+  const [publishingBazaar, setPublishingBazaar] = useState(false);
 
   const handleDeleteProListing = () => {
     Alert.alert(
@@ -113,7 +148,7 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
           const parsed = JSON.parse(stored);
           if (!uid) uid = parsed.uid || parsed.id;
           userPhone = parsed.phone || '';
-        } catch {}
+        } catch { }
       }
 
       let p: ProfessionalItem | null = null;
@@ -143,6 +178,7 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
         setVisitingCharges(p.visitingCharges || '₹150');
         setHourlyRate(p.hourlyRate || '');
         setAvatarUrl(p.avatarUrl || '');
+        setPortfolioPhotos(Array.isArray(p.portfolioPhotos) ? p.portfolioPhotos.slice(0, 4) : []);
         if ((p as any).operatingHours) {
           setOperatingHours((p as any).operatingHours);
         }
@@ -156,12 +192,107 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
 
         const proLeads = await fetchMyLeads(p.userId || uid, p.id);
         setLeads(proLeads);
+        try {
+          const mkt = await fetchMyMarketplaceItems(p.userId || uid || '', undefined, p.id);
+          setMyBazaarItems(mkt);
+        } catch {}
       }
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePickBazaarImage = async () => {
+    try {
+      const res = await pickImageWithFreeStyleCrop();
+      if (res?.uri) {
+        setBazaarImages(prev => [...prev, res.uri].slice(0, 3));
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to select image');
+    }
+  };
+
+  const handlePublishBazaarItem = async () => {
+    if (!profile || !bazaarTitle.trim() || !bazaarPrice.trim()) {
+      Alert.alert('Required', 'Please enter item title and price');
+      return;
+    }
+    setPublishingBazaar(true);
+    try {
+      let uploadedUrls: string[] = [];
+      for (const uri of bazaarImages) {
+        const url = await uploadOfferImage(uri);
+        uploadedUrls.push(url);
+      }
+      if (uploadedUrls.length === 0 && profile.avatarUrl) {
+        uploadedUrls.push(profile.avatarUrl);
+      }
+
+      await createMarketplaceItem({
+        title_en: bazaarTitle.trim(),
+        price: bazaarPrice.trim().startsWith('₹') ? bazaarPrice.trim() : `₹${bazaarPrice.trim()}`,
+        category: bazaarCategory,
+        description: bazaarDescription.trim() || `Offered by verified professional ${profile.fullName}.`,
+        sellerName: profile.fullName,
+        sellerPhone: profile.phone,
+        sellerWhatsapp: profile.whatsapp || profile.phone,
+        sellerUid: profile.userId || auth.currentUser?.uid || '',
+        area: 'Kurnool',
+        condition: 'Professional Offering',
+        imageUrl: uploadedUrls[0] || '',
+        images: uploadedUrls,
+        status: 'active',
+        sourceType: 'professional',
+        proId: profile.id,
+        proName: profile.fullName,
+      });
+
+      Alert.alert('Item Published!', 'Your offering is now listed in Kurnool Bazaar.');
+      setBazaarTitle('');
+      setBazaarPrice('');
+      setBazaarDescription('');
+      setBazaarImages([]);
+      setBazaarModalVisible(false);
+      const updated = await fetchMyMarketplaceItems(profile.userId || '', undefined, profile.id);
+      setMyBazaarItems(updated);
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to list in Bazaar');
+    } finally {
+      setPublishingBazaar(false);
+    }
+  };
+
+  const handleMarkSoldBazaar = async (item: MarketplaceItem) => {
+    try {
+      await updateMarketplaceItem(item.id, { status: item.status === 'sold' ? 'active' : 'sold' });
+      const updated = await fetchMyMarketplaceItems(profile?.userId || '', undefined, profile?.id);
+      setMyBazaarItems(updated);
+      Alert.alert('Updated', item.status === 'sold' ? 'Item marked as Active' : 'Item marked as SOLD');
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to update status');
+    }
+  };
+
+  const handleDeleteBazaarItem = (id: string) => {
+    Alert.alert('Delete Listing', 'Remove this listing from Kurnool Bazaar?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteMarketplaceItem(id);
+            const updated = await fetchMyMarketplaceItems(profile?.userId || '', undefined, profile?.id);
+            setMyBazaarItems(updated);
+          } catch (e: any) {
+            Alert.alert('Error', e.message || 'Failed to delete listing');
+          }
+        },
+      },
+    ]);
   };
 
   const pickAndUploadAvatar = async () => {
@@ -215,6 +346,53 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
     }
   };
 
+  const pickAndUploadPortfolioPhoto = async () => {
+    if (!profile) return;
+    if ((profile as any).paymentStatus !== 'paid') {
+      Alert.alert(
+        'Subscription Required',
+        'Uploading up to 4 additional portfolio photos is available after completing a Standard or Elite Pro subscription payment.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Upgrade Now', onPress: () => setShowUpgradeModal(true) },
+        ]
+      );
+      return;
+    }
+    if (portfolioPhotos.length >= 4) {
+      Alert.alert('Limit Reached', 'You can upload up to 4 additional portfolio photos.');
+      return;
+    }
+    const res = await pickImageWithFreeStyleCrop();
+    if (res?.uri) {
+      setUploadingPortfolio(true);
+      try {
+        const url = await uploadProfessionalAvatar(res.uri);
+        const updated = [...portfolioPhotos, url].slice(0, 4);
+        await updateProfessionalProfile(profile.id, { portfolioPhotos: updated });
+        setPortfolioPhotos(updated);
+        setProfile(prev => (prev ? { ...prev, portfolioPhotos: updated } : null));
+        Alert.alert('Success', 'Portfolio photo added successfully!');
+      } catch (err: any) {
+        Alert.alert('Error', err.message || 'Failed to upload portfolio photo');
+      } finally {
+        setUploadingPortfolio(false);
+      }
+    }
+  };
+
+  const handleRemovePortfolioPhoto = async (index: number) => {
+    if (!profile) return;
+    const updated = portfolioPhotos.filter((_, i) => i !== index);
+    try {
+      await updateProfessionalProfile(profile.id, { portfolioPhotos: updated });
+      setPortfolioPhotos(updated);
+      setProfile(prev => (prev ? { ...prev, portfolioPhotos: updated } : null));
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to remove portfolio photo');
+    }
+  };
+
   const handleLogout = async () => {
     Alert.alert(
       language === 'en' ? 'Log Out' : 'లాగ్ అవుట్',
@@ -227,7 +405,7 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
           onPress: async () => {
             try {
               await auth.signOut();
-            } catch {}
+            } catch { }
             await AsyncStorage.multiRemove(['user', 'token']);
             navigation.replace('MobileFirebaseLogin');
           },
@@ -262,15 +440,14 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
 
   const launchOfferPicker = async () => {
     try {
-      const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.75,
+      const res = await pickImageWithFreeStyleCrop({
+        title: 'Offer Promotional Image',
+        message: 'Choose photo source to crop offer banner:',
+        quality: 0.8,
       });
 
-      if (!res.canceled && res.assets?.[0]?.uri) {
-        setOfferImages(prev => [...prev, res.assets[0].uri]);
+      if (res && res.uri) {
+        setOfferImages(prev => [...prev, res.uri]);
       }
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Could not pick image');
@@ -306,6 +483,7 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
         businessId: profile.id,
         businessName: profile.fullName,
         validUntil: validUntil.trim(),
+        expiresAt: validUntilDate.toISOString(),
         bannerUrl: uploadedUrls[0] || '',
         images: uploadedUrls,
         phone: profile.phone,
@@ -404,19 +582,19 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <View style={styles.metricBox}>
               <Ionicons name="eye-outline" size={18} color="#0D9488" />
-              <Text style={styles.metricValue}>86</Text>
+              <Text style={styles.metricValue}>{(profile as any).viewCount ?? leads.filter(l => l.actionType === 'view').length}</Text>
               <Text style={styles.metricLabel}>Profile Views</Text>
             </View>
 
             <View style={styles.metricBox}>
               <Ionicons name="call-outline" size={18} color="#10B981" />
-              <Text style={styles.metricValue}>14</Text>
+              <Text style={styles.metricValue}>{(profile as any).callCount ?? leads.filter(l => l.actionType === 'call').length}</Text>
               <Text style={styles.metricLabel}>Call Taps</Text>
             </View>
 
             <View style={styles.metricBox}>
               <Ionicons name="logo-whatsapp" size={18} color="#059669" />
-              <Text style={styles.metricValue}>{leads.filter(l => l.actionType === 'whatsapp').length || 11}</Text>
+              <Text style={styles.metricValue}>{(profile as any).whatsappCount ?? leads.filter(l => l.actionType === 'whatsapp').length}</Text>
               <Text style={styles.metricLabel}>WhatsApp Leads</Text>
             </View>
           </View>
@@ -465,82 +643,6 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
           </View>
         )}
 
-        {/* ─── LIVE CUSTOMER LEADS SECTION (JUSTDIAL-STYLE) ─────────────── */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <Text style={styles.sectionHeader}>
-            {language === 'en' ? 'Live Client Leads' : 'కస్టమర్ లీడ్స్'} ({leads.length})
-          </Text>
-          <TouchableOpacity onPress={loadData} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Ionicons name="refresh" size={14} color="#0D9488" />
-            <Text style={{ fontSize: 12, color: '#0D9488', fontWeight: '700' }}>Refresh</Text>
-          </TouchableOpacity>
-        </View>
-
-        {leads.length === 0 ? (
-          <View style={styles.emptyLeadsBox}>
-            <Ionicons name="notifications-outline" size={26} color="#94A3B8" />
-            <Text style={styles.emptyLeadsTitle}>No Inquiries Yet</Text>
-            <Text style={styles.emptyLeadsSub}>
-              When citizens view your service profile or tap Call/WhatsApp, their contact details and colony location will appear here immediately.
-            </Text>
-          </View>
-        ) : (
-          <View style={{ gap: 10, marginBottom: 16 }}>
-            {leads.slice(0, 10).map((item, idx) => (
-              <View key={item.id || idx} style={styles.leadCard}>
-                <View style={[
-                  styles.leadIconWrap,
-                  { backgroundColor: item.actionType === 'call' ? '#ECFDF5' : item.actionType === 'whatsapp' ? '#F0FDF4' : '#F0FDFA' }
-                ]}>
-                  <Ionicons
-                    name={item.actionType === 'call' ? 'call' : item.actionType === 'whatsapp' ? 'logo-whatsapp' : 'eye'}
-                    size={16}
-                    color={item.actionType === 'call' ? '#10B981' : item.actionType === 'whatsapp' ? '#16A34A' : '#0D9488'}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Text style={styles.leadCitizenName}>{item.citizenName || 'Kurnool Resident'}</Text>
-                    <View style={[
-                      styles.leadBadge,
-                      { backgroundColor: item.actionType === 'call' ? '#ECFDF5' : item.actionType === 'whatsapp' ? '#F0FDF4' : '#F0FDFA' }
-                    ]}>
-                      <Text style={[
-                        styles.leadBadgeText,
-                        { color: item.actionType === 'call' ? '#059669' : item.actionType === 'whatsapp' ? '#16A34A' : '#0D9488' }
-                      ]}>
-                        {item.actionType === 'call' ? 'CALL' : item.actionType === 'whatsapp' ? 'WHATSAPP' : 'VIEWED'}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={styles.leadAreaText}>
-                    📍 {item.citizenArea || 'Kurnool City'} {item.citizenGender ? `• ${item.citizenGender}` : ''}
-                  </Text>
-                  {item.citizenPhone ? (
-                    <Text style={styles.leadPhoneText}>📞 +91 {item.citizenPhone}</Text>
-                  ) : null}
-                </View>
-                {item.citizenPhone ? (
-                  <View style={{ flexDirection: 'row', gap: 6, marginLeft: 8 }}>
-                    <TouchableOpacity
-                      onPress={() => Linking.openURL(`tel:${item.citizenPhone}`).catch(() => {})}
-                      style={styles.leadCallBtn}
-                    >
-                      <Ionicons name="call" size={13} color="#FFFFFF" />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => Linking.openURL(`https://wa.me/91${item.citizenPhone?.replace(/\D/g, '')}?text=Hello, thank you for checking out my profile on Kurnool One! How can I assist you?`).catch(() => {})}
-                      style={styles.leadWaBtn}
-                    >
-                      <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  </View>
-                ) : null}
-              </View>
-            ))}
-          </View>
-        )}
-
         {/* Broadcast Deal / Offer Banner */}
         <TouchableOpacity
           activeOpacity={0.9}
@@ -564,23 +666,114 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
           style={styles.offerCtaCard}
         >
           <View style={{ flex: 1 }}>
+            <View style={{ alignSelf: 'flex-start', backgroundColor: '#9A3412', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, marginBottom: 6 }}>
+              <Text style={{ color: '#FED7AA', fontSize: 10, fontWeight: '900', letterSpacing: 0.5 }}>⚡ BOOST CLIENT INQUIRIES</Text>
+            </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="flame" size={18} color="#FFFFFF" />
+              <Ionicons name="flame" size={18} color="#FEF08A" />
               <Text style={styles.offerCtaTitle}>Broadcast Special Service Offer</Text>
               {profile?.paymentStatus !== 'paid' && (
-                <View style={{ backgroundColor: 'rgba(255,255,255,0.25)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                  <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '800' }}>🔒 UPGRADE REQUIRED</Text>
+                <View style={{ backgroundColor: 'rgba(0,0,0,0.25)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                  <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '800' }}>🔒 UPGRADE</Text>
                 </View>
               )}
             </View>
             <Text style={styles.offerCtaSub}>
-              Post discounts, seasonal service packages or free inspection to the Offers feed.
+              Publish festive discounts, free inspection packages or seasonal service offers directly to Kurnool feed.
             </Text>
           </View>
           <View style={styles.offerCtaBtn}>
-            <Text style={styles.offerCtaBtnText}>Post Deal</Text>
+            <Text style={styles.offerCtaBtnText}>Post Deal →</Text>
           </View>
         </TouchableOpacity>
+
+        {/* ─── POST TO BAZAAR CTA ─── */}
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => {
+            if (profile?.paymentStatus !== 'paid') {
+              Alert.alert(
+                'Professional Feature',
+                'Posting verified service packages and equipment to Kurnool Bazaar is exclusive to verified professionals. Upgrade your profile to post.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Upgrade Plan', onPress: () => setShowUpgradeModal(true) },
+                ]
+              );
+              return;
+            }
+            setBazaarModalVisible(true);
+          }}
+          style={[styles.offerCtaCard, { backgroundColor: '#059669', marginTop: 10 }]}
+        >
+          <View style={{ flex: 1 }}>
+            <View style={{ alignSelf: 'flex-start', backgroundColor: '#064E3B', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, marginBottom: 6 }}>
+              <Text style={{ color: '#A7F3D0', fontSize: 10, fontWeight: '900', letterSpacing: 0.5 }}>💼 BAZAAR LISTINGS</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="cart" size={18} color="#A7F3D0" />
+              <Text style={styles.offerCtaTitle}>Post Equipment / Package to Bazaar</Text>
+              {profile?.paymentStatus !== 'paid' && (
+                <View style={{ backgroundColor: 'rgba(0,0,0,0.25)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                  <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '800' }}>🔒 UPGRADE</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.offerCtaSub}>
+              Sell equipment, spare tools, or list fixed-rate service packages in Kurnool Bazaar.
+            </Text>
+          </View>
+          <View style={[styles.offerCtaBtn, { backgroundColor: '#064E3B' }]}>
+            <Text style={styles.offerCtaBtnText}>Post Item →</Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* ─── MY BAZAAR LISTINGS ─── */}
+        {myBazaarItems.length > 0 && (
+          <View style={{ marginTop: 14, backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#0F172A' }}>
+                💼 My Bazaar Listings ({myBazaarItems.length})
+              </Text>
+              <TouchableOpacity onPress={() => setBazaarModalVisible(true)}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669' }}>+ Add New</Text>
+              </TouchableOpacity>
+            </View>
+            {myBazaarItems.map((item) => (
+              <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                <View style={{ flex: 1, marginRight: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#1E293B' }} numberOfLines={1}>
+                      {item.title_en}
+                    </Text>
+                    {item.status === 'sold' && (
+                      <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 }}>
+                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#DC2626' }}>SOLD</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669', marginTop: 2 }}>{item.price}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => handleMarkSoldBazaar(item)}
+                    style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: item.status === 'sold' ? '#ECFDF5' : '#F1F5F9' }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: item.status === 'sold' ? '#059669' : '#64748B' }}>
+                      {item.status === 'sold' ? 'Activate' : 'Mark Sold'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDeleteBazaarItem(item.id)}
+                    style={{ padding: 6, borderRadius: 6, backgroundColor: '#FEE2E2' }}
+                  >
+                    <Ionicons name="trash-outline" size={14} color="#DC2626" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Dynamic Pricing Plan & Upgrade Badge */}
         <View style={styles.planBanner}>
@@ -674,6 +867,67 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
               <Text style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
                 Free-style crop with camera or gallery upload.
               </Text>
+            </View>
+          </View>
+
+          {/* 4 Additional Portfolio Photos (Paid Subscribers Only) */}
+          <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#0F172A' }}>
+                  Work Portfolio Gallery ({portfolioPhotos.length}/4)
+                </Text>
+                <Text style={{ fontSize: 11, color: '#64748B' }}>
+                  {(profile as any)?.paymentStatus === 'paid'
+                    ? 'Add up to 4 additional photos of your work & projects'
+                    : 'Unlocked automatically after subscription payment'}
+                </Text>
+              </View>
+              {(profile as any)?.paymentStatus !== 'paid' && (
+                <TouchableOpacity
+                  onPress={() => setShowUpgradeModal(true)}
+                  style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: '#FDE68A' }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#B45309' }}>🔒 Unlock</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+              {portfolioPhotos.map((url, idx) => (
+                <View key={idx} style={{ width: 68, height: 68, borderRadius: 12, overflow: 'hidden', position: 'relative', borderWidth: 1, borderColor: '#E2E8F0' }}>
+                  <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} />
+                  <TouchableOpacity
+                    onPress={() => handleRemovePortfolioPhoto(idx)}
+                    style={{ position: 'absolute', top: 2, right: 2, backgroundColor: 'rgba(220,38,38,0.9)', width: 20, height: 20, borderRadius: 10, justifyContent: 'center', alignItems: 'center' }}
+                  >
+                    <Ionicons name="close" size={12} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {portfolioPhotos.length < 4 && (
+                <TouchableOpacity
+                  onPress={pickAndUploadPortfolioPhoto}
+                  disabled={uploadingPortfolio}
+                  style={{
+                    width: 68, height: 68, borderRadius: 12, borderWidth: 1.5, borderStyle: 'dashed',
+                    borderColor: (profile as any)?.paymentStatus === 'paid' ? '#0D9488' : '#CBD5E1',
+                    backgroundColor: (profile as any)?.paymentStatus === 'paid' ? '#F0FDFA' : '#F8FAFC',
+                    justifyContent: 'center', alignItems: 'center',
+                  }}
+                >
+                  {uploadingPortfolio ? (
+                    <ActivityIndicator size="small" color="#0D9488" />
+                  ) : (
+                    <>
+                      <Ionicons name={(profile as any)?.paymentStatus === 'paid' ? 'add-circle' : 'lock-closed'} size={22} color={(profile as any)?.paymentStatus === 'paid' ? '#0D9488' : '#94A3B8'} />
+                      <Text style={{ fontSize: 9, fontWeight: '700', color: (profile as any)?.paymentStatus === 'paid' ? '#0D9488' : '#94A3B8', marginTop: 2 }}>
+                        {(profile as any)?.paymentStatus === 'paid' ? 'Add Photo' : 'Locked'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </View>
@@ -893,12 +1147,75 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
               onChangeText={setDiscountTag}
             />
 
-            <Text style={styles.label}>Validity / Expiry *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Valid until 31st October"
-              value={validUntil}
-              onChangeText={setValidUntil}
+            <Text style={styles.label}>Offer Validity Period (Valid Until)</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+              {[3, 7, 15, 30].map(days => (
+                <TouchableOpacity
+                  key={days}
+                  onPress={() => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + days);
+                    d.setHours(23, 59, 59, 999);
+                    setValidUntilDate(d);
+                    setSelectedValidityDays(days);
+                    setValidUntil(getExpiryDateStr(days));
+                  }}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 7,
+                    borderRadius: 8,
+                    backgroundColor: selectedValidityDays === days ? '#0D9488' : '#F1F5F9',
+                    alignItems: 'center',
+                    borderWidth: 1,
+                    borderColor: selectedValidityDays === days ? '#0D9488' : '#CBD5E1',
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '700',
+                      color: selectedValidityDays === days ? '#FFFFFF' : '#475569',
+                    }}
+                  >
+                    {days} Days
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(true)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: '#F0FDFA',
+                borderWidth: 1,
+                borderColor: '#99F6E4',
+                borderRadius: 12,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                marginBottom: 14,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="calendar" size={18} color="#0D9488" />
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#0F766E' }}>{validUntil}</Text>
+              </View>
+              <Text style={{ fontSize: 12, fontWeight: '800', color: '#0D9488' }}>Pick Date ▼</Text>
+            </TouchableOpacity>
+
+            <CalendarDatePickerModal
+              visible={showDatePicker}
+              selectedDate={validUntilDate}
+              onClose={() => setShowDatePicker(false)}
+              onSelectDate={(date) => {
+                const endOfDay = new Date(date);
+                endOfDay.setHours(23, 59, 59, 999);
+                setValidUntilDate(endOfDay);
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                setValidUntil(`Valid till ${date.getDate()} ${months[date.getMonth()]}, ${date.getFullYear()}`);
+                setSelectedValidityDays(0);
+              }}
             />
 
             <Text style={styles.label}>Deal Photos (Up to 2)</Text>
@@ -1049,13 +1366,40 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
           const orderId = paymentData.razorpay_order_id;
           if (profile) {
             try {
+              const expiryDays = selectedUpgradePlan === 'pro_premium' ? 365 : 180;
+              const expiryDate = new Date(Date.now() + expiryDays * 86400000).toISOString().split('T')[0];
+
               await updateProfessionalProfile(profile.id, {
                 paymentStatus: 'paid',
                 planId: selectedUpgradePlan,
+                planExpiresAt: expiryDate,
                 paymentId,
                 orderId,
                 status: 'active',
               });
+
+              // Write permanent ledger to /subscriptions
+              try {
+                await recordSubscriptionPayment({
+                  transactionId: paymentId,
+                  orderId,
+                  userId: auth.currentUser?.uid || profile.userId || '',
+                  userEmail: auth.currentUser?.email || (profile as any).email || '',
+                  userPhone: profile.phone || '',
+                  entityId: profile.id,
+                  entityName: profile.fullName,
+                  entityType: 'professional',
+                  planId: selectedUpgradePlan,
+                  planName: selectedUpgradePlan === 'pro_premium' ? 'Professional Elite (1 Year)' : 'Standard Verified Pro (6 Months)',
+                  amount: selectedUpgradePlan === 'pro_premium' ? 499 : 199,
+                  currency: 'INR',
+                  startDate: new Date().toISOString().split('T')[0],
+                  expiresAt: expiryDate,
+                  status: 'active',
+                });
+              } catch (subErr) {
+                console.warn('Subscription ledger record error:', subErr);
+              }
               setProfile((prev) => (prev ? {
                 ...prev,
                 paymentStatus: 'paid',
@@ -1069,6 +1413,94 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
           }
         }}
       />
+
+      {/* ─── POST PRODUCT / EQUIPMENT TO BAZAAR MODAL ───────────── */}
+      <Modal visible={bazaarModalVisible} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContent}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <View>
+                <Text style={styles.modalTitle}>💼 List Equipment or Package</Text>
+                <Text style={{ fontSize: 11, color: '#64748B' }}>Post in Kurnool Bazaar with verified pro badge</Text>
+              </View>
+              <TouchableOpacity onPress={() => setBazaarModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.label}>Title *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Bosch Hammer Drill Machine or Full AC Service"
+                value={bazaarTitle}
+                onChangeText={setBazaarTitle}
+              />
+
+              <Text style={styles.label}>Price (₹) *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. ₹2,500"
+                value={bazaarPrice}
+                onChangeText={setBazaarPrice}
+              />
+
+              <Text style={styles.label}>Category</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Tools, Machinery, Home Service Package"
+                value={bazaarCategory}
+                onChangeText={setBazaarCategory}
+              />
+
+              <Text style={styles.label}>Description / Details</Text>
+              <TextInput
+                style={[styles.input, { height: 70, textAlignVertical: 'top' }]}
+                placeholder="Good working condition / package includes inspection & gas top-up..."
+                multiline
+                value={bazaarDescription}
+                onChangeText={setBazaarDescription}
+              />
+
+              <Text style={styles.label}>Photos (Up to 3)</Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+                {bazaarImages.map((uri, idx) => (
+                  <View key={idx} style={styles.offerThumbnailWrap}>
+                    <Image source={{ uri }} style={styles.offerThumbnailImg} />
+                    <TouchableOpacity
+                      onPress={() => setBazaarImages(prev => prev.filter((_, i) => i !== idx))}
+                      style={styles.removeThumbnailBtn}
+                    >
+                      <Ionicons name="close" size={14} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {bazaarImages.length < 3 && (
+                  <TouchableOpacity
+                    onPress={handlePickBazaarImage}
+                    style={styles.addOfferPhotoBtn}
+                  >
+                    <Ionicons name="camera-outline" size={24} color="#059669" />
+                    <Text style={[styles.addOfferPhotoText, { color: '#059669' }]}>+ Add Photo</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <TouchableOpacity
+                onPress={handlePublishBazaarItem}
+                disabled={publishingBazaar}
+                style={[styles.saveBtn, { backgroundColor: '#059669', marginTop: 8 }]}
+              >
+                {publishingBazaar ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.saveBtnText}>Publish to Kurnool Bazaar</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1239,24 +1671,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#0D9488',
+    backgroundColor: '#C2410C',
+    borderWidth: 2,
+    borderColor: '#FB923C',
     padding: 16,
-    borderRadius: 18,
+    borderRadius: 20,
     marginBottom: 16,
     gap: 12,
+    shadowColor: '#EA580C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
   },
-  offerCtaTitle: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
-  offerCtaSub: { fontSize: 11, color: '#CCFBF1', marginTop: 2, lineHeight: 15 },
+  offerCtaTitle: { fontSize: 14, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.3 },
+  offerCtaSub: { fontSize: 11.5, color: '#FFEDD5', marginTop: 2, lineHeight: 16 },
   offerCtaBtn: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   offerCtaBtnText: {
-    color: '#0D9488',
-    fontWeight: '800',
-    fontSize: 12,
+    color: '#C2410C',
+    fontWeight: '900',
+    fontSize: 13,
   },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: {

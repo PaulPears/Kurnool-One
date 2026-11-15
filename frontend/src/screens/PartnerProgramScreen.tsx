@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, SafeAreaView, ScrollView, TextInput, TouchableOpacity,
+  View, Text, ScrollView, TextInput, TouchableOpacity,
   Alert, ActivityIndicator, StyleSheet, StatusBar, Linking, Share, Clipboard,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
 import { auth, db } from '../config/firebase';
-import { collection, query, where, getDocs, setDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, setDoc, doc, getDoc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function PartnerProgramScreen({ navigation }: any) {
@@ -22,6 +23,8 @@ export default function PartnerProgramScreen({ navigation }: any) {
   const [area, setArea] = useState('');
   const [upiId, setUpiId] = useState('');
   const [partnerCode, setPartnerCode] = useState('');
+  const [isEditingUpi, setIsEditingUpi] = useState(false);
+  const [tempUpi, setTempUpi] = useState('');
 
   // Stats
   const [onboardedCount, setOnboardedCount] = useState(0);
@@ -296,6 +299,130 @@ export default function PartnerProgramScreen({ navigation }: any) {
                 : 'దుకాణదారులు రిజిస్ట్రేషన్ సమయంలో ఈ కోడ్ నమోదు చేయవచ్చు.'}
             </Text>
 
+            {/* Payout UPI ID Quick-Edit Card */}
+            <View style={styles.payoutUpiBox}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="card-outline" size={16} color="#059669" />
+                  <Text style={styles.payoutUpiTitle}>Payout UPI ID:</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    setTempUpi(upiId);
+                    setIsEditingUpi(!isEditingUpi);
+                  }}
+                  style={styles.editUpiBtn}
+                >
+                  <Ionicons name={isEditingUpi ? "close-circle" : "pencil"} size={13} color="#2563EB" />
+                  <Text style={styles.editUpiBtnText}>{isEditingUpi ? 'Cancel' : 'Change UPI'}</Text>
+                </TouchableOpacity>
+
+                {upiId ? (
+                  <TouchableOpacity
+                    onPress={() => {
+                      Alert.alert(
+                        'Delete UPI ID?',
+                        'Are you sure you want to remove your payout UPI ID? Payouts cannot be processed until a valid UPI ID is added.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Delete UPI ID',
+                            style: 'destructive',
+                            onPress: async () => {
+                              try {
+                                setSaving(true);
+                                let uid = auth.currentUser?.uid;
+                                if (!uid) {
+                                  try {
+                                    const stored = await AsyncStorage.getItem('user');
+                                    if (stored) {
+                                      const parsed = JSON.parse(stored);
+                                      uid = parsed.uid || parsed.id;
+                                    }
+                                  } catch {}
+                                }
+                                if (uid) {
+                                  try {
+                                    await addDoc(collection(db, 'partners', uid, 'audit_history'), {
+                                      action: 'delete_upi',
+                                      previousUpi: upiId,
+                                      newUpi: '',
+                                      timestamp: serverTimestamp(),
+                                    });
+                                  } catch {}
+                                  await setDoc(doc(db, 'partners', uid), {
+                                    upiId: '',
+                                    updatedAt: new Date().toISOString(),
+                                  }, { merge: true });
+                                }
+                                setUpiId('');
+                                setTempUpi('');
+                                setIsEditingUpi(false);
+                                Alert.alert('UPI ID Deleted', 'Your UPI ID has been removed.');
+                              } catch (err: any) {
+                                Alert.alert('Error', err.message || 'Failed to remove UPI ID');
+                              } finally {
+                                setSaving(false);
+                              }
+                            },
+                          },
+                        ]
+                      );
+                    }}
+                    style={[styles.editUpiBtn, { backgroundColor: '#FEE2E2', borderColor: '#FECACA', marginLeft: 6 }]}
+                  >
+                    <Ionicons name="trash-outline" size={13} color="#DC2626" />
+                    <Text style={[styles.editUpiBtnText, { color: '#DC2626' }]}>Delete</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+
+              {isEditingUpi ? (
+                <View style={{ marginTop: 10 }}>
+                  <TextInput
+                    style={styles.quickUpiInput}
+                    value={tempUpi}
+                    onChangeText={setTempUpi}
+                    placeholder="Enter new UPI ID (e.g. name@oksbi)"
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity
+                    onPress={async () => {
+                      if (!tempUpi.trim() || !tempUpi.includes('@')) {
+                        Alert.alert('Invalid UPI ID', 'Please enter a valid UPI ID (e.g. name@oksbi).');
+                        return;
+                      }
+                      try {
+                        setSaving(true);
+                        const uid = auth.currentUser?.uid;
+                        if (uid) {
+                          await addDoc(collection(db, 'partners', uid, 'audit_history'), {
+                            action: 'update_upi',
+                            previousUpi: upiId,
+                            newUpi: tempUpi.trim(),
+                            timestamp: serverTimestamp(),
+                          });
+                          await setDoc(doc(db, 'partners', uid), { upiId: tempUpi.trim(), updatedAt: new Date().toISOString() }, { merge: true });
+                        }
+                        setUpiId(tempUpi.trim());
+                        setIsEditingUpi(false);
+                        Alert.alert('UPI ID Updated', `Payouts will now be sent directly to: ${tempUpi.trim()}`);
+                      } catch (err: any) {
+                        Alert.alert('Error', err.message || 'Failed to update UPI ID');
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                    style={styles.saveQuickUpiBtn}
+                  >
+                    <Text style={styles.saveQuickUpiBtnText}>Save New UPI ID</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <Text style={styles.payoutUpiValue}>{upiId || 'No UPI ID saved yet'}</Text>
+              )}
+            </View>
+
             <TouchableOpacity onPress={handleSharePartnerLink} style={styles.shareWaBtn}>
               <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" />
               <Text style={styles.shareWaBtnText}>
@@ -526,6 +653,64 @@ const styles = StyleSheet.create({
   },
   copyBtnText: { fontSize: 12, fontWeight: '800', color: '#2563EB' },
   codeHint: { fontSize: 11, color: '#64748B', marginTop: 8 },
+  payoutUpiBox: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  payoutUpiTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#166534',
+  },
+  payoutUpiValue: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginTop: 6,
+    letterSpacing: 0.3,
+  },
+  editUpiBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  editUpiBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#2563EB',
+  },
+  quickUpiInput: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    fontSize: 13,
+    color: '#0F172A',
+    marginBottom: 8,
+  },
+  saveQuickUpiBtn: {
+    backgroundColor: '#059669',
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  saveQuickUpiBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
   shareWaBtn: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -56,7 +56,7 @@ export default function RegisterProfessionalPage() {
   const { user, loading: authLoading, loginWithGoogle } = useAuth();
 
   // Plan Selection
-  const [selectedPlanId, setSelectedPlanId] = useState<'pro_monthly' | 'pro_half_yearly' | 'pro_yearly'>('pro_half_yearly');
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('pro_standard');
 
   // Basic Info
   const [fullName, setFullName] = useState('');
@@ -195,7 +195,8 @@ export default function RegisterProfessionalPage() {
         portfolioPhotos: [],
         verifiedProfessional: true,
         status: 'active',
-        planId: selectedPlanId === 'pro_yearly' ? 'yearly' : selectedPlanId === 'pro_half_yearly' ? 'half_yearly' : 'monthly',
+        planId: selectedPlanId === 'pro_premium' ? 'yearly' : selectedPlanId === 'pro_standard' ? 'half_yearly' : 'free',
+        tier: selectedPlanId === 'pro_premium' ? 'featured' : selectedPlanId === 'pro_standard' ? 'standard' : 'free',
         userId: user?.uid,
         email: user?.email || undefined,
       });

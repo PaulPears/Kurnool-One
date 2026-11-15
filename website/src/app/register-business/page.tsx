@@ -78,7 +78,7 @@ export default function RegisterBusinessPage() {
   const { user, loading: authLoading, loginWithGoogle } = useAuth();
 
   // ─── PLAN SELECTION ────────────────────────────────────────────────────────
-  const [selectedPlanId, setSelectedPlanId] = useState<'biz_monthly' | 'biz_half_yearly' | 'biz_yearly'>('biz_yearly');
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('biz_standard');
 
   // ─── BASIC INFO ────────────────────────────────────────────────────────────
   const [nameEn, setNameEn] = useState('');
@@ -345,10 +345,10 @@ export default function RegisterBusinessPage() {
         coverImage: bannerUploadedUrl || thumbUrl,
         amenities: [...selectedAmenities, ...customFeatures],
         customFeatures,
-        planId: selectedPlanId === 'biz_yearly' ? 'yearly' : selectedPlanId === 'biz_half_yearly' ? 'half_yearly' : 'monthly',
+        planId: selectedPlanId === 'biz_premium' ? 'yearly' : selectedPlanId === 'biz_standard' ? 'half_yearly' : 'free',
         paymentStatus: 'unpaid',
         status: 'published',
-        tier: selectedPlanId === 'biz_yearly' ? 'premium' : 'featured',
+        tier: selectedPlanId === 'biz_premium' ? 'premium' : selectedPlanId === 'biz_standard' ? 'standard' : 'free',
         verificationBadge: 'verified_business',
         ownerUid: user?.uid,
         claimStatus: 'verified',

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, SafeAreaView, TextInput, TouchableOpacity,
+  View, Text, TextInput, TouchableOpacity,
   FlatList, ActivityIndicator, Image, StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
 import {
@@ -57,16 +58,16 @@ export default function SearchScreen({ navigation }: any) {
       if (activeFilter === 'all' || activeFilter === 'services') {
         const pros = await fetchProfessionals();
         const matchedPros = pros.filter(p =>
-          p.fullName.toLowerCase().includes(qLower) ||
-          p.category.toLowerCase().includes(qLower) ||
-          p.serviceAreas.some(a => a.toLowerCase().includes(qLower))
+          (p.fullName || '').toLowerCase().includes(qLower) ||
+          (p.category || '').toLowerCase().includes(qLower) ||
+          (p.serviceAreas || []).some(a => (a || '').toLowerCase().includes(qLower))
         );
         matchedPros.forEach(p => {
           combined.push({
             id: `pro_${p.id}`,
             type: 'professional',
-            title: p.fullName,
-            subtitle: `${p.category} • ${p.experienceYears} yrs exp • Areas: ${p.serviceAreas.slice(0, 2).join(', ')}`,
+            title: p.fullName || 'Professional',
+            subtitle: `${p.category || 'Service'} • ${p.experienceYears || 0} yrs exp • Areas: ${(p.serviceAreas || []).slice(0, 2).join(', ')}`,
             raw: p,
           });
         });

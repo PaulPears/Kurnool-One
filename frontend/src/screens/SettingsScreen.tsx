@@ -2,14 +2,15 @@ import React from 'react';
 import {
   View,
   Text,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Alert,
   Linking,
   StyleSheet,
   StatusBar,
+  Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
@@ -164,6 +165,20 @@ export default function SettingsScreen({ navigation }: any) {
             <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.settingCard}
+            onPress={() => navigation.navigate('Disclaimer')}
+          >
+            <View style={[styles.cardIconBox, { backgroundColor: '#FFFBEB' }]}>
+              <Ionicons name="warning-outline" size={22} color="#D97706" />
+            </View>
+            <View style={styles.cardContent}>
+              <Text style={styles.cardTitle}>{language === 'en' ? 'Legal Disclaimers' : 'చట్టపరమైన నిరాకరణలు'}</Text>
+              <Text style={styles.cardSubtitle}>{language === 'en' ? 'Medical, Non-Affiliation & Directory Disclaimers' : 'వైద్య, ప్రభుత్వేతర నిరాకరణలు'}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+          </TouchableOpacity>
+
           {/* Delete Account */}
           <TouchableOpacity style={styles.settingCard} onPress={handleDeleteAccount}>
             <View style={[styles.cardIconBox, { backgroundColor: '#FEF2F2' }]}>
@@ -187,9 +202,11 @@ export default function SettingsScreen({ navigation }: any) {
 
         {/* Build & App Version Footer */}
         <View style={styles.footerContainer}>
-          <View style={styles.footerBadge}>
-            <Text style={styles.footerBadgeText}>K1</Text>
-          </View>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.footerLogo}
+            resizeMode="contain"
+          />
           <Text style={styles.footerAppName}>KURNOOL ONE • కర్నూలు వన్</Text>
           <Text style={styles.footerVersion}>Version 2.4.0 (Official Build)</Text>
           <Text style={styles.footerSub}>Proudly Made for the Citizens of Historic Kurnool</Text>
@@ -308,19 +325,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
   },
-  footerBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#2563EB',
-    alignItems: 'center',
-    justifyContent: 'center',
+  footerLogo: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
     marginBottom: 8,
-  },
-  footerBadgeText: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: '#FFFFFF',
   },
   footerAppName: {
     fontSize: 13,

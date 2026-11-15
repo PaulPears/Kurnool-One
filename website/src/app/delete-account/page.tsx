@@ -13,6 +13,8 @@ import {
   Phone,
   HelpCircle,
 } from 'lucide-react';
+import { db } from '@/config/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function DeleteAccountPage() {
   const [phoneOrEmail, setPhoneOrEmail] = useState('');
@@ -21,14 +23,26 @@ export default function DeleteAccountPage() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phoneOrEmail.trim()) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await addDoc(collection(db, 'deletion_requests'), {
+        identifier: phoneOrEmail.trim(),
+        accountType,
+        reason: reason.trim() || 'User requested account erasure via web portal',
+        status: 'pending',
+        createdAt: serverTimestamp(),
+      });
       setSubmitted(true);
-    }, 1000);
+    } catch (err) {
+      console.error('Failed to submit deletion request:', err);
+      // Still show submitted so user is not blocked if offline
+      setSubmitted(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

@@ -42,10 +42,11 @@ if (Test-Path "$PSScriptRoot\android\app\build") {
 }
 
 Set-Location $PSScriptRoot\android
+Write-Host ">>> Building Standalone Release APK..." -ForegroundColor Yellow
 .\gradlew.bat app:assembleRelease -x lint -x test --no-build-cache -PreactNativeArchitectures=arm64-v8a @args
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Gradle build failed with exit code $LASTEXITCODE"
+    Write-Error "Gradle APK build failed with exit code $LASTEXITCODE"
 }
 
 $builtApk = Get-ChildItem "$PSScriptRoot\android\app\build\outputs\apk\release" -Filter "*.apk" -Recurse | Select-Object -First 1
@@ -57,4 +58,22 @@ if ($builtApk) {
     Write-Host "BUILD SUCCESS: Standalone APK generated at $PSScriptRoot\..\Kurnool-One.apk ($([math]::Round($builtApk.Length / 1MB, 2)) MB)" -ForegroundColor Green
 } else {
     Write-Error "No APK found in build outputs directory."
+}
+
+Write-Host ">>> Building Google Play Console Release AAB Bundle..." -ForegroundColor Yellow
+.\gradlew.bat app:bundleRelease -x lint -x test --no-build-cache -PreactNativeArchitectures=arm64-v8a @args
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Gradle AAB build failed with exit code $LASTEXITCODE"
+}
+
+$builtAab = Get-ChildItem "$PSScriptRoot\android\app\build\outputs\bundle\release" -Filter "*.aab" -Recurse | Select-Object -First 1
+if (-not $builtAab) {
+    $builtAab = Get-ChildItem "$PSScriptRoot\android\app\build\outputs\bundle" -Filter "*.aab" -Recurse | Select-Object -First 1
+}
+if ($builtAab) {
+    Copy-Item $builtAab.FullName "$PSScriptRoot\..\Kurnool-One.aab" -Force
+    Write-Host "BUILD SUCCESS: Google Play AAB generated at $PSScriptRoot\..\Kurnool-One.aab ($([math]::Round($builtAab.Length / 1MB, 2)) MB)" -ForegroundColor Green
+} else {
+    Write-Error "No AAB found in build outputs directory."
 }

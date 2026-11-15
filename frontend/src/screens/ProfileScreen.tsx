@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
   Image,
@@ -13,6 +12,7 @@ import {
   StatusBar,
   Linking,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from '../context/LanguageContext';
 import { useFocusEffect } from '@react-navigation/native';
@@ -242,7 +242,7 @@ export default function ProfileScreen({ route, navigation }: any) {
               <Ionicons name="storefront" size={24} color="#2563EB" />
             </View>
             <View style={styles.menuContent}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
                 <Text style={styles.menuTitle}>
                   {language === 'en' ? 'My Business Listings & Leads' : 'నా వ్యాపారం & లీడ్స్'}
                 </Text>
@@ -276,7 +276,7 @@ export default function ProfileScreen({ route, navigation }: any) {
               <Ionicons name="briefcase" size={24} color="#0D9488" />
             </View>
             <View style={styles.menuContent}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
                 <Text style={[styles.menuTitle, { color: '#0F766E' }]}>
                   {language === 'en' ? 'My Professional Services & Clients' : 'నా వృత్తి సేవలు & క్లయింట్లు'}
                 </Text>
@@ -304,7 +304,7 @@ export default function ProfileScreen({ route, navigation }: any) {
               <Ionicons name="sparkles" size={24} color="#D97706" />
             </View>
             <View style={styles.menuContent}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
                 <Text style={[styles.menuTitle, { color: '#B45309' }]}>
                   {language === 'en' ? '🤝 Kurnool One Partner Program' : '🤝 కర్నూలు వన్ పార్ట్‌నర్ ప్రోగ్రామ్'}
                 </Text>
@@ -331,14 +331,18 @@ export default function ProfileScreen({ route, navigation }: any) {
           {/* WhatsApp Support */}
           <TouchableOpacity
             style={styles.menuCard}
-            onPress={() => Linking.openURL('https://wa.me/919494300000?text=Hello%20Kurnool%20One%20Team').catch(() => {})}
+            onPress={() => Linking.openURL('https://wa.me/917780533086?text=Hello%20Kurnool%20One%20Support').catch(() => {})}
           >
             <View style={[styles.menuIconContainer, { backgroundColor: '#DCFCE7' }]}>
               <Ionicons name="logo-whatsapp" size={22} color="#16A34A" />
             </View>
             <View style={styles.menuContent}>
-              <Text style={styles.menuTitle}>24/7 WhatsApp Helpline</Text>
-              <Text style={styles.menuSubtitle}>Chat directly with our Kurnool city desk</Text>
+              <Text style={styles.menuTitle}>
+                {language === 'en' ? 'WhatsApp Helpline' : 'వాట్సాప్ హెల్ప్‌లైన్'}
+              </Text>
+              <Text style={styles.menuSubtitle}>
+                {language === 'en' ? '9:00 AM – 9:00 PM • +91 77805 33086' : 'ఉ. 9:00 - రా. 9:00 • +91 77805 33086'}
+              </Text>
             </View>
             <Ionicons name="open-outline" size={16} color="#94A3B8" />
           </TouchableOpacity>
@@ -608,12 +612,14 @@ const styles = StyleSheet.create({
   },
   menuContent: {
     flex: 1,
+    minWidth: 0,
   },
   menuTitle: {
     fontSize: 15,
     fontWeight: '700',
     color: '#0F172A',
     marginBottom: 2,
+    flexShrink: 1,
   },
   menuSubtitle: {
     fontSize: 12,

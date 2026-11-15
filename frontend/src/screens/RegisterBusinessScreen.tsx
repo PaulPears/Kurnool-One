@@ -21,7 +21,8 @@ import {
 import RazorpayModal from '../components/RazorpayModal';
 import BusinessHoursSelector from '../components/BusinessHoursSelector';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { auth } from '../config/firebase';
+import { auth, db } from '../config/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -104,11 +105,36 @@ export default function RegisterBusinessScreen({ navigation }: any) {
   const [youtube, setYoutube] = useState('');
   const [linkedin, setLinkedin] = useState('');
   const [description, setDescription] = useState('');
+  const [storefrontPhotoUri, setStorefrontPhotoUri] = useState<string | null>(null);
   const [logoUri, setLogoUri] = useState<string | null>(null);
   const [coverUri, setCoverUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [partnerCode, setPartnerCode] = useState('');
+  const [partnerVerifiedName, setPartnerVerifiedName] = useState<string | null>(null);
+  const [checkingPartner, setCheckingPartner] = useState(false);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>(['UPI']);
+
+  useEffect(() => {
+    const code = partnerCode.trim().toUpperCase();
+    if (code.length >= 4) {
+      setCheckingPartner(true);
+      const q = query(collection(db, 'partners'), where('partnerCode', '==', code));
+      getDocs(q).then(snap => {
+        if (!snap.empty) {
+          const p = snap.docs[0].data();
+          setPartnerVerifiedName(`${p.fullName || 'Registered Partner'} (${p.area || 'Kurnool'})`);
+        } else {
+          setPartnerVerifiedName(null);
+        }
+      }).catch(() => {
+        setPartnerVerifiedName(null);
+      }).finally(() => {
+        setCheckingPartner(false);
+      });
+    } else {
+      setPartnerVerifiedName(null);
+    }
+  }, [partnerCode]);
 
   const toggleAmenity = (id: string) => {
     setSelectedAmenities(prev =>
@@ -138,6 +164,15 @@ export default function RegisterBusinessScreen({ navigation }: any) {
   const handleWhatsappInput = (text: string) => {
     const cleaned = text.replace(/\D/g, '').slice(0, 10);
     setWhatsapp(cleaned);
+  };
+
+  const pickStorefrontPhoto = async () => {
+    const res = await pickImageWithFreeStyleCrop();
+    if (res?.uri) {
+      setStorefrontPhotoUri(res.uri);
+      setLogoUri(res.uri);
+      setCoverUri(res.uri);
+    }
   };
 
   const pickLogo = async () => {
@@ -252,10 +287,10 @@ export default function RegisterBusinessScreen({ navigation }: any) {
           linkedin: linkedin.trim() || undefined,
         },
         planId: selectedPlan === 'biz_free' ? 'free' : selectedPlan === 'biz_premium' ? 'yearly' : 'half_yearly',
-        paymentStatus: 'paid',
-        paymentId: paymentData.razorpay_payment_id || `pay_${Date.now()}`,
-        tier: 'featured',
-        verificationBadge: 'none',
+        paymentStatus: selectedPlan === 'biz_free' ? 'free' : 'paid',
+        paymentId: selectedPlan === 'biz_free' ? '' : (paymentData.razorpay_payment_id || `pay_${Date.now()}`),
+        tier: selectedPlan === 'biz_free' ? 'free' : selectedPlan === 'biz_premium' ? 'premium' : 'standard',
+        verificationBadge: selectedPlan === 'biz_free' ? 'none' : 'verified_business',
         claimStatus: 'claimed',
         ownerUid: effectiveUid,
         operatingHours,
@@ -642,41 +677,39 @@ export default function RegisterBusinessScreen({ navigation }: any) {
             onChangeText={setLinkedin}
           />
 
-          {/* Visual Branding Section: Logo & Cover Image */}
+          {/* Visual Branding Section: Single Primary Storefront / Shop Board Photo */}
           <Text style={[styles.label, { marginTop: 16, fontWeight: '800', color: '#0F172A' }]}>
-            Business Logo & Storefront Cover Image
+            Storefront / Shop Board Photo *
           </Text>
-          <View style={styles.uploadCardsRow}>
-            {/* Logo Picker */}
-            <View style={{ flex: 1, alignItems: 'center' }}>
-              <TouchableOpacity onPress={pickLogo} style={styles.logoPickerBox}>
-                {logoUri ? (
-                  <Image source={{ uri: logoUri }} style={styles.pickedImg} />
-                ) : (
-                  <View style={styles.placeholderBox}>
-                    <Ionicons name="camera-outline" size={24} color="#2563EB" />
-                    <Text style={styles.uploadBtnText}>Upload Logo</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              <Text style={styles.uploadSubtext}>1:1 Business Logo</Text>
-            </View>
-
-            {/* Cover Picker */}
-            <View style={{ flex: 1.6, alignItems: 'center' }}>
-              <TouchableOpacity onPress={pickCover} style={styles.coverPickerBox}>
-                {coverUri ? (
-                  <Image source={{ uri: coverUri }} style={styles.pickedImg} />
-                ) : (
-                  <View style={styles.placeholderBox}>
-                    <Ionicons name="image-outline" size={24} color="#2563EB" />
-                    <Text style={styles.uploadBtnText}>Upload Cover</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              <Text style={styles.uploadSubtext}>16:9 Storefront Banner</Text>
-            </View>
-          </View>
+          <Text style={{ fontSize: 12, color: '#64748B', marginBottom: 8, marginTop: -4 }}>
+            Upload 1 clear photo of your shop board, counter, or storefront. It will be showcased on your directory card.
+          </Text>
+          <TouchableOpacity
+            onPress={pickStorefrontPhoto}
+            style={styles.storefrontPickerBox}
+            activeOpacity={0.85}
+          >
+            {storefrontPhotoUri || coverUri || logoUri ? (
+              <View style={{ width: '100%', height: '100%', position: 'relative' }}>
+                <Image
+                  source={{ uri: storefrontPhotoUri || coverUri || logoUri! }}
+                  style={styles.storefrontPickedImg}
+                />
+                <View style={styles.changePhotoBadge}>
+                  <Ionicons name="camera" size={14} color="#FFFFFF" />
+                  <Text style={styles.changePhotoBadgeText}>Change Photo</Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.storefrontPlaceholder}>
+                <View style={styles.cameraIconCircle}>
+                  <Ionicons name="camera" size={26} color="#2563EB" />
+                </View>
+                <Text style={styles.storefrontUploadTitle}>Upload Storefront Photo</Text>
+                <Text style={styles.storefrontUploadSub}>Tap to capture photo or pick from gallery</Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
             <Text style={[styles.label, { marginBottom: 0 }]}>Services / Business Description</Text>
@@ -704,6 +737,17 @@ export default function RegisterBusinessScreen({ navigation }: any) {
             onChangeText={(txt) => setPartnerCode(txt.toUpperCase())}
             autoCapitalize="characters"
           />
+          {checkingPartner && (
+            <Text style={{ fontSize: 11, color: '#64748B', marginTop: 4, marginLeft: 4 }}>Verifying partner code...</Text>
+          )}
+          {partnerVerifiedName && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, backgroundColor: '#F0FDF4', padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#BBF7D0' }}>
+              <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#15803D' }}>
+                Referred by: {partnerVerifiedName}
+              </Text>
+            </View>
+          )}
 
           {/* Commercial Advertising & Directory Plan Selection */}
           <Text style={[styles.label, { marginTop: 20, fontWeight: '800', color: '#0F172A', fontSize: 16 }]}>
@@ -1020,6 +1064,65 @@ const styles = StyleSheet.create({
     alignItems: 'center', marginTop: 10,
   },
   submitBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16 },
+  storefrontPickerBox: {
+    width: '100%',
+    height: 150,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#93C5FD',
+    borderStyle: 'dashed',
+    borderRadius: 16,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  storefrontPickedImg: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  changePhotoBadge: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  changePhotoBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  storefrontPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  cameraIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  storefrontUploadTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1E293B',
+  },
+  storefrontUploadSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 3,
+  },
   uploadCardsRow: {
     flexDirection: 'row',
     gap: 12,

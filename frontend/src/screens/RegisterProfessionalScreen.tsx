@@ -20,7 +20,8 @@ import {
 import RazorpayModal from '../components/RazorpayModal';
 import BusinessHoursSelector from '../components/BusinessHoursSelector';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { auth } from '../config/firebase';
+import { auth, db } from '../config/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -91,11 +92,11 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
   const [customCategory, setCustomCategory] = useState('');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [catSearch, setCatSearch] = useState('');
-  const [experienceYears, setExperienceYears] = useState('3');
-  const [serviceAreas, setServiceAreas] = useState('All Kurnool City');
+  const [experienceYears, setExperienceYears] = useState('');
+  const [serviceAreas, setServiceAreas] = useState('');
   const [phone, setPhone] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
-  const [visitingCharges, setVisitingCharges] = useState('₹150');
+  const [visitingCharges, setVisitingCharges] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
   const [instagramUrl, setInstagramUrl] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
@@ -106,7 +107,31 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
   const [description, setDescription] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [partnerCode, setPartnerCode] = useState('');
+  const [partnerVerifiedName, setPartnerVerifiedName] = useState<string | null>(null);
+  const [checkingPartner, setCheckingPartner] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const code = partnerCode.trim().toUpperCase();
+    if (code.length >= 4) {
+      setCheckingPartner(true);
+      const q = query(collection(db, 'partners'), where('partnerCode', '==', code));
+      getDocs(q).then(snap => {
+        if (!snap.empty) {
+          const p = snap.docs[0].data();
+          setPartnerVerifiedName(`${p.fullName || 'Registered Partner'} (${p.area || 'Kurnool'})`);
+        } else {
+          setPartnerVerifiedName(null);
+        }
+      }).catch(() => {
+        setPartnerVerifiedName(null);
+      }).finally(() => {
+        setCheckingPartner(false);
+      });
+    } else {
+      setPartnerVerifiedName(null);
+    }
+  }, [partnerCode]);
 
   // Daily Operating / Working Hours
   const [operatingHours, setOperatingHours] = useState<any>({
@@ -225,13 +250,14 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
         websiteUrl: websiteUrl.trim() || undefined,
         description: description.trim() || `Professional ${selectedCat.name_en} serving Kurnool.`,
         portfolioPhotos: [],
-        verifiedProfessional: false,
+        verifiedProfessional: selectedPlan !== 'pro_free',
+        tier: selectedPlan === 'pro_free' ? 'free' : selectedPlan === 'pro_elite' ? 'premium' : 'standard',
         status: 'active',
         userId: effectiveUid,
         planId: selectedPlan,
         partnerCode: partnerCode.trim().toUpperCase() || undefined,
-        paymentStatus: 'paid',
-        paymentId: paymentData.razorpay_payment_id || `pay_${Date.now()}`,
+        paymentStatus: selectedPlan === 'pro_free' ? 'free' : 'paid',
+        paymentId: selectedPlan === 'pro_free' ? '' : (paymentData.razorpay_payment_id || `pay_${Date.now()}`),
       });
 
       if (effectiveUid) {
@@ -677,6 +703,17 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
           onChangeText={(txt) => setPartnerCode(txt.toUpperCase())}
           autoCapitalize="characters"
         />
+        {checkingPartner && (
+          <Text style={{ fontSize: 11, color: '#64748B', marginTop: 4, marginLeft: 4 }}>Verifying partner code...</Text>
+        )}
+        {partnerVerifiedName && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, backgroundColor: '#F0FDF4', padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#BBF7D0' }}>
+            <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#15803D' }}>
+              Referred by: {partnerVerifiedName}
+            </Text>
+          </View>
+        )}
 
         {/* Commercial Advertising & Directory Plan Selection */}
         <Text style={[styles.label, { marginTop: 20, fontWeight: '800', color: '#0F172A', fontSize: 16 }]}>

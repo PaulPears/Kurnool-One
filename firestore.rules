@@ -7,10 +7,18 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin');
+      return isAuthenticated() && (
+        request.auth.token.email in [
+          'kurnoolone1@gmail.com',
+          'pearsrobert174@gmail.com',
+          'ananthashayana592@gmail.com',
+          'chiyan150304@gmail.com',
+          'admin@kurnoolone.com'
+        ] ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin'))
+      );
     }
     
     // User accounts
@@ -37,7 +45,7 @@ service cloud.firestore {
     // Registered phone role exclusivity
     match /registered_phones/{phone} {
       allow read, create, update: if true;
-      allow delete: if isAdmin();
+      allow delete: if isAuthenticated() || isAdmin();
     }
 
     // Payments audit records
@@ -49,11 +57,7 @@ service cloud.firestore {
 
     // Customer Leads (Justdial-style views, calls, inquiries)
     match /leads/{leadId} {
-      allow read: if isAuthenticated() && (
-        resource.data.targetOwnerUid == request.auth.uid ||
-        resource.data.citizenUid == request.auth.uid ||
-        isAdmin()
-      );
+      allow read: if isAuthenticated();
       allow create: if request.resource.data.keys().hasAll(['targetId', 'targetType', 'actionType']);
       allow update, delete: if isAuthenticated() && (resource.data.targetOwnerUid == request.auth.uid || isAdmin());
     }
@@ -129,6 +133,13 @@ service cloud.firestore {
       allow update, delete: if isAuthenticated() && (resource.data.ownerUid == request.auth.uid || isAdmin());
     }
 
+    // Subscriptions and payments ledger
+    match /subscriptions/{subId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
     // Verification claims
     match /verification_requests/{reqId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
@@ -138,8 +149,26 @@ service cloud.firestore {
 
     // Moderation reports
     match /reports/{reportId} {
-      allow create: if isAuthenticated();
+      allow create: if true;
       allow read, update, delete: if isAdmin();
+    }
+
+    match /reported_content/{reportId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Account deletion requests (Google Play web erasure compliance)
+    match /deletion_requests/{reqId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Marketplace items alias
+    match /marketplace_items/{itemId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.sellerUid == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.sellerUid == request.auth.uid || isAdmin());
     }
 
     // Existing social posts (backwards compatibility)
@@ -200,11 +229,22 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if isAuthenticated();
       allow delete: if isAdmin();
+
+      match /audit_history/{historyId} {
+        allow read: if isAuthenticated() && (partnerId == request.auth.uid || isAdmin());
+        allow create: if isAuthenticated() && (partnerId == request.auth.uid || isAdmin());
+        allow update, delete: if isAdmin();
+      }
     }
 
     // Admin action audit logs (full accountability trail)
     match /admin_audit_logs/{logId} {
       allow read, write: if true; // Allows web admin console & authorized services to record audit entries
+    }
+
+    // User activity logs (full civic platform activity stream)
+    match /activity_logs/{logId} {
+      allow read, write: if true;
     }
   }
 }

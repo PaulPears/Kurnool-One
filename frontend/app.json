@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kurnool One",
     "slug": "kurnool-one",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
@@ -23,7 +23,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.kurnoolone",
-      "versionCode": 1,
+      "versionCode": 3,
       "googleServicesFile": "./google-services.json"
     },
     "web": {

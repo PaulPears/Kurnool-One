@@ -157,11 +157,11 @@ export default async function BusinessDetailPage({ params }: PageProps) {
                 )}
               </div>
 
-              <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight drop-shadow-md">
+              <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight drop-shadow-md break-words max-w-full">
                 {business.name_en}
               </h1>
               {business.name_te && (
-                <p className="text-lg text-slate-200 font-medium mt-1 drop-shadow-sm">
+                <p className="text-lg text-slate-200 font-medium mt-1 drop-shadow-sm break-words max-w-full">
                   {business.name_te}
                 </p>
               )}
@@ -169,8 +169,8 @@ export default async function BusinessDetailPage({ params }: PageProps) {
           </div>
 
           {/* Action Bar */}
-          <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-amber-500">
+          <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-4 overflow-hidden">
+            <div className="flex items-center gap-2 text-amber-500 flex-wrap">
               <div className="flex">
                 {[1, 2, 3, 4, 5].map((s) => (
                   <Star key={s} className="w-5 h-5 fill-amber-400 text-amber-400" />
@@ -192,16 +192,16 @@ export default async function BusinessDetailPage({ params }: PageProps) {
           </div>
 
           {/* Details Content Body */}
-          <div className="p-6 sm:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="p-6 sm:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8 overflow-hidden">
             {/* Left: About & Amenities */}
-            <div className="lg:col-span-7 space-y-8">
+            <div className="lg:col-span-7 space-y-8 min-w-0">
               <div>
                 <h2 className="text-xl font-black text-slate-900 mb-3">About the Business</h2>
-                <p className="text-slate-600 text-base leading-relaxed whitespace-pre-line">
+                <p className="text-slate-600 text-base leading-relaxed whitespace-pre-line break-words">
                   {business.description_en}
                 </p>
                 {business.description_te && (
-                  <p className="text-slate-500 text-sm mt-3 pt-3 border-t border-slate-100">
+                  <p className="text-slate-500 text-sm mt-3 pt-3 border-t border-slate-100 break-words">
                     {business.description_te}
                   </p>
                 )}
@@ -214,9 +214,9 @@ export default async function BusinessDetailPage({ params }: PageProps) {
                     {business.amenities.map((item, idx) => (
                       <span
                         key={idx}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200/60"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200/60 break-words"
                       >
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                         <span>{item}</span>
                       </span>
                     ))}
@@ -226,23 +226,23 @@ export default async function BusinessDetailPage({ params }: PageProps) {
             </div>
 
             {/* Right: Contact & Hours Info Card */}
-            <div className="lg:col-span-5">
-              <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200 space-y-5">
+            <div className="lg:col-span-5 min-w-0">
+              <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200 space-y-5 overflow-hidden">
                 <h3 className="text-base font-black text-slate-900">Contact & Hours</h3>
 
                 <div className="flex items-start gap-3">
                   <MapPin className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-                  <div className="text-sm">
+                  <div className="text-sm min-w-0 flex-1">
                     <div className="font-bold text-slate-900">Location</div>
-                    <div className="text-slate-600 leading-snug">{business.address}</div>
+                    <div className="text-slate-600 leading-snug break-words">{business.address}</div>
                     {business.landmark && (
-                      <div className="text-xs text-slate-500 mt-1">Landmark: {business.landmark}</div>
+                      <div className="text-xs text-slate-500 mt-1 break-words">Landmark: {business.landmark}</div>
                     )}
                     <a
                       href={mapsUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 mt-2"
+                      className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 mt-2 break-all"
                     >
                       <span>Open in Google Maps App ↗</span>
                     </a>

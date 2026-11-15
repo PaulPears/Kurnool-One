@@ -95,15 +95,8 @@ export default function MobileFirebaseLogin({ navigation, route }: any) {
       navigation.replace(returnScreen);
       return;
     }
-    if (role === 'business') {
-      navigation.replace('ManageBusiness');
-    } else if (role === 'professional') {
-      navigation.replace('ManageProfessional');
-    } else if (role === 'admin' || role === 'super_admin') {
-      navigation.replace('AdminDashboard');
-    } else {
-      navigation.replace('Main');
-    }
+    // Always navigate to Main (Home Screen) on app open / standard login
+    navigation.replace('Main');
   };
 
   const handlePostGoogleAuth = async (firebaseUser: User) => {
@@ -364,11 +357,11 @@ export default function MobileFirebaseLogin({ navigation, route }: any) {
           <View style={styles.legalSection}>
             <Text style={styles.legalNote}>By continuing, you acknowledge and agree to:</Text>
             <View style={styles.legalLinksRow}>
-              <TouchableOpacity onPress={openTerms} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity onPress={() => navigation.navigate('Terms')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Text style={styles.legalLinkText}>Terms of Service</Text>
               </TouchableOpacity>
               <Text style={styles.legalDivider}>•</Text>
-              <TouchableOpacity onPress={openPrivacy} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity onPress={() => navigation.navigate('PrivacyPolicy')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Text style={styles.legalLinkText}>Privacy Policy</Text>
               </TouchableOpacity>
             </View>
@@ -381,21 +374,6 @@ export default function MobileFirebaseLogin({ navigation, route }: any) {
           <Text style={styles.disclaimerText}>
             Kurnool One is an independent private digital city directory platform. It is not affiliated with or endorsed by the Government of Andhra Pradesh or the Kurnool Municipal Corporation.
           </Text>
-        </View>
-
-        {/* Legal Policies Links (Google Play Compliant) */}
-        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 14, marginTop: 12, marginBottom: 20 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('Terms')}>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#2563EB', textDecorationLine: 'underline' }}>
-              Terms of Service
-            </Text>
-          </TouchableOpacity>
-          <Text style={{ color: '#94A3B8', fontSize: 12 }}>•</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('PrivacyPolicy')}>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#2563EB', textDecorationLine: 'underline' }}>
-              Privacy Policy
-            </Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
 

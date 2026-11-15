@@ -75,8 +75,9 @@ export interface BusinessItem {
   customFeatures?: string[];
   priceRange?: '₹' | '₹₹' | '₹₹₹' | '₹₹₹₹';
   ownerUid?: string;
+  ownerEmail?: string;
   claimStatus: 'unclaimed' | 'pending' | 'verified' | 'claimed';
-  tier: 'free' | 'featured' | 'premium';
+  tier: 'free' | 'featured' | 'premium' | 'standard';
   verificationBadge: 'none' | 'verified_business';
   planId?: 'monthly' | 'half_yearly' | 'yearly' | 'free' | 'verified' | 'premium';
   paymentStatus?: 'free' | 'unpaid' | 'paid';
@@ -143,6 +144,9 @@ export interface ProfessionalItem {
   ratingCount: number;
   reviewCount?: number;
   planId?: string;
+  tier?: string;
+  ownerEmail?: string;
+  ownerUid?: string;
   paymentStatus?: 'paid' | 'unpaid' | 'free';
   paymentId?: string;
   orderId?: string;
@@ -237,6 +241,7 @@ export interface OfferItem {
   businessId?: string;
   businessName: string;
   validUntil: string;
+  expiresAt?: string;
   bannerUrl?: string;
   images?: string[];
   phone?: string;
@@ -1168,7 +1173,8 @@ export const SEED_BUSINESSES: BusinessItem[] = [
     description_te: 'కర్నూలు నడిబొడ్డున ఉన్న ప్రముఖ లగ్జరీ హోటల్, ఏసీ గదులు మరియు బ్యాంక్వెట్ హాళ్ళు.',
     images: ['https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800'],
     status: 'published',
-    tier: 'featured',
+    tier: 'premium',
+    planId: 'premium',
     verificationBadge: 'verified_business',
     claimStatus: 'verified',
   },
@@ -1187,7 +1193,8 @@ export const SEED_BUSINESSES: BusinessItem[] = [
     description_te: 'ప్రసిద్ధ రాయలసీమ వంటకాలు, నాటుకోడి పులావ్ మరియు రాగి సంకటి.',
     images: ['https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800'],
     status: 'published',
-    tier: 'featured',
+    tier: 'free',
+    planId: 'half_yearly',
     verificationBadge: 'verified_business',
     claimStatus: 'verified',
   },
@@ -1206,9 +1213,10 @@ export const SEED_BUSINESSES: BusinessItem[] = [
     description_te: 'తాజా కూరగాయలు, కిరాణా సరుకులు మరియు హోమ్ డెలివరీ సౌకర్యం.',
     images: ['https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=800'],
     status: 'published',
-    tier: 'featured',
-    verificationBadge: 'verified_business',
-    claimStatus: 'verified',
+    tier: 'free',
+    planId: 'free',
+    verificationBadge: 'none',
+    claimStatus: 'unclaimed',
   },
   {
     id: 'biz_sai_silk_palace',
@@ -1347,10 +1355,7 @@ export const fetchBusinesses = async (
 
     let results: BusinessItem[] = [];
     if (!snap.empty) {
-      const liveItems = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessItem));
-      const liveIds = new Set(liveItems.map(b => b.id));
-      const nonDuplicateSeeds = SEED_BUSINESSES.filter(s => !liveIds.has(s.id));
-      results = [...liveItems, ...nonDuplicateSeeds];
+      results = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessItem));
     } else {
       results = [...SEED_BUSINESSES];
     }
@@ -1440,14 +1445,15 @@ export const fetchPlaces = async (type?: string): Promise<PlaceItem[]> => {
     const coll = collection(db, 'places');
     const snap = await getDocs(coll);
     if (snap.empty) {
-      if (type && type !== 'all') {
-        return SEED_PLACES.filter(p => p.type === type);
-      }
-      return SEED_PLACES;
+      return [];
     }
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as PlaceItem));
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as PlaceItem));
+    if (type && type !== 'all') {
+      return items.filter(p => p.type === type);
+    }
+    return items;
   } catch {
-    return SEED_PLACES;
+    return [];
   }
 };
 
@@ -1456,14 +1462,15 @@ export const fetchWorshipPlaces = async (type?: string): Promise<PlaceItem[]> =>
     const coll = collection(db, 'places_of_worship');
     const snap = await getDocs(coll);
     if (snap.empty) {
-      if (type && type !== 'all') {
-        return SEED_WORSHIP_PLACES.filter(p => p.type === type);
-      }
-      return SEED_WORSHIP_PLACES;
+      return [];
     }
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as PlaceItem));
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as PlaceItem));
+    if (type && type !== 'all') {
+      return items.filter(p => p.type === type);
+    }
+    return items;
   } catch {
-    return SEED_WORSHIP_PLACES;
+    return [];
   }
 };
 
@@ -1471,10 +1478,19 @@ export const fetchOffers = async (): Promise<OfferItem[]> => {
   try {
     const coll = collection(db, 'promotions');
     const snap = await getDocs(coll);
-    if (snap.empty) return SEED_OFFERS;
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as OfferItem));
+    if (snap.empty) return [];
+    const now = Date.now();
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as OfferItem))
+      .filter(o => {
+        if (o.expiresAt) {
+          const exp = new Date(o.expiresAt).getTime();
+          if (!isNaN(exp) && exp < now) return false;
+        }
+        return true;
+      });
   } catch {
-    return SEED_OFFERS;
+    return [];
   }
 };
 
@@ -1482,10 +1498,10 @@ export const fetchEvents = async (): Promise<EventItem[]> => {
   try {
     const coll = collection(db, 'events');
     const snap = await getDocs(coll);
-    if (snap.empty) return SEED_EVENTS;
+    if (snap.empty) return [];
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as EventItem));
   } catch {
-    return SEED_EVENTS;
+    return [];
   }
 };
 
@@ -1536,9 +1552,10 @@ export const registerBusiness = async (data: Partial<BusinessItem>): Promise<str
   const payload = sanitizeFirestoreData({
     ...data,
     ownerUid: data.ownerUid || user?.uid || '',
+    ownerEmail: data.ownerEmail || user?.email || '',
     claimStatus: (data.ownerUid || user) ? 'claimed' : 'unclaimed',
-    tier: data.tier || 'featured',
-    verificationBadge: 'none',
+    tier: data.tier || 'free',
+    verificationBadge: data.verificationBadge || 'none',
     ratingAvg: 5.0,
     ratingCount: 1,
     status: data.status || 'active',
@@ -1565,6 +1582,7 @@ export const registerProfessional = async (
   const payload = sanitizeFirestoreData({
     ...data,
     userId: data.userId || user?.uid || '',
+    email: data.email || user?.email || '',
     ratingAvg: 5.0,
     ratingCount: 1,
     verifiedProfessional: false,
@@ -1626,9 +1644,23 @@ export const addBusinessReview = async (
   });
 
   const bizRef = doc(db, 'businesses', businessId);
-  await updateDoc(bizRef, {
-    ratingCount: increment(1),
-  });
+  try {
+    const bizSnap = await getDoc(bizRef);
+    const currentData = bizSnap.data();
+    const currentAvg = typeof currentData?.ratingAvg === 'number' ? currentData.ratingAvg : 5.0;
+    const currentCount = typeof currentData?.ratingCount === 'number' ? currentData.ratingCount : 0;
+    const newCount = currentCount + 1;
+    const newAvg = Number((((currentAvg * currentCount) + rating) / newCount).toFixed(1));
+
+    await updateDoc(bizRef, {
+      ratingAvg: newAvg,
+      ratingCount: newCount,
+    });
+  } catch (err) {
+    await updateDoc(bizRef, {
+      ratingCount: increment(1),
+    });
+  }
 };
 
 export const fetchBusinessReviews = async (businessId: string): Promise<BusinessReview[]> => {
@@ -1704,6 +1736,10 @@ export const createBusinessOffer = async (
       actionUrl: '/offers',
       imageUrl: data.bannerUrl || (data.images && data.images[0]) || '',
       createdAt: serverTimestamp(),
+    });
+    logUserActivity('deal_created', `Deal "${dealTitle}" (${discount}) created by ${store}`, {
+      dealId: docRef.id,
+      store,
     });
   } catch (notifErr) {
     console.warn('Failed to broadcast deal notification:', notifErr);
@@ -1910,7 +1946,7 @@ export const BUSINESS_PRICING_PLANS: PricingPlan[] = [
       'Top priority category ranking for 1 Full Year',
       'Homepage Featured showcase placement',
       'Hot Deals & Offers publishing privileges',
-      'Complete photo gallery & social media links',
+      'Complete photo gallery & storefront branding',
       'Verified Merchant trust badge',
     ],
   },
@@ -2044,15 +2080,27 @@ export const SEED_NEWS: NewsItem[] = [
 
 export async function fetchNews(): Promise<NewsItem[]> {
   try {
-    const q = query(collection(db, 'news'), orderBy('publishedAt', 'desc'), limit(50));
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-      return snap.docs.map(d => ({ id: d.id, ...d.data() } as NewsItem));
+    const coll = collection(db, 'news');
+    try {
+      const q = query(coll, where('status', '==', 'published'), orderBy('publishedAt', 'desc'), limit(50));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        return snap.docs.map(d => ({ id: d.id, ...d.data() } as NewsItem));
+      }
+    } catch {
+      // Fallback filtering if composite index is pending
+      const fallbackQ = query(coll, orderBy('publishedAt', 'desc'), limit(50));
+      const snap = await getDocs(fallbackQ);
+      if (!snap.empty) {
+        return snap.docs
+          .map(d => ({ id: d.id, ...d.data() } as NewsItem))
+          .filter(n => n.status === 'published' || !n.status);
+      }
     }
   } catch (err) {
-    console.warn('fetchNews Firestore error, returning seed news:', err);
+    console.warn('fetchNews Firestore error:', err);
   }
-  return SEED_NEWS;
+  return [];
 }
 
 export async function submitNewsStory(newsData: Omit<NewsItem, 'id' | 'createdAt'> & { status?: string; authorUid?: string; authorName?: string; authorPhone?: string }): Promise<string> {
@@ -2097,6 +2145,11 @@ export interface MarketplaceItem {
   images?: string[];
   description: string;
   status: 'active' | 'sold' | 'suspended';
+  sourceType?: 'user' | 'business' | 'professional';
+  businessId?: string;
+  businessName?: string;
+  proId?: string;
+  proName?: string;
   createdAt?: any;
 }
 
@@ -2117,6 +2170,29 @@ export async function fetchMarketplaceItems(): Promise<MarketplaceItem[]> {
   return [];
 }
 
+export async function fetchMyMarketplaceItems(sellerUid: string, businessId?: string, proId?: string): Promise<MarketplaceItem[]> {
+  try {
+    const coll = collection(db, 'marketplace');
+    let q;
+    if (businessId) {
+      q = query(coll, where('businessId', '==', businessId));
+    } else if (proId) {
+      q = query(coll, where('proId', '==', proId));
+    } else if (sellerUid) {
+      q = query(coll, where('sellerUid', '==', sellerUid));
+    } else {
+      return [];
+    }
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      return snap.docs.map(d => ({ id: d.id, ...d.data() } as MarketplaceItem));
+    }
+  } catch (err) {
+    console.warn('fetchMyMarketplaceItems error:', err);
+  }
+  return [];
+}
+
 export async function createMarketplaceItem(item: Omit<MarketplaceItem, 'id' | 'createdAt'>): Promise<string> {
   const colRef = collection(db, 'marketplace');
   const uid = item.sellerUid || auth.currentUser?.uid || '';
@@ -2127,6 +2203,11 @@ export async function createMarketplaceItem(item: Omit<MarketplaceItem, 'id' | '
     createdAt: serverTimestamp(),
   });
   const docRef = await addDoc(colRef, cleanData);
+  logUserActivity('bazaar_item_posted', `Item "${item.title_en}" (${item.price}) listed in ${item.area}`, {
+    itemId: docRef.id,
+    category: item.category,
+    price: item.price,
+  });
   return docRef.id;
 }
 
@@ -2162,14 +2243,30 @@ export interface BloodDonorItem {
 export async function fetchBloodDonors(bloodGroup?: string): Promise<BloodDonorItem[]> {
   try {
     const coll = collection(db, 'blood_donors');
-    let q;
-    if (bloodGroup && bloodGroup !== 'all' && bloodGroup !== 'All') {
-      q = query(coll, where('status', '==', 'active'), where('bloodGroup', '==', bloodGroup), limit(50));
-    } else {
-      q = query(coll, where('status', '==', 'active'), limit(50));
+    let snap;
+    try {
+      let q;
+      if (bloodGroup && bloodGroup !== 'all' && bloodGroup !== 'All') {
+        q = query(coll, where('status', '==', 'active'), where('bloodGroup', '==', bloodGroup), orderBy('createdAt', 'desc'), limit(50));
+      } else {
+        q = query(coll, where('status', '==', 'active'), orderBy('createdAt', 'desc'), limit(50));
+      }
+      snap = await getDocs(q);
+    } catch {
+      let q;
+      if (bloodGroup && bloodGroup !== 'all' && bloodGroup !== 'All') {
+        q = query(coll, where('status', '==', 'active'), where('bloodGroup', '==', bloodGroup), limit(50));
+      } else {
+        q = query(coll, where('status', '==', 'active'), limit(50));
+      }
+      snap = await getDocs(q);
     }
-    const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as BloodDonorItem));
+    const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as BloodDonorItem));
+    return list.sort((a, b) => {
+      const tA = (a.createdAt as any)?.seconds || (a.createdAt instanceof Date ? a.createdAt.getTime() / 1000 : 0);
+      const tB = (b.createdAt as any)?.seconds || (b.createdAt instanceof Date ? b.createdAt.getTime() / 1000 : 0);
+      return tB - tA;
+    });
   } catch (err) {
     console.warn('fetchBloodDonors error:', err);
     return [];
@@ -2185,6 +2282,10 @@ export async function registerBloodDonor(donor: Omit<BloodDonorItem, 'id' | 'cre
     updatedAt: serverTimestamp(),
   });
   const docRef = await addDoc(colRef, payload);
+  logUserActivity('blood_donor_registered', `Blood Donor (${donor.bloodGroup}) registered in ${donor.area || 'Kurnool'}`, {
+    donorId: docRef.id,
+    bloodGroup: donor.bloodGroup,
+  });
   return docRef.id;
 }
 
@@ -2408,23 +2509,11 @@ export async function fetchHouseRentals(bhkFilter?: string): Promise<HouseRental
       q = query(coll, where('status', '==', 'available'), limit(50));
     }
     const snap = await getDocs(q);
-    const liveItems = snap.docs.map(d => ({ id: d.id, ...d.data() } as HouseRentalItem));
-    if (liveItems.length > 0) {
-      const liveIds = new Set(liveItems.map(i => i.id));
-      const filteredSeeds = SEED_HOUSE_RENTALS.filter(s => {
-        if (liveIds.has(s.id)) return false;
-        if (bhkFilter && bhkFilter !== 'all' && bhkFilter !== 'All') return s.bhk === bhkFilter;
-        return true;
-      });
-      return [...liveItems, ...filteredSeeds];
-    }
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as HouseRentalItem));
   } catch (err) {
-    console.warn('fetchHouseRentals fallback to seeds:', err);
+    console.warn('fetchHouseRentals error:', err);
+    return [];
   }
-  if (bhkFilter && bhkFilter !== 'all' && bhkFilter !== 'All') {
-    return SEED_HOUSE_RENTALS.filter(s => s.bhk === bhkFilter);
-  }
-  return SEED_HOUSE_RENTALS;
 }
 
 export async function createHouseRental(rental: Omit<HouseRentalItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
@@ -2436,6 +2525,11 @@ export async function createHouseRental(rental: Omit<HouseRentalItem, 'id' | 'cr
     updatedAt: serverTimestamp(),
   });
   const docRef = await addDoc(colRef, payload);
+  logUserActivity('rental_posted', `Rental "${rental.title_en}" (${rental.bhk}) in ${rental.area} posted (₹${rental.monthlyRent}/mo)`, {
+    rentalId: docRef.id,
+    rent: rental.monthlyRent,
+    bhk: rental.bhk,
+  });
   return docRef.id;
 }
 
@@ -2468,6 +2562,101 @@ export const uploadNewsImage = async (uri: string): Promise<string> => {
   const task = await uploadBytesResumable(storageRef, blob);
   return await getDownloadURL(task.ref);
 };
+
+export interface ReportSubmission {
+  targetId: string;
+  targetTitle: string;
+  reportType: 'business' | 'professional' | 'deal' | 'news' | 'community_post' | 'marketplace';
+  reason: string;
+  details?: string;
+  reporterPhone?: string;
+  reporterUid?: string;
+}
+
+export const submitContentReport = async (report: ReportSubmission): Promise<boolean> => {
+  try {
+    const targetCollection =
+      report.reportType === 'business' ? 'businesses' :
+      report.reportType === 'professional' ? 'professionals' :
+      report.reportType === 'deal' ? 'promotions' :
+      report.reportType === 'news' ? 'news' :
+      report.reportType === 'marketplace' ? 'marketplace' :
+      report.reportType === 'community_post' ? 'posts' : 'businesses';
+
+    const coll = collection(db, 'reports');
+    await addDoc(coll, {
+      ...report,
+      targetCollection,
+      itemType: report.reportType,
+      title_en: report.targetTitle,
+      status: 'pending',
+      reportCount: 1,
+      createdAt: serverTimestamp(),
+    });
+    logUserActivity('content_reported', `Reported ${report.reportType}: "${report.targetTitle}" (Reason: ${report.reason})`, {
+      targetId: report.targetId,
+      reportType: report.reportType,
+    });
+    return true;
+  } catch (e) {
+    console.error('submitContentReport error:', e);
+    return false;
+  }
+};
+
+export async function logUserActivity(actionType: string, details: string, metadata?: Record<string, any>) {
+  try {
+    const user = auth.currentUser;
+    await addDoc(collection(db, 'activity_logs'), {
+      timestamp: serverTimestamp(),
+      actionType,
+      details,
+      actorUid: user?.uid || 'guest',
+      actorPhone: user?.phoneNumber || metadata?.phone || '',
+      actorEmail: user?.email || '',
+      metadata: metadata || {},
+    });
+  } catch (err) {
+    console.warn('logUserActivity non-fatal:', err);
+  }
+}
+
+export interface SubscriptionLedgerItem {
+  id?: string;
+  transactionId: string;
+  orderId?: string;
+  userId: string;
+  userEmail?: string;
+  userPhone?: string;
+  entityId: string;
+  entityName: string;
+  entityType: 'business' | 'professional';
+  planId: string;
+  planName: string;
+  amount: number;
+  currency: string;
+  startDate: string;
+  expiresAt: string;
+  status: 'active' | 'expired' | 'cancelled';
+  createdAt?: any;
+}
+
+export async function recordSubscriptionPayment(sub: Omit<SubscriptionLedgerItem, 'id' | 'createdAt'>): Promise<string> {
+  const coll = collection(db, 'subscriptions');
+  const payload = sanitizeFirestoreData({
+    ...sub,
+    status: sub.status || 'active',
+    createdAt: serverTimestamp(),
+  });
+  const docRef = await addDoc(coll, payload);
+  logUserActivity('subscription_purchased', `Subscription ${sub.planName} (₹${sub.amount}) purchased for ${sub.entityName}`, {
+    subId: docRef.id,
+    entityId: sub.entityId,
+    transactionId: sub.transactionId,
+    amount: sub.amount,
+  });
+  return docRef.id;
+}
 
 
 
