@@ -1405,7 +1405,7 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
                 <View style={{ marginTop: 6, gap: 3, paddingLeft: 28 }}>
                   <Text style={styles.upgradePerk}>• Top #1 Homepage Featured Banner</Text>
                   <Text style={styles.upgradePerk}>• Unlimited Hot Deals & Offers publishing</Text>
-                  <Text style={styles.upgradePerk}>• Full photo gallery & social media boost</Text>
+                  <Text style={styles.upgradePerk}>• Full photo gallery & direct inquiries</Text>
                 </View>
               </TouchableOpacity>
             </View>

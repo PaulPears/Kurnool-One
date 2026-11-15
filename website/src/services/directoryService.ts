@@ -1571,6 +1571,19 @@ export const fetchMyProfessionalProfile = async (userId: string): Promise<Profes
   }
 };
 
+export const fetchMyProfessionals = async (userId: string): Promise<ProfessionalItem[]> => {
+  try {
+    if (!userId) return [];
+    const coll = collection(db, 'professionals');
+    const q = query(coll, where('userId', '==', userId));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as ProfessionalItem));
+  } catch (err) {
+    console.error('Error fetching my professionals:', err);
+    return [];
+  }
+};
+
 export const updateProfessionalProfile = async (
   proId: string,
   updates: Partial<ProfessionalItem>

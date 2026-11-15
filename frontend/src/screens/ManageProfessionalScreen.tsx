@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
 import {
   fetchMyProfessionalProfile,
+  fetchMyProfessionals,
   updateProfessionalProfile,
   uploadProfessionalAvatar,
   createBusinessOffer,
@@ -36,6 +37,8 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
   const { language } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfessionalItem | null>(null);
+  const [allProfiles, setAllProfiles] = useState<ProfessionalItem[]>([]);
+  const [showProfilePicker, setShowProfilePicker] = useState(false);
   const [leads, setLeads] = useState<LeadItem[]>([]);
   const [showRazorpayModal, setShowRazorpayModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -137,6 +140,37 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
     loadData();
   }, []);
 
+  const populateProfessionalFields = async (p: ProfessionalItem, uid?: string) => {
+    setProfile(p);
+    setFullName(p.fullName || '');
+    setPhone(p.phone || '');
+    setWhatsapp(p.whatsapp || '');
+    setExperienceYears(p.experienceYears?.toString() || '3');
+    setServiceAreas(Array.isArray(p.serviceAreas) ? p.serviceAreas.join(', ') : 'All Kurnool');
+    setVisitingCharges(p.visitingCharges || '₹150');
+    setHourlyRate(p.hourlyRate || '');
+    setAvatarUrl(p.avatarUrl || '');
+    setPortfolioPhotos(Array.isArray(p.portfolioPhotos) ? p.portfolioPhotos.slice(0, 4) : []);
+    if ((p as any).operatingHours) {
+      setOperatingHours((p as any).operatingHours);
+    }
+    setInstagramUrl(p.instagramUrl || '');
+    setYoutubeUrl(p.youtubeUrl || '');
+    setLinkedinUrl(p.linkedinUrl || '');
+    setTwitterUrl(p.twitterUrl || '');
+    setFacebookUrl(p.facebookUrl || '');
+    setWebsiteUrl(p.websiteUrl || '');
+    setDescription(p.description || '');
+
+    const effectiveUid = p.userId || uid || auth.currentUser?.uid || '';
+    const proLeads = await fetchMyLeads(effectiveUid, p.id);
+    setLeads(proLeads);
+    try {
+      const mkt = await fetchMyMarketplaceItems(effectiveUid, undefined, p.id);
+      setMyBazaarItems(mkt);
+    } catch {}
+  };
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -164,38 +198,19 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
         }
       }
 
+      const list = await fetchMyProfessionals(uid);
+      setAllProfiles(list);
+
+      if (!p && list && list.length > 0) {
+        p = list[0];
+      }
+
       if (!p) {
         p = await fetchMyProfessionalProfile(uid, userPhone);
       }
 
       if (p) {
-        setProfile(p);
-        setFullName(p.fullName || '');
-        setPhone(p.phone || '');
-        setWhatsapp(p.whatsapp || '');
-        setExperienceYears(p.experienceYears?.toString() || '3');
-        setServiceAreas(Array.isArray(p.serviceAreas) ? p.serviceAreas.join(', ') : 'All Kurnool');
-        setVisitingCharges(p.visitingCharges || '₹150');
-        setHourlyRate(p.hourlyRate || '');
-        setAvatarUrl(p.avatarUrl || '');
-        setPortfolioPhotos(Array.isArray(p.portfolioPhotos) ? p.portfolioPhotos.slice(0, 4) : []);
-        if ((p as any).operatingHours) {
-          setOperatingHours((p as any).operatingHours);
-        }
-        setInstagramUrl(p.instagramUrl || '');
-        setYoutubeUrl(p.youtubeUrl || '');
-        setLinkedinUrl(p.linkedinUrl || '');
-        setTwitterUrl(p.twitterUrl || '');
-        setFacebookUrl(p.facebookUrl || '');
-        setWebsiteUrl(p.websiteUrl || '');
-        setDescription(p.description || '');
-
-        const proLeads = await fetchMyLeads(p.userId || uid, p.id);
-        setLeads(proLeads);
-        try {
-          const mkt = await fetchMyMarketplaceItems(p.userId || uid || '', undefined, p.id);
-          setMyBazaarItems(mkt);
-        } catch {}
+        await populateProfessionalFields(p, uid);
       }
     } catch (e) {
       console.error(e);
@@ -569,6 +584,60 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Register Another Profile Action */}
+        <View style={{ marginBottom: 12 }}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('RegisterProfessional')}
+            style={{
+              backgroundColor: '#F0FDFA',
+              borderWidth: 1.5,
+              borderColor: '#99F6E4',
+              borderStyle: 'dashed',
+              paddingVertical: 10,
+              paddingHorizontal: 14,
+              borderRadius: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+            }}
+          >
+            <Ionicons name="add-circle" size={18} color="#0D9488" />
+            <Text style={{ fontSize: 12, fontWeight: '800', color: '#0D9488' }}>
+              {language === 'en' ? '+ Register Another Professional Service' : '+ మరొక వృత్తి సేవను నమోదు చేయండి'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Multi-Profile Switcher */}
+        {allProfiles.length > 1 && (
+          <TouchableOpacity
+            onPress={() => setShowProfilePicker(true)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: '#F0FDFA',
+              borderWidth: 1,
+              borderColor: '#99F6E4',
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+              borderRadius: 12,
+              marginBottom: 16,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
+              <Ionicons name="swap-horizontal" size={18} color="#0D9488" />
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#134E4A' }} numberOfLines={1}>
+                {language === 'en' ? `Managing: ${profile.fullName} (${profile.category})` : `నిర్వహణ: ${profile.fullName} (${profile.category})`}
+              </Text>
+            </View>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: '#0D9488' }}>
+              {language === 'en' ? 'Switch Profile ▼' : 'మార్చు ▼'}
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {/* Analytics Card */}
         <View style={styles.analyticsCard}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -1497,6 +1566,57 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
                   <Text style={styles.saveBtnText}>Publish to Kurnool Bazaar</Text>
                 )}
               </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── SWITCH PROFESSIONAL PROFILE PICKER MODAL ────────────────── */}
+      <Modal visible={showProfilePicker} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContent}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <Text style={{ fontSize: 16, fontWeight: '900', color: '#0F172A' }}>
+                {language === 'en' ? 'Select Professional Profile' : 'వృత్తి ప్రొఫైల్‌ను ఎంచుకోండి'}
+              </Text>
+              <TouchableOpacity onPress={() => setShowProfilePicker(false)}>
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 320 }}>
+              {allProfiles.map((p) => {
+                const isCurrent = p.id === profile?.id;
+                return (
+                  <TouchableOpacity
+                    key={p.id}
+                    onPress={() => {
+                      setShowProfilePicker(false);
+                      populateProfessionalFields(p);
+                    }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: 14,
+                      borderRadius: 14,
+                      backgroundColor: isCurrent ? '#F0FDFA' : '#F8FAFC',
+                      borderWidth: 1,
+                      borderColor: isCurrent ? '#0D9488' : '#E2E8F0',
+                      marginBottom: 8,
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: isCurrent ? '#0F766E' : '#0F172A' }}>
+                        {p.fullName}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>
+                        {p.category} • {p.serviceAreas || 'Kurnool'}
+                      </Text>
+                    </View>
+                    {isCurrent && <Ionicons name="checkmark-circle" size={20} color="#0D9488" />}
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
         </View>
