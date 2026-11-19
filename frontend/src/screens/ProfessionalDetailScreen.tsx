@@ -2,11 +2,19 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   Linking, Share, StyleSheet, Image, ActivityIndicator,
+  Modal, TextInput, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
-import { ProfessionalItem, recordCustomerLead, fetchProfessionalById } from '../services/directoryService';
+import {
+  ProfessionalItem,
+  recordCustomerLead,
+  fetchProfessionalById,
+  ProfessionalReview,
+  addProfessionalReview,
+  fetchProfessionalReviews,
+} from '../services/directoryService';
 import { auth } from '../config/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ReportModal } from '../components/ReportModal';
@@ -20,6 +28,12 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
   const [reportModalVisible, setReportModalVisible] = useState<boolean>(false);
   const [currentUserUid, setCurrentUserUid] = useState<string | null>(auth.currentUser?.uid || null);
   const [currentUserPhone, setCurrentUserPhone] = useState<string>('');
+
+  const [reviews, setReviews] = useState<ProfessionalReview[]>([]);
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [userRating, setUserRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem('user').then(stored => {
@@ -44,6 +58,51 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
       });
     }
   }, [proId, initialPro?.id]);
+
+  useEffect(() => {
+    const targetId = proId || initialPro?.id;
+    if (targetId) {
+      fetchProfessionalReviews(targetId).then(setReviews).catch(() => {});
+    }
+  }, [proId, initialPro?.id]);
+
+  const handleSubmitReview = async () => {
+    if (!auth.currentUser) {
+      Alert.alert(
+        language === 'en' ? 'Sign In Required' : 'లాగిన్ అవసరం',
+        language === 'en' ? 'Please sign in to rate and review this professional.' : 'ఈ నిపుణుడిని రేట్ చేయడానికి దయచేసి లాగిన్ అవ్వండి.',
+        [
+          { text: language === 'en' ? 'Cancel' : 'రద్దు', style: 'cancel' },
+          { text: language === 'en' ? 'Sign In' : 'లాగిన్', onPress: () => navigation.navigate('MobileFirebaseLogin') },
+        ]
+      );
+      return;
+    }
+    if (!reviewComment.trim()) {
+      Alert.alert('Review Required', 'Please share your experience with this professional.');
+      return;
+    }
+    if (!pro?.id) return;
+    setSubmittingReview(true);
+    try {
+      await addProfessionalReview(pro.id, userRating, reviewComment);
+      Alert.alert('Review Submitted! ⭐', 'Thank you for rating this professional on Kurnool One.');
+      setReviewModalVisible(false);
+      setReviewComment('');
+      setUserRating(5);
+      const updatedReviews = await fetchProfessionalReviews(pro.id);
+      setReviews(updatedReviews);
+      if (updatedReviews.length > 0) {
+        const sum = updatedReviews.reduce((acc, r) => acc + (r.rating || 5), 0);
+        const newAvg = Number((sum / updatedReviews.length).toFixed(1));
+        setPro(prev => prev ? { ...prev, ratingAvg: newAvg, ratingCount: updatedReviews.length } : null);
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to submit review');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   const isOwner = Boolean(
     pro && (
@@ -335,6 +394,62 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
           </View>
         )}
 
+        {/* Customer Reviews Section */}
+        <View style={styles.card}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <View>
+              <Text style={styles.cardTitle}>Client Reviews ({reviews.length})</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                <Ionicons name="star" size={14} color="#F59E0B" />
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#111827' }}>
+                  {Number(pro.ratingAvg || 5.0).toFixed(1)} / 5.0
+                </Text>
+                <Text style={{ fontSize: 11, color: '#6B7280' }}>({pro.ratingCount || reviews.length} ratings)</Text>
+              </View>
+            </View>
+            {!isOwner && (
+              <TouchableOpacity
+                onPress={() => setReviewModalVisible(true)}
+                style={{ backgroundColor: '#0D9488', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+              >
+                <Ionicons name="star-outline" size={14} color="#FFFFFF" />
+                <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 12 }}>+ Rate & Review</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {reviews.length === 0 ? (
+            <View style={{ paddingVertical: 14, alignItems: 'center' }}>
+              <Ionicons name="chatbubble-ellipses-outline" size={28} color="#CBD5E1" />
+              <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 4, textAlign: 'center' }}>
+                No reviews yet. Be the first client to leave a review!
+              </Text>
+            </View>
+          ) : (
+            reviews.map((rev) => (
+              <View key={rev.id} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#1E293B' }}>{rev.userName}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Ionicons
+                        key={star}
+                        name={star <= rev.rating ? 'star' : 'star-outline'}
+                        size={12}
+                        color="#F59E0B"
+                      />
+                    ))}
+                  </View>
+                </View>
+                <Text style={{ fontSize: 12, color: '#475569', marginTop: 4, lineHeight: 17 }}>{rev.comment}</Text>
+                <Text style={{ fontSize: 10, color: '#94A3B8', marginTop: 4 }}>
+                  {new Date(rev.createdAt).toLocaleDateString()}
+                </Text>
+              </View>
+            ))
+          )}
+        </View>
+
         {/* Trust Notice */}
         <View style={styles.trustBox}>
           <Ionicons name="shield-checkmark-outline" size={20} color="#15803D" />
@@ -363,6 +478,74 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
           <Text style={{ fontSize: 12, color: '#EF4444', fontWeight: '700' }}>Report profile or conduct issue with this professional</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Rate & Review Modal */}
+      <Modal visible={reviewModalVisible} transparent animationType="slide" onRequestClose={() => setReviewModalVisible(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <Text style={{ fontSize: 17, fontWeight: '900', color: '#0F172A' }}>Rate & Review Professional</Text>
+              <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ fontSize: 13, color: '#64748B', marginBottom: 10 }}>
+              How was your service experience with <Text style={{ fontWeight: '800', color: '#0F172A' }}>{pro?.fullName}</Text>?
+            </Text>
+
+            {/* Interactive 5-Star Rating Picker */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginVertical: 12 }}>
+              {[1, 2, 3, 4, 5].map((s) => (
+                <TouchableOpacity key={s} onPress={() => setUserRating(s)} style={{ padding: 4 }}>
+                  <Ionicons
+                    name={s <= userRating ? 'star' : 'star-outline'}
+                    size={36}
+                    color="#F59E0B"
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TextInput
+              style={{
+                backgroundColor: '#F8FAFC',
+                borderWidth: 1,
+                borderColor: '#E2E8F0',
+                borderRadius: 12,
+                padding: 12,
+                fontSize: 14,
+                color: '#0F172A',
+                height: 90,
+                textAlignVertical: 'top',
+                marginBottom: 16,
+              }}
+              placeholder="Share feedback on punctuality, pricing, and service quality..."
+              placeholderTextColor="#94A3B8"
+              multiline
+              value={reviewComment}
+              onChangeText={setReviewComment}
+            />
+
+            <TouchableOpacity
+              onPress={handleSubmitReview}
+              disabled={submittingReview}
+              style={{
+                backgroundColor: '#0D9488',
+                borderRadius: 14,
+                paddingVertical: 14,
+                alignItems: 'center',
+              }}
+            >
+              {submittingReview ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>Submit Review</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Report Modal */}
       {pro && (

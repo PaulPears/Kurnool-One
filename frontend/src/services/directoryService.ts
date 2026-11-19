@@ -259,6 +259,17 @@ export interface BusinessReview {
   createdAt: string;
 }
 
+export interface ProfessionalReview {
+  id: string;
+  professionalId: string;
+  userId: string;
+  userName: string;
+  userPhoto?: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
 // ─── MASTER CATEGORIES ───────────────────────────────────────────────────────
 
 export const MASTER_CATEGORIES: CategoryItem[] = [
@@ -463,9 +474,37 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     ],
   },
   {
+    id: 'car_showrooms',
+    name_en: 'Car Showrooms',
+    name_te: 'కార్ షోరూమ్‌లు',
+    icon: 'car-sport',
+    color: '#1D4ED8',
+    bgLight: '#DBEAFE',
+    subcategories: [
+      { id: 'new_car_showrooms', name_en: 'New Car Dealerships', name_te: 'కొత్త కార్ల షోరూమ్‌లు' },
+      { id: 'used_car_dealers', name_en: 'Pre-Owned & Used Car Outlets', name_te: 'సెకండ్ హ్యాండ్ కార్లు' },
+      { id: 'electric_car_dealers', name_en: 'Electric Car (EV) Dealerships', name_te: 'ఎలక్ట్రిక్ కార్ల షోరూమ్‌లు' },
+      { id: 'commercial_car_dealers', name_en: 'Commercial Vehicles & Vans', name_te: 'కమర్షియల్ వాహనాలు' },
+    ],
+  },
+  {
+    id: 'bike_showrooms',
+    name_en: 'Bike & Two-Wheeler Showrooms',
+    name_te: 'బైక్ & స్కూటర్ షోరూమ్‌లు',
+    icon: 'bicycle',
+    color: '#DC2626',
+    bgLight: '#FEE2E2',
+    subcategories: [
+      { id: 'two_wheeler_dealers', name_en: 'New Bike & Scooter Dealerships', name_te: 'కొత్త బైక్ షోరూమ్‌లు' },
+      { id: 'ev_scooter_dealers', name_en: 'Electric Scooter Showrooms (Ola, Ather, Chetak)', name_te: 'ఈవీ స్కూటర్ల షోరూమ్‌లు' },
+      { id: 'superbike_royal_enfield', name_en: 'Royal Enfield & Premium Bikes', name_te: 'రాయల్ ఎన్‌ఫీల్డ్ & ప్రీమియం బైక్‌లు' },
+      { id: 'used_bikes', name_en: 'Pre-Owned & Second-Hand Two Wheelers', name_te: 'సెకండ్ హ్యాండ్ బైకులు' },
+    ],
+  },
+  {
     id: 'automobile_dealers',
-    name_en: 'Automobile Dealers',
-    name_te: 'కార్ & బైక్ షోరూమ్‌లు',
+    name_en: 'Automobile Dealers & Showrooms',
+    name_te: 'ఆటోమొబైల్ డీలర్లు & షోరూమ్‌లు',
     icon: 'car-sport',
     color: '#BE185D',
     bgLight: '#FCE7F3',
@@ -616,6 +655,20 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
       { id: 'corporate_events', name_en: 'Corporate Events & Launches', name_te: 'కార్పొరేట్ ఈవెంట్లు' },
       { id: 'stage_lighting', name_en: 'Stage, Sound & LED Walls', name_te: 'సౌండ్ & లైటింగ్ సిస్టమ్స్' },
       { id: 'birthday_parties', name_en: 'Birthday & Anniversary Planners', name_te: 'పుట్టినరోజు ఈవెంట్స్' },
+    ],
+  },
+  {
+    id: 'function_halls_banquets',
+    name_en: 'Function Halls & Banquet Halls',
+    name_te: 'ఫంక్షన్ హాళ్ళు & కళ్యాణ మండపాలు',
+    icon: 'business',
+    color: '#D97706',
+    bgLight: '#FEF3C7',
+    subcategories: [
+      { id: 'ac_function_halls', name_en: 'AC Function Halls & Kalyana Mandapams', name_te: 'ఏసీ ఫంక్షన్ హాళ్ళు & కళ్యాణ మండపాలు' },
+      { id: 'mini_banquet_halls', name_en: 'Mini Banquet Halls (Parties & Birthdays)', name_te: 'మినీ బాంక్వెట్ హాళ్ళు' },
+      { id: 'convention_centers', name_en: 'Convention Centers & Open Lawns', name_te: 'కన్వెన్షన్ సెంటర్లు & ఓపెన్ లాన్స్' },
+      { id: 'dining_community_halls', name_en: 'Community Halls & Dining Venues', name_te: 'కమ్యూనిటీ హాళ్ళు' },
     ],
   },
   {
@@ -1488,6 +1541,11 @@ export const fetchOffers = async (): Promise<OfferItem[]> => {
           if (!isNaN(exp) && exp < now) return false;
         }
         return true;
+      })
+      .sort((a, b) => {
+        const tA = (a as any).createdAt?.toMillis ? (a as any).createdAt.toMillis() : new Date((a as any).createdAt || 0).getTime();
+        const tB = (b as any).createdAt?.toMillis ? (b as any).createdAt.toMillis() : new Date((b as any).createdAt || 0).getTime();
+        return tB - tA;
       });
   } catch {
     return [];
@@ -1689,6 +1747,65 @@ export const fetchBusinessReviews = async (businessId: string): Promise<Business
       ...d.data(),
       createdAt: d.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
     } as BusinessReview));
+  } catch {
+    return [];
+  }
+};
+
+export const addProfessionalReview = async (
+  professionalId: string,
+  rating: number,
+  comment: string,
+): Promise<void> => {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Sign in required');
+  const userSnap = await getDoc(doc(db, 'users', user.uid));
+  const userData = userSnap.data();
+
+  const reviewRef = collection(db, 'professionals', professionalId, 'reviews');
+  await addDoc(reviewRef, {
+    professionalId,
+    userId: user.uid,
+    userName: userData?.name || user.displayName || 'Resident',
+    userPhoto: userData?.photoURL || user.photoURL || '',
+    rating,
+    comment: comment.trim(),
+    createdAt: serverTimestamp(),
+  });
+
+  const proRef = doc(db, 'professionals', professionalId);
+  try {
+    const proSnap = await getDoc(proRef);
+    const currentData = proSnap.data();
+    const currentAvg = typeof currentData?.ratingAvg === 'number' ? currentData.ratingAvg : 5.0;
+    const currentCount = typeof currentData?.ratingCount === 'number' ? currentData.ratingCount : 0;
+    const newCount = currentCount + 1;
+    const newAvg = Number((((currentAvg * currentCount) + rating) / newCount).toFixed(1));
+
+    await updateDoc(proRef, {
+      ratingAvg: newAvg,
+      ratingCount: newCount,
+    });
+  } catch (err) {
+    await updateDoc(proRef, {
+      ratingCount: increment(1),
+    });
+  }
+};
+
+export const fetchProfessionalReviews = async (professionalId: string): Promise<ProfessionalReview[]> => {
+  try {
+    const q = query(
+      collection(db, 'professionals', professionalId, 'reviews'),
+      orderBy('createdAt', 'desc'),
+      limit(20),
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+    } as ProfessionalReview));
   } catch {
     return [];
   }
@@ -2175,7 +2292,13 @@ export async function fetchMarketplaceItems(): Promise<MarketplaceItem[]> {
     );
     const snap = await getDocs(q);
     if (!snap.empty) {
-      return snap.docs.map(d => ({ id: d.id, ...d.data() } as MarketplaceItem));
+      return snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as MarketplaceItem))
+        .sort((a, b) => {
+          const tA = (a as any).createdAt?.toMillis ? (a as any).createdAt.toMillis() : new Date((a as any).createdAt || 0).getTime();
+          const tB = (b as any).createdAt?.toMillis ? (b as any).createdAt.toMillis() : new Date((b as any).createdAt || 0).getTime();
+          return tB - tA;
+        });
     }
   } catch (err) {
     console.warn('fetchMarketplaceItems non-fatal:', err);
@@ -2198,7 +2321,13 @@ export async function fetchMyMarketplaceItems(sellerUid: string, businessId?: st
     }
     const snap = await getDocs(q);
     if (!snap.empty) {
-      return snap.docs.map(d => ({ id: d.id, ...d.data() } as MarketplaceItem));
+      return snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as MarketplaceItem))
+        .sort((a, b) => {
+          const tA = (a as any).createdAt?.toMillis ? (a as any).createdAt.toMillis() : new Date((a as any).createdAt || 0).getTime();
+          const tB = (b as any).createdAt?.toMillis ? (b as any).createdAt.toMillis() : new Date((b as any).createdAt || 0).getTime();
+          return tB - tA;
+        });
     }
   } catch (err) {
     console.warn('fetchMyMarketplaceItems error:', err);
@@ -2522,7 +2651,13 @@ export async function fetchHouseRentals(bhkFilter?: string): Promise<HouseRental
       q = query(coll, where('status', '==', 'available'), limit(50));
     }
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as HouseRentalItem));
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as HouseRentalItem))
+      .sort((a, b) => {
+        const tA = (a as any).createdAt?.toMillis ? (a as any).createdAt.toMillis() : new Date((a as any).createdAt || 0).getTime();
+        const tB = (b as any).createdAt?.toMillis ? (b as any).createdAt.toMillis() : new Date((b as any).createdAt || 0).getTime();
+        return tB - tA;
+      });
   } catch (err) {
     console.warn('fetchHouseRentals error:', err);
     return [];

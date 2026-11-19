@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, SafeAreaView, ScrollView, TextInput, TouchableOpacity,
-  Alert, ActivityIndicator, StyleSheet, Modal, Linking, Image,
+  View, Text, ScrollView, TextInput, TouchableOpacity,
+  Alert, ActivityIndicator, StyleSheet, Modal, Linking, Image, StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
@@ -535,19 +536,46 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       {/* Header */}
       <View style={styles.navBar}>
         <TouchableOpacity onPress={handleBack} style={{ padding: 4 }}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
-        <Text style={styles.navTitle}>
-          {language === 'en' ? 'My Business Portal' : 'నా వ్యాపార నిర్వహణ'}
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('BusinessDetail', { businessId: business.id })}>
+        <View style={{ flex: 1, marginHorizontal: 8 }}>
+          <Text style={styles.navTitle} numberOfLines={1}>
+            {business.name_en || (language === 'en' ? 'My Business Portal' : 'నా వ్యాపార నిర్వహణ')}
+          </Text>
+          <Text style={{ fontSize: 11, color: '#6B7280' }} numberOfLines={1}>
+            {(business as any).category || business.categoryId || 'Local Business'} • Kurnool
+          </Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {allBusinesses.length > 1 && (
+            <TouchableOpacity
+              onPress={() => setShowShopPicker(true)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 3,
+                backgroundColor: '#EFF6FF',
+                paddingHorizontal: 8,
+                paddingVertical: 5,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: '#BFDBFE',
+              }}
+            >
+              <Ionicons name="swap-horizontal" size={13} color="#2563EB" />
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#2563EB' }}>
+                {language === 'en' ? 'Switch' : 'మార్చు'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={() => navigation.navigate('BusinessDetail', { businessId: business.id })} style={{ padding: 4 }}>
             <Ionicons name="eye-outline" size={22} color="#2563EB" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleLogout}>
+          <TouchableOpacity onPress={handleLogout} style={{ padding: 4 }}>
             <Ionicons name="log-out-outline" size={22} color="#EF4444" />
           </TouchableOpacity>
         </View>
@@ -556,18 +584,41 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         {/* Business Hero Card */}
         <View style={styles.heroCard}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
             <View style={styles.tierPill}>
               <Text style={styles.tierPillText}>
-                {business.tier === 'featured' ? '👑 PREMIUM LISTING' : 'STORE LISTING'}
+                {business.tier === 'featured' ? '👑 FEATURED MERCHANT' : '🏬 REGISTERED STORE'}
               </Text>
             </View>
             <Text style={{ fontSize: 11, color: '#DBEAFE', fontWeight: 'bold' }}>
-              {business.planExpiresAt ? `Expires: ${business.planExpiresAt}` : '365 Days Active'}
+              {business.planExpiresAt ? `Expires: ${business.planExpiresAt}` : 'Active Plan'}
             </Text>
           </View>
-          <Text style={styles.heroTitle}>{business.name_en}</Text>
-          <Text style={styles.heroSub}>{business.address}</Text>
+          <Text style={styles.heroTitle} numberOfLines={2}>{business.name_en}</Text>
+          <Text style={styles.heroSub} numberOfLines={2}>📍 {business.address || 'Kurnool, Andhra Pradesh'}</Text>
+
+          {/* Quick Action: Register Another Branch / Store */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('RegisterBusiness')}
+            style={{
+              marginTop: 12,
+              paddingVertical: 8,
+              paddingHorizontal: 12,
+              backgroundColor: 'rgba(255,255,255,0.15)',
+              borderRadius: 10,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.25)',
+            }}
+          >
+            <Ionicons name="add-circle-outline" size={16} color="#FFFFFF" />
+            <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700' }}>
+              {language === 'en' ? '+ Register Another Store / Branch' : '+ మరొక దుకాణాన్ని నమోదు చేయండి'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Plan Status & Upgrade Banner */}
@@ -575,7 +626,7 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons
-                name={business.tier === 'featured' ? 'ribbon' : business.paymentStatus === 'paid' ? 'checkmark-circle' : 'information-circle'}
+                name={business.tier === 'featured' ? 'ribbon' : business.paymentStatus === 'paid' ? 'shield-checkmark' : 'information-circle'}
                 size={16}
                 color={business.tier === 'featured' ? '#D97706' : business.paymentStatus === 'paid' ? '#059669' : '#2563EB'}
               />
@@ -583,16 +634,16 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
                 {business.tier === 'featured'
                   ? '👑 Premium Featured Listing (1 Year)'
                   : business.paymentStatus === 'paid'
-                  ? '🛡️ Standard Verified Listing (6 Months)'
-                  : '🆓 Free Basic Listing'}
+                  ? '⭐ Standard Merchant Listing (6 Months)'
+                  : '🆓 Basic Merchant Listing (Free)'}
               </Text>
             </View>
             <Text style={styles.planStatusDesc}>
               {business.tier === 'featured'
-                ? 'Full featured ranking & unlimited Hot Deals active across Kurnool.'
+                ? 'Priority rank on Kurnool One homepage, unlimited Hot Deals & verified customer inquiries.'
                 : business.paymentStatus === 'paid'
-                ? 'Upgrade to Premium for #1 Featured homepage spot & Hot Deals privileges.'
-                : 'Upgrade to Standard Verified or Premium for verified badge, WhatsApp leads & Hot Deals.'}
+                ? 'Active commercial listing with direct customer phone and WhatsApp connections.'
+                : 'Basic directory listing. Upgrade to Featured for top search rank, leads & Hot Deals.'}
             </Text>
           </View>
           {business.tier !== 'featured' && (
@@ -605,60 +656,6 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
             </TouchableOpacity>
           )}
         </View>
-
-        {/* Quick Action: Add Another Business */}
-        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('RegisterBusiness')}
-            style={{
-              flex: 1,
-              backgroundColor: '#EFF6FF',
-              borderWidth: 1,
-              borderColor: '#BFDBFE',
-              paddingVertical: 10,
-              paddingHorizontal: 14,
-              borderRadius: 12,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-            }}
-          >
-            <Ionicons name="add-circle" size={18} color="#2563EB" />
-            <Text style={{ fontSize: 12, fontWeight: '800', color: '#2563EB' }}>
-              {language === 'en' ? '+ Register Another Business' : '+ మరొక దుకాణాన్ని నమోదు చేయండి'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Multi-Store Switcher */}
-        {allBusinesses.length > 1 && (
-          <TouchableOpacity
-            onPress={() => setShowShopPicker(true)}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              backgroundColor: '#EFF6FF',
-              borderWidth: 1,
-              borderColor: '#BFDBFE',
-              paddingHorizontal: 14,
-              paddingVertical: 10,
-              borderRadius: 12,
-              marginBottom: 16,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Ionicons name="swap-horizontal" size={18} color="#2563EB" />
-              <Text style={{ fontSize: 13, fontWeight: '700', color: '#1E40AF' }}>
-                {language === 'en' ? `Managing: ${business.name_en}` : `నిర్వహణ: ${business.name_en}`}
-              </Text>
-            </View>
-            <Text style={{ fontSize: 12, fontWeight: '800', color: '#2563EB' }}>
-              {language === 'en' ? 'Switch Shop ▼' : 'మార్చు ▼'}
-            </Text>
-          </TouchableOpacity>
-        )}
 
         {/* Payment Verification Wall */}
         {business.paymentStatus === 'unpaid' && (
@@ -838,14 +835,14 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
         >
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.offerCtaTitle}>🎁 Post a Festival Discount / Deal</Text>
+              <Text style={styles.offerCtaTitle}>🎁 Post an Offer</Text>
               {business.paymentStatus !== 'paid' && (
                 <View style={{ backgroundColor: 'rgba(255,255,255,0.25)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                  <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '800' }}>🔒 UPGRADE REQUIRED</Text>
+                  <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '800' }}>🔒 UPGRADE</Text>
                 </View>
               )}
             </View>
-            <Text style={styles.offerCtaSub}>Broadcast special offers to thousands of Kurnool residents</Text>
+            <Text style={styles.offerCtaSub}>Publish special offers, discounts and seasonal promotions for Kurnool residents.</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
         </TouchableOpacity>
@@ -858,7 +855,7 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
               Alert.alert(
                 language === 'en' ? 'Store Product Feature' : 'స్టోర్ ప్రొడక్ట్ ఫీచర్',
                 language === 'en'
-                  ? 'Posting verified merchant products in Kurnool Bazaar is exclusive to Standard and Premium subscribers. Upgrade to start selling your products online.'
+                  ? 'Posting store products in Kurnool Bazaar is exclusive to Standard and Premium subscribers. Upgrade to start selling your products online.'
                   : 'కర్నూలు బజార్‌లో స్టోర్ ఉత్పత్తులను జాబితా చేయడానికి మీ ప్లాన్‌ను అప్‌గ్రేడ్ చేయండి.',
                 [
                   { text: 'Cancel', style: 'cancel' },
@@ -873,14 +870,14 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
         >
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.offerCtaTitle}>📦 Post Product to Kurnool Bazaar</Text>
+              <Text style={styles.offerCtaTitle}>📦 Post a Product</Text>
               {business.paymentStatus !== 'paid' && (
                 <View style={{ backgroundColor: 'rgba(255,255,255,0.25)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
                   <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '800' }}>🔒 UPGRADE</Text>
                 </View>
               )}
             </View>
-            <Text style={styles.offerCtaSub}>List store products with blue verified merchant tag</Text>
+            <Text style={styles.offerCtaSub}>List products for sale in Kurnool Bazaar.</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
         </TouchableOpacity>

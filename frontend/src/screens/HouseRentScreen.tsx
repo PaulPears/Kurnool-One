@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
   Image, Linking, ActivityIndicator, StatusBar, StyleSheet, Modal, Share,
   TextInput, Alert, RefreshControl, ScrollView, BackHandler,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -33,23 +34,6 @@ export default function HouseRentScreen({ navigation }: any) {
   const [selectedRental, setSelectedRental] = useState<HouseRentalItem | null>(null);
   const [activeSwipeIdx, setActiveSwipeIdx] = useState(0);
 
-  useEffect(() => {
-    const backAction = () => {
-      if (selectedRental) {
-        setSelectedRental(null);
-        return true;
-      }
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        navigation.replace('Main');
-      }
-      return true;
-    };
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
-    return () => backHandler.remove();
-  }, [selectedRental]);
-
   // Full-screen Image Viewer
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerImages, setViewerImages] = useState<string[]>([]);
@@ -57,6 +41,33 @@ export default function HouseRentScreen({ navigation }: any) {
 
   // Post Rental Modal State
   const [postModalVisible, setPostModalVisible] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      const backAction = () => {
+        if (viewerVisible) {
+          setViewerVisible(false);
+          return true;
+        }
+        if (selectedRental) {
+          setSelectedRental(null);
+          return true;
+        }
+        if (postModalVisible) {
+          setPostModalVisible(false);
+          return true;
+        }
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+          return true;
+        }
+        navigation.navigate('Main');
+        return true;
+      };
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+      return () => backHandler.remove();
+    }, [viewerVisible, selectedRental, postModalVisible, navigation])
+  );
   const [posting, setPosting] = useState(false);
   const [title, setTitle] = useState('');
   const [bhk, setBhk] = useState<'1 RK' | '1 BHK' | '2 BHK' | '3 BHK' | '4+ BHK' | 'Commercial'>('2 BHK');

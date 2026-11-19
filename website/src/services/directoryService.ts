@@ -411,9 +411,33 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
     ],
   },
   {
+    id: 'car_showrooms',
+    name_en: 'Car Showrooms',
+    name_te: 'కార్ షోరూమ్‌లు',
+    icon: 'Car',
+    subcategories: [
+      { id: 'new_car_showrooms', name_en: 'New Car Dealerships', name_te: 'కొత్త కార్ల షోరూమ్‌లు' },
+      { id: 'used_car_dealers', name_en: 'Pre-Owned & Used Car Outlets', name_te: 'సెకండ్ హ్యాండ్ కార్లు' },
+      { id: 'electric_car_dealers', name_en: 'Electric Car (EV) Dealerships', name_te: 'ఎలక్ట్రిక్ కార్ల షోరూమ్‌లు' },
+      { id: 'commercial_car_dealers', name_en: 'Commercial Vehicles & Vans', name_te: 'కమర్షియల్ వాహనాలు' },
+    ],
+  },
+  {
+    id: 'bike_showrooms',
+    name_en: 'Bike & Two-Wheeler Showrooms',
+    name_te: 'బైక్ & స్కూటర్ షోరూమ్‌లు',
+    icon: 'Bike',
+    subcategories: [
+      { id: 'two_wheeler_dealers', name_en: 'New Bike & Scooter Dealerships', name_te: 'కొత్త బైక్ షోరూమ్‌లు' },
+      { id: 'ev_scooter_dealers', name_en: 'Electric Scooter Showrooms (Ola, Ather, Chetak)', name_te: 'ఈవీ స్కూటర్ల షోరూమ్‌లు' },
+      { id: 'superbike_royal_enfield', name_en: 'Royal Enfield & Premium Bikes', name_te: 'రాయల్ ఎన్‌ఫీల్డ్ & ప్రీమియం బైక్‌లు' },
+      { id: 'used_bikes', name_en: 'Pre-Owned & Second-Hand Two Wheelers', name_te: 'సెకండ్ హ్యాండ్ బైకులు' },
+    ],
+  },
+  {
     id: 'automobile_dealers',
-    name_en: 'Automobile Dealers',
-    name_te: 'కార్ & బైక్ షోరూమ్‌లు',
+    name_en: 'Automobile Dealers & Showrooms',
+    name_te: 'ఆటోమొబైల్ డీలర్లు & షోరూమ్‌లు',
     icon: 'Car',
     subcategories: [
       { id: 'two_wheeler_dealers', name_en: 'Two-Wheeler Showrooms', name_te: 'బైక్ & స్కూటర్ షోరూమ్‌లు' },
@@ -540,6 +564,18 @@ export const MASTER_CATEGORIES: CategoryItem[] = [
       { id: 'corporate_events', name_en: 'Corporate Events & Launches', name_te: 'కార్పొరేట్ ఈవెంట్లు' },
       { id: 'stage_lighting', name_en: 'Stage, Sound & LED Walls', name_te: 'సౌండ్ & లైటింగ్ సిస్టమ్స్' },
       { id: 'birthday_parties', name_en: 'Birthday & Anniversary Planners', name_te: 'పుట్టినరోజు ఈవెంట్స్' },
+    ],
+  },
+  {
+    id: 'function_halls_banquets',
+    name_en: 'Function Halls & Banquet Halls',
+    name_te: 'ఫంక్షన్ హాళ్ళు & కళ్యాణ మండపాలు',
+    icon: 'Building2',
+    subcategories: [
+      { id: 'ac_function_halls', name_en: 'AC Function Halls & Kalyana Mandapams', name_te: 'ఏసీ ఫంక్షన్ హాళ్ళు & కళ్యాణ మండపాలు' },
+      { id: 'mini_banquet_halls', name_en: 'Mini Banquet Halls (Parties & Birthdays)', name_te: 'మినీ బాంక్వెట్ హాళ్ళు' },
+      { id: 'convention_centers', name_en: 'Convention Centers & Open Lawns', name_te: 'కన్వెన్షన్ సెంటర్లు & ఓపెన్ లాన్స్' },
+      { id: 'dining_community_halls', name_en: 'Community Halls & Dining Venues', name_te: 'కమ్యూనిటీ హాళ్ళు' },
     ],
   },
   {

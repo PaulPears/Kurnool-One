@@ -30,6 +30,7 @@ export default function PartnerProgramScreen({ navigation }: any) {
   const [onboardedCount, setOnboardedCount] = useState(0);
   const [earnedCommission, setEarnedCommission] = useState(0);
   const [pendingCommission, setPendingCommission] = useState(0);
+  const [agreedTerms, setAgreedTerms] = useState(false);
 
   useEffect(() => {
     loadPartnerData();
@@ -130,6 +131,16 @@ export default function PartnerProgramScreen({ navigation }: any) {
       return;
     }
 
+    if (!isPartner && !agreedTerms) {
+      Alert.alert(
+        language === 'en' ? 'Terms Agreement Required' : 'నిబంధనల అంగీకారం అవసరం',
+        language === 'en'
+          ? 'Please confirm that you agree to the Kurnool One Partner Terms & Monthly Payout Policy before activating your account.'
+          : 'దయచేసి ఖాతాను యాక్టివేట్ చేయడానికి ముందు పార్ట్‌నర్ నిబంధనలను అంగీకరించినట్లు ధృవీకరించండి.'
+      );
+      return;
+    }
+
     setSaving(true);
     try {
       const uid = auth.currentUser?.uid || `partner_${phone.replace(/\D/g, '').slice(-10)}`;
@@ -147,6 +158,8 @@ export default function PartnerProgramScreen({ navigation }: any) {
         upiId: upiId.trim(),
         partnerCode: code,
         status: 'active',
+        agreedToTerms: true,
+        agreedAt: new Date().toISOString(),
         onboardedCount: onboardedCount || 0,
         earnedCommission: earnedCommission || 0,
         pendingCommission: pendingCommission || 0,
@@ -536,6 +549,24 @@ export default function PartnerProgramScreen({ navigation }: any) {
               </Text>
             </View>
           </View>
+
+          {/* Mandatory Terms & Payout Policy Checkbox */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setAgreedTerms(!agreedTerms)}
+            style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 14, marginBottom: 16, backgroundColor: '#FFFBEB', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#FDE68A' }}
+          >
+            <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: agreedTerms ? '#D97706' : '#94A3B8', backgroundColor: agreedTerms ? '#D97706' : '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+              {agreedTerms && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 12, color: '#92400E', fontWeight: '700', lineHeight: 17 }}>
+                {language === 'en'
+                  ? 'I agree to the Kurnool One Partner Terms, Commission Model (25% on first paid listings, 10% on renewals) and Monthly Bank Settlement Policy.'
+                  : 'నేను కర్నూలు వన్ పార్ట్‌నర్ నిబంధనలు, కమీషన్ విధానం (మొదటి చెల్లింపుపై 25%, పునరుద్ధరణలపై 10%) మరియు నెలవారీ బ్యాంక్ చెల్లింపు నిబంధనలను అంగీకరిస్తున్నాను.'}
+              </Text>
+            </View>
+          </TouchableOpacity>
 
           <TouchableOpacity
             onPress={handleRegisterPartner}

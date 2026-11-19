@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
   Image, Linking, ActivityIndicator, StatusBar, Share, StyleSheet, Modal, ScrollView, Dimensions,
+  RefreshControl, BackHandler,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
@@ -22,6 +24,7 @@ export default function ExploreScreen({ navigation }: any) {
   const [places, setPlaces] = useState<PlaceItem[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
   const [selectedPlace, setSelectedPlace] = useState<PlaceItem | null>(null);
   const [selectedPhotoIdx, setSelectedPhotoIdx] = useState<number>(0);
   const [fullScreenPhoto, setFullScreenPhoto] = useState<string | null>(null);
@@ -29,6 +32,35 @@ export default function ExploreScreen({ navigation }: any) {
   useEffect(() => {
     loadPlaces();
   }, [activeTab]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const backAction = () => {
+        if (fullScreenPhoto) {
+          setFullScreenPhoto(null);
+          return true;
+        }
+        if (selectedPlace) {
+          setSelectedPlace(null);
+          return true;
+        }
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+          return true;
+        }
+        return false;
+      };
+
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+      return () => backHandler.remove();
+    }, [fullScreenPhoto, selectedPlace, navigation])
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadPlaces();
+    setRefreshing(false);
+  };
 
   const loadPlaces = async () => {
     setLoading(true);
@@ -183,6 +215,9 @@ export default function ExploreScreen({ navigation }: any) {
           keyExtractor={(item, index) => item?.id || String(index)}
           contentContainerStyle={{ padding: 14, paddingBottom: 60 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563EB']} />
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="calendar-outline" size={44} color="#94A3B8" />
@@ -235,6 +270,9 @@ export default function ExploreScreen({ navigation }: any) {
           keyExtractor={(item, index) => item?.id || String(index)}
           contentContainerStyle={{ padding: 14, paddingBottom: 60 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563EB']} />
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="compass-outline" size={44} color="#94A3B8" />

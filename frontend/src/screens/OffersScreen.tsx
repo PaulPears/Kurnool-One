@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
   Image, Linking, ActivityIndicator, StatusBar, StyleSheet, Modal, Share,
-  TextInput, Alert, RefreshControl, ScrollView, Dimensions,
+  TextInput, Alert, RefreshControl, ScrollView, Dimensions, BackHandler,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -164,6 +165,41 @@ export default function OffersScreen({ route, navigation }: any) {
       setViewerVisible(true);
     }
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      const backAction = () => {
+        if (viewerVisible) {
+          setViewerVisible(false);
+          return true;
+        }
+        if (reportingTarget) {
+          setReportingTarget(null);
+          return true;
+        }
+        if (selectedDeal) {
+          setSelectedDeal(null);
+          return true;
+        }
+        if (selectedMarketItem) {
+          setSelectedMarketItem(null);
+          return true;
+        }
+        if (postModalVisible) {
+          setPostModalVisible(false);
+          return true;
+        }
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+          return true;
+        }
+        return false;
+      };
+
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+      return () => backHandler.remove();
+    }, [viewerVisible, reportingTarget, selectedDeal, selectedMarketItem, postModalVisible, navigation])
+  );
 
   const handleShareMarketItem = async (item: MarketItem) => {
     try {
@@ -497,21 +533,27 @@ export default function OffersScreen({ route, navigation }: any) {
                   {language === 'en' ? 'Hot Deals & Offers' : 'హాట్ డీల్స్ & ఆఫర్లు'}
                 </Text>
                 <Text style={styles.dealsHeaderSub}>
-                  {language === 'en' ? 'Exclusive discounts from local merchants in Kurnool' : 'కర్నూలు వ్యాపారుల నుండి ప్రత్యేక తగ్గింపులు'}
+                  {language === 'en'
+                    ? 'Exclusive discounts and special offers from local businesses and professionals in Kurnool.'
+                    : 'కర్నూలు వ్యాపారాలు మరియు నిపుణుల నుండి ప్రత్యేక తగ్గింపులు మరియు ఆఫర్లు.'}
                 </Text>
               </View>
               <TouchableOpacity
                 onPress={() => {
                   Alert.alert(
-                    language === 'en' ? 'Post a Hot Deal' : 'ఆఫర్‌ను పోస్ట్ చేయండి',
+                    language === 'en' ? 'Post an Offer' : 'ఆఫర్‌ను పోస్ట్ చేయండి',
                     language === 'en'
-                      ? 'Publishing Hot Deals is reserved for Standard Verified and Premium Featured merchants. Manage your store or upgrade your plan to broadcast discounts.'
-                      : 'హాట్ డీల్స్ పోస్ట్ చేయడానికి మీ దుకాణాన్ని స్టాండర్డ్ లేదా ప్రీమియంకు అప్‌గ్రేడ్ చేయండి.',
+                      ? 'Are you publishing an offer for a local business or as a skilled professional?'
+                      : 'మీరు స్థానిక వ్యాపారం లేదా నిపుణుడిగా ఆఫర్‌ను పోస్ట్ చేస్తున్నారా?',
                     [
-                      { text: language === 'en' ? 'Cancel' : 'వద్దు', style: 'cancel' },
+                      { text: language === 'en' ? 'Cancel' : 'రద్దు', style: 'cancel' },
                       {
-                        text: language === 'en' ? 'Store Dashboard' : 'డ్యాష్‌బోర్డ్',
+                        text: language === 'en' ? '🏬 Business / Shop' : '🏬 వ్యాపారం / షాప్',
                         onPress: () => navigation.navigate('ManageBusiness'),
+                      },
+                      {
+                        text: language === 'en' ? '💼 Skilled Professional' : '💼 నిపుణుడు / సర్వీస్',
+                        onPress: () => navigation.navigate('ManageProfessional'),
                       },
                     ]
                   );
@@ -519,7 +561,7 @@ export default function OffersScreen({ route, navigation }: any) {
                 style={styles.postDealBtn}
               >
                 <Ionicons name="flame" size={14} color="#FFFFFF" />
-                <Text style={styles.postDealBtnText}>{language === 'en' ? '+ Post Deal' : '+ ఆఫర్'}</Text>
+                <Text style={styles.postDealBtnText}>{language === 'en' ? '+ Post Offer' : '+ ఆఫర్ పోస్ట్'}</Text>
               </TouchableOpacity>
             </View>
           }
@@ -850,8 +892,10 @@ export default function OffersScreen({ route, navigation }: any) {
                       showsHorizontalScrollIndicator={false}
                       onMomentumScrollEnd={(e) => {
                         const width = e.nativeEvent.layoutMeasurement.width;
-                        const idx = Math.round(e.nativeEvent.contentOffset.x / width);
-                        setDealPhotoIdx(idx);
+                        if (width > 0) {
+                          const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+                          setDealPhotoIdx(idx);
+                        }
                       }}
                     >
                       {dealImages.map((imgUri, sIdx) => (
@@ -894,7 +938,7 @@ export default function OffersScreen({ route, navigation }: any) {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F8FAFC', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: '#E2E8F0' }}>
                   <Ionicons name="time-outline" size={12} color="#64748B" />
                   <Text style={{ fontSize: 11, color: '#475569', fontWeight: '600' }}>
-                    {language === 'en' ? `Valid until: ${selectedDeal.validUntil}` : `చెల్లుబాటు: ${selectedDeal.validUntil}`}
+                    {language === 'en' ? `Valid until: ${selectedDeal.validUntil || 'Limited Period'}` : `చెల్లుబాటు: ${selectedDeal.validUntil || 'పరిమిత సమయం'}`}
                   </Text>
                 </View>
               </View>
@@ -944,14 +988,14 @@ export default function OffersScreen({ route, navigation }: any) {
             {/* Sticky Bottom Actions */}
             <View style={styles.modalStickyBottom}>
               <TouchableOpacity
-                onPress={() => handleCall(selectedDeal.phone)}
+                onPress={() => selectedDeal.phone && handleCall(selectedDeal.phone)}
                 style={styles.stickyBtnCall}
               >
                 <Ionicons name="call" size={16} color="#FFFFFF" />
                 <Text style={styles.stickyBtnTextCall}>{language === 'en' ? 'Call Merchant' : 'కాల్ చేయండి'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => handleWhatsApp(selectedDeal.phone, selectedDeal.title_en)}
+                onPress={() => selectedDeal.phone && handleWhatsApp(selectedDeal.phone, selectedDeal.title_en)}
                 style={styles.stickyBtnWa}
               >
                 <Ionicons name="logo-whatsapp" size={17} color="#FFFFFF" />
@@ -1006,8 +1050,10 @@ export default function OffersScreen({ route, navigation }: any) {
                       showsHorizontalScrollIndicator={false}
                       onMomentumScrollEnd={(e) => {
                         const width = e.nativeEvent.layoutMeasurement.width;
-                        const idx = Math.round(e.nativeEvent.contentOffset.x / width);
-                        setMarketPhotoIdx(idx);
+                        if (width > 0) {
+                          const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+                          setMarketPhotoIdx(idx);
+                        }
                       }}
                     >
                       {itemImages.map((imgUri, sIdx) => (

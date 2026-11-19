@@ -48,6 +48,37 @@ export default function SettingsScreen({ navigation }: any) {
     );
   };
 
+  const handleClearCache = async () => {
+    Alert.alert(
+      language === 'en' ? 'Clear App Cache?' : 'కాష్ తొలగించాలా?',
+      language === 'en'
+        ? 'This will refresh all stored listing caches, reload fresh city data, and keep your login session active. Do you wish to proceed?'
+        : 'ఇది తాజా సమాచారాన్ని రీలోడ్ చేస్తుంది మరియు మీ లాగిన్ అలాగే ఉంటుంది. కొనసాగించాలా?',
+      [
+        { text: language === 'en' ? 'Cancel' : 'వద్దు', style: 'cancel' },
+        {
+          text: language === 'en' ? 'Clear & Re-sync' : 'క్లియర్ & రీ-సింక్',
+          onPress: async () => {
+            try {
+              // Clear cache keys while preserving login & language
+              const keys = await AsyncStorage.getAllKeys();
+              const cacheKeys = keys.filter(k => k !== 'user' && k !== 'app_language' && !k.startsWith('@firebase'));
+              if (cacheKeys.length > 0) {
+                await AsyncStorage.multiRemove(cacheKeys);
+              }
+              Alert.alert(
+                language === 'en' ? 'Cache Cleared Successfully' : 'కాష్ విజయవంతంగా తొలగించబడింది',
+                language === 'en' ? 'All city feeds and listing data have been re-synchronized.' : 'తాజా సమాచారం సమకాలీకరించబడింది.'
+              );
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Could not clear cache.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleDeleteAccount = () => {
     Alert.alert(
       language === 'en' ? '⚠️ Delete Account & Erase Data' : '⚠️ ఖాతా మరియు డేటా తొలగింపు',
@@ -129,6 +160,20 @@ export default function SettingsScreen({ navigation }: any) {
               </Text>
             </TouchableOpacity>
           </View>
+
+          {/* Cache Management */}
+          <TouchableOpacity style={styles.settingCard} onPress={handleClearCache}>
+            <View style={[styles.cardIconBox, { backgroundColor: '#F0F9FF' }]}>
+              <Ionicons name="refresh-circle-outline" size={22} color="#0284C7" />
+            </View>
+            <View style={styles.cardContent}>
+              <Text style={styles.cardTitle}>{language === 'en' ? 'Clear Cache & Re-sync Data' : 'కాష్ క్లియర్ & డేటా రీ-సింక్'}</Text>
+              <Text style={styles.cardSubtitle}>
+                {language === 'en' ? 'Purge cached listings, images & reload fresh city data' : 'తాజా నగర సమాచారం కోసం కాష్ తొలగించండి'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+          </TouchableOpacity>
         </View>
 
         {/* Legal & Privacy Section (DPDP Act 2023 Compliant) */}

@@ -88,6 +88,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
     return { amount: 199, name: 'Standard Verified (6 Months - ₹199)' };
   };
   const [fullName, setFullName] = useState('');
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const [selectedCatId, setSelectedCatId] = useState(PROFESSIONAL_CATEGORIES[0]?.id || 'influencers_creators');
   const [customCategory, setCustomCategory] = useState('');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
@@ -177,21 +178,23 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
       return;
     }
 
-    if (!fullName.trim()) {
-      Alert.alert(
-        language === 'en' ? 'Required Field' : 'తప్పనిసరి ఫీల్డ్',
-        language === 'en' ? 'Please enter your Full Name or Creator Handle.' : 'దయచేసి మీ పూర్తి పేరును నమోదు చేయండి.'
-      );
-      return;
-    }
-
+    const errors: { [key: string]: string } = {};
+    if (!fullName.trim()) errors.fullName = 'Full name is required';
     if (!phone.trim() || phone.replace(/[^0-9]/g, '').length < 10) {
+      errors.phone = 'Valid 10-digit mobile number is required';
+    }
+    if (!experienceYears.trim()) errors.experienceYears = 'Experience in years is required';
+    if (!serviceAreas.trim()) errors.serviceAreas = 'Service localities in Kurnool are required';
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       Alert.alert(
-        language === 'en' ? 'Required Field' : 'తప్పనిసరి ఫీల్డ్',
-        language === 'en' ? 'Please enter a valid 10-digit Phone Number.' : 'దయచేసి సరైన 10 అంకెల ఫోన్ నంబర్‌ను నమోదు చేయండి.'
+        language === 'en' ? 'Required Fields' : 'తప్పనిసరి ఫీల్డ్స్',
+        language === 'en' ? 'Please complete all fields highlighted in red.' : 'దయచేసి ఎరుపు రంగులో గుర్తించబడిన అన్ని ఫీల్డ్‌లను పూరించండి.'
       );
       return;
     }
+    setFormErrors({});
 
     if (selectedPlan === 'pro_free') {
       handlePaymentSuccess({ id: 'free_basic', amount: 0, status: 'free' });
@@ -455,42 +458,54 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
           {language === 'en' ? 'Full Name / Creator Handle *' : 'పూర్తి పేరు / ఛానల్ పేరు *'}
         </Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, formErrors.fullName && { borderColor: '#EF4444', borderWidth: 1.5, backgroundColor: '#FEF2F2' }]}
           placeholder="e.g. Ramesh Kumar or Renu Vlogs"
           placeholderTextColor="#9CA3AF"
           maxLength={60}
           value={fullName}
-          onChangeText={setFullName}
+          onChangeText={(txt) => {
+            setFullName(txt);
+            if (formErrors.fullName) setFormErrors(prev => ({ ...prev, fullName: '' }));
+          }}
         />
+        {formErrors.fullName ? <Text style={{ color: '#EF4444', fontSize: 11, marginTop: -8, marginBottom: 8, fontWeight: '700' }}>⚠️ {formErrors.fullName}</Text> : null}
 
         {/* Experience & Areas */}
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>
-              {language === 'en' ? 'Experience (Years)' : 'అనుభవం (సంవత్సరాలు)'}
+              {language === 'en' ? 'Experience (Years) *' : 'అనుభవం (సంవత్సరాలు) *'}
             </Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, formErrors.experienceYears && { borderColor: '#EF4444', borderWidth: 1.5, backgroundColor: '#FEF2F2' }]}
               placeholder="e.g. 6"
               placeholderTextColor="#9CA3AF"
               keyboardType="numeric"
               maxLength={2}
               value={experienceYears}
-              onChangeText={setExperienceYears}
+              onChangeText={(txt) => {
+                setExperienceYears(txt);
+                if (formErrors.experienceYears) setFormErrors(prev => ({ ...prev, experienceYears: '' }));
+              }}
             />
+            {formErrors.experienceYears ? <Text style={{ color: '#EF4444', fontSize: 10, marginTop: -8, marginBottom: 4, fontWeight: '700' }}>⚠️ {formErrors.experienceYears}</Text> : null}
           </View>
           <View style={{ flex: 1.5 }}>
             <Text style={styles.label}>
-              {language === 'en' ? 'Service Areas' : 'సేవా ప్రాంతాలు'}
+              {language === 'en' ? 'Service Areas *' : 'సేవా ప్రాంతాలు *'}
             </Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, formErrors.serviceAreas && { borderColor: '#EF4444', borderWidth: 1.5, backgroundColor: '#FEF2F2' }]}
               placeholder="e.g. Camp Area, City"
               placeholderTextColor="#9CA3AF"
               maxLength={150}
               value={serviceAreas}
-              onChangeText={setServiceAreas}
+              onChangeText={(txt) => {
+                setServiceAreas(txt);
+                if (formErrors.serviceAreas) setFormErrors(prev => ({ ...prev, serviceAreas: '' }));
+              }}
             />
+            {formErrors.serviceAreas ? <Text style={{ color: '#EF4444', fontSize: 10, marginTop: -8, marginBottom: 4, fontWeight: '700' }}>⚠️ {formErrors.serviceAreas}</Text> : null}
           </View>
         </View>
 
@@ -536,13 +551,16 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
             </Text>
             <View style={{ position: 'relative', justifyContent: 'center' }}>
               <TextInput
-                style={[styles.input, { paddingRight: phone ? 36 : 14 }]}
+                style={[styles.input, { paddingRight: phone ? 36 : 14 }, formErrors.phone && { borderColor: '#EF4444', borderWidth: 1.5, backgroundColor: '#FEF2F2' }]}
                 placeholder="9848012345"
                 placeholderTextColor="#9CA3AF"
                 keyboardType="phone-pad"
                 maxLength={10}
                 value={phone}
-                onChangeText={handlePhoneInput}
+                onChangeText={(txt) => {
+                  handlePhoneInput(txt);
+                  if (formErrors.phone) setFormErrors(prev => ({ ...prev, phone: '' }));
+                }}
               />
               {phone ? (
                 <TouchableOpacity
@@ -554,6 +572,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
                 </TouchableOpacity>
               ) : null}
             </View>
+            {formErrors.phone ? <Text style={{ color: '#EF4444', fontSize: 10, marginTop: 4, fontWeight: '700' }}>⚠️ {formErrors.phone}</Text> : null}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>
@@ -891,13 +910,21 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
               </Text>
             </TouchableOpacity>
 
-            {/* Continue Editing */}
+            {/* Register Another Skill Button */}
             <TouchableOpacity
-              onPress={() => setShowExistingModal(false)}
-              style={{ paddingVertical: 12, borderRadius: 14, alignItems: 'center', borderWidth: 1, borderColor: '#CBD5E1' }}
+              onPress={() => {
+                setShowExistingModal(false);
+                setSelectedCatId(PROFESSIONAL_CATEGORIES[1]?.id || 'electricians');
+                setCustomCategory('');
+                setExperienceYears('');
+                setVisitingCharges('');
+                setHourlyRate('');
+                setDescription('');
+              }}
+              style={{ backgroundColor: '#F0FDFA', borderWidth: 1.5, borderColor: '#0D9488', paddingVertical: 13, borderRadius: 14, alignItems: 'center' }}
             >
-              <Text style={{ color: '#475569', fontWeight: '700', fontSize: 13 }}>
-                {language === 'en' ? 'Continue & Update Details' : 'వివరాలు నవీకరించండి'}
+              <Text style={{ color: '#0D9488', fontWeight: '900', fontSize: 13 }}>
+                {language === 'en' ? '+ Register Another Skill / New Trade' : '+ మరొక వృత్తి / నైపుణ్యాన్ని నమోదు చేయండి'}
               </Text>
             </TouchableOpacity>
           </View>

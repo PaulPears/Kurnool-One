@@ -472,12 +472,13 @@ const styles = StyleSheet.create({
     marginBottom: 26,
   },
   logoWrapper: {
-    width: 82,
-    height: 82,
+    width: 88,
+    height: 88,
     borderRadius: 22,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 8,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -488,8 +489,9 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   logo: {
-    width: 60,
-    height: 60,
+    width: '100%',
+    height: '100%',
+    borderRadius: 14,
   },
   appName: {
     fontSize: 28,

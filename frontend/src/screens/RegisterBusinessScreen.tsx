@@ -88,6 +88,7 @@ export default function RegisterBusinessScreen({ navigation }: any) {
     return { amount: 399, name: 'Standard Verified (6 Months - ₹399)' };
   };
   const [nameEn, setNameEn] = useState('');
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const [nameTe, setNameTe] = useState('');
   const [categoryId, setCategoryId] = useState(MASTER_CATEGORIES[0]?.id || 'restaurants');
   const [customCategory, setCustomCategory] = useState('');
@@ -98,7 +99,7 @@ export default function RegisterBusinessScreen({ navigation }: any) {
   const [landmark, setLandmark] = useState('');
   const [website, setWebsite] = useState('');
   const [googleMapsUrl, setGoogleMapsUrl] = useState('');
-  const [timing, setTiming] = useState('10:00 AM - 09:00 PM');
+  const [timing, setTiming] = useState('');
   const [facebook, setFacebook] = useState('');
   const [instagram, setInstagram] = useState('');
   const [twitter, setTwitter] = useState('');
@@ -195,16 +196,24 @@ export default function RegisterBusinessScreen({ navigation }: any) {
       return;
     }
 
-    if (!nameEn.trim() || !phone.trim() || !address.trim()) {
-      Alert.alert('Required Fields', 'Please provide Business Name, Phone Number, and Address.');
-      return;
+    const errors: { [key: string]: string } = {};
+    if (!nameEn.trim()) errors.nameEn = 'Business name is required';
+    if (!phone.trim()) {
+      errors.phone = 'Mobile phone number is required';
+    } else {
+      const cleanPhone = phone.replace(/\D/g, '');
+      if (cleanPhone.length !== 10 || !/^[6-9]\d{9}$/.test(cleanPhone)) {
+        errors.phone = 'Enter valid 10-digit number starting with 6, 7, 8, or 9';
+      }
     }
+    if (!address.trim()) errors.address = 'Street/area address is required';
 
-    const cleanPhone = phone.replace(/\D/g, '');
-    if (cleanPhone.length !== 10 || !/^[6-9]\d{9}$/.test(cleanPhone)) {
-      Alert.alert('Invalid Mobile Number', 'Please enter a valid 10-digit Indian mobile number (e.g. 9848012345) starting with 6, 7, 8, or 9.');
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      Alert.alert('Required Fields', 'Please fill in all mandatory fields highlighted in red.');
       return;
     }
+    setFormErrors({});
 
     if (whatsapp.trim()) {
       const cleanWa = whatsapp.replace(/\D/g, '');
@@ -425,13 +434,17 @@ export default function RegisterBusinessScreen({ navigation }: any) {
           {/* Form Fields */}
           <Text style={styles.label}>Business / Service Name (English) *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, formErrors.nameEn && { borderColor: '#EF4444', borderWidth: 1.5, backgroundColor: '#FEF2F2' }]}
             placeholder="e.g. Royal Rayalaseema Restaurant"
             placeholderTextColor="#9CA3AF"
             maxLength={80}
             value={nameEn}
-            onChangeText={setNameEn}
+            onChangeText={(txt) => {
+              setNameEn(txt);
+              if (formErrors.nameEn) setFormErrors(prev => ({ ...prev, nameEn: '' }));
+            }}
           />
+          {formErrors.nameEn ? <Text style={{ color: '#EF4444', fontSize: 11, marginTop: -8, marginBottom: 8, fontWeight: '700' }}>⚠️ {formErrors.nameEn}</Text> : null}
 
           <Text style={styles.label}>Business Name in Telugu (Optional)</Text>
           <TextInput
@@ -486,13 +499,16 @@ export default function RegisterBusinessScreen({ navigation }: any) {
           <Text style={styles.label}>Phone Number (For Customer Calls) *</Text>
           <View style={{ position: 'relative', justifyContent: 'center' }}>
             <TextInput
-              style={[styles.input, { paddingRight: phone ? 40 : 16 }]}
+              style={[styles.input, { paddingRight: phone ? 40 : 16 }, formErrors.phone && { borderColor: '#EF4444', borderWidth: 1.5, backgroundColor: '#FEF2F2' }]}
               placeholder="e.g. 9848012345 (10 digits)"
               placeholderTextColor="#9CA3AF"
               keyboardType="phone-pad"
               maxLength={10}
               value={phone}
-              onChangeText={handlePhoneInput}
+              onChangeText={(txt) => {
+                handlePhoneInput(txt);
+                if (formErrors.phone) setFormErrors(prev => ({ ...prev, phone: '' }));
+              }}
             />
             {phone ? (
               <TouchableOpacity
@@ -504,6 +520,7 @@ export default function RegisterBusinessScreen({ navigation }: any) {
               </TouchableOpacity>
             ) : null}
           </View>
+          {formErrors.phone ? <Text style={{ color: '#EF4444', fontSize: 11, marginTop: 4, marginBottom: 8, fontWeight: '700' }}>⚠️ {formErrors.phone}</Text> : null}
 
           <Text style={styles.label}>WhatsApp Number</Text>
           <View style={{ position: 'relative', justifyContent: 'center' }}>
@@ -529,13 +546,17 @@ export default function RegisterBusinessScreen({ navigation }: any) {
 
           <Text style={styles.label}>Full Address (Street / Area / Kurnool) *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, formErrors.address && { borderColor: '#EF4444', borderWidth: 1.5, backgroundColor: '#FEF2F2' }]}
             placeholder="e.g. Near Old Bus Stand, Park Road, Kurnool"
             placeholderTextColor="#9CA3AF"
             maxLength={150}
             value={address}
-            onChangeText={setAddress}
+            onChangeText={(txt) => {
+              setAddress(txt);
+              if (formErrors.address) setFormErrors(prev => ({ ...prev, address: '' }));
+            }}
           />
+          {formErrors.address ? <Text style={{ color: '#EF4444', fontSize: 11, marginTop: -8, marginBottom: 8, fontWeight: '700' }}>⚠️ {formErrors.address}</Text> : null}
 
           <Text style={styles.label}>Landmark</Text>
           <TextInput

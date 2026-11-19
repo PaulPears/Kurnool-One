@@ -740,7 +740,7 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="flame" size={18} color="#FEF08A" />
-              <Text style={styles.offerCtaTitle}>Broadcast Special Service Offer</Text>
+              <Text style={styles.offerCtaTitle}>Post an Offer</Text>
               {profile?.paymentStatus !== 'paid' && (
                 <View style={{ backgroundColor: 'rgba(0,0,0,0.25)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
                   <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '800' }}>🔒 UPGRADE</Text>
@@ -748,11 +748,11 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
               )}
             </View>
             <Text style={styles.offerCtaSub}>
-              Publish festive discounts, free inspection packages or seasonal service offers directly to Kurnool feed.
+              Publish special offers, discounts and seasonal promotions for Kurnool residents.
             </Text>
           </View>
           <View style={styles.offerCtaBtn}>
-            <Text style={styles.offerCtaBtnText}>Post Deal →</Text>
+            <Text style={styles.offerCtaBtnText}>Post Offer →</Text>
           </View>
         </TouchableOpacity>
 
@@ -763,7 +763,7 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
             if (profile?.paymentStatus !== 'paid') {
               Alert.alert(
                 'Professional Feature',
-                'Posting verified service packages and equipment to Kurnool Bazaar is exclusive to verified professionals. Upgrade your profile to post.',
+                'Posting service packages and equipment to Kurnool Bazaar is exclusive to verified professionals. Upgrade your profile to post.',
                 [
                   { text: 'Cancel', style: 'cancel' },
                   { text: 'Upgrade Plan', onPress: () => setShowUpgradeModal(true) },
@@ -781,7 +781,7 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="cart" size={18} color="#A7F3D0" />
-              <Text style={styles.offerCtaTitle}>Post Equipment / Package to Bazaar</Text>
+              <Text style={styles.offerCtaTitle}>Post a Product</Text>
               {profile?.paymentStatus !== 'paid' && (
                 <View style={{ backgroundColor: 'rgba(0,0,0,0.25)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
                   <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '800' }}>🔒 UPGRADE</Text>
@@ -789,11 +789,11 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
               )}
             </View>
             <Text style={styles.offerCtaSub}>
-              Sell equipment, spare tools, or list fixed-rate service packages in Kurnool Bazaar.
+              List products for sale in Kurnool Bazaar.
             </Text>
           </View>
           <View style={[styles.offerCtaBtn, { backgroundColor: '#064E3B' }]}>
-            <Text style={styles.offerCtaBtnText}>Post Item →</Text>
+            <Text style={styles.offerCtaBtnText}>Post Product →</Text>
           </View>
         </TouchableOpacity>
 

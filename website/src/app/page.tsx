@@ -48,7 +48,6 @@ import {
   fetchEvents,
 } from '@/services/directoryService';
 import AppDownloadBanner from '@/components/AppDownloadBanner';
-import FeaturedBusinessTicker from '@/components/FeaturedBusinessTicker';
 
 export const revalidate = 60; // ISR cache for 60 seconds
 
@@ -272,15 +271,13 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ─── 3. FEATURED BUSINESSES TICKER & SPOTLIGHT ──────────────────── */}
+      {/* ─── 3. FEATURED BUSINESSES SPOTLIGHT ──────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-8">
-        <FeaturedBusinessTicker businesses={businesses} />
-
         <div className="flex items-center justify-between mb-8 mt-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                Top Rated
+              <span className="text-xs font-black uppercase tracking-wider text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+                👑 Featured Listings
               </span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
@@ -301,39 +298,41 @@ export default async function HomePage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {businesses.slice(0, 6).map((biz) => (
-            <div
-              key={biz.id}
-              className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between"
-            >
-              <div>
-                {/* Image / Banner */}
-                <div className="relative h-48 w-full bg-slate-100">
-                  {biz.images && biz.images[0] ? (
-                    <Image
-                      src={biz.images[0]}
-                      alt={biz.name_en}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-300">
-                      <Building2 className="w-12 h-12" />
+          {businesses.slice(0, 6).map((biz) => {
+            const imgUrl = biz.coverImage || biz.bannerUrl || (biz as any).thumbnailUrl || (biz as any).logoUrl || (biz.images && biz.images[0]);
+            return (
+              <div
+                key={biz.id}
+                className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between"
+              >
+                <div>
+                  {/* Image / Banner */}
+                  <div className="relative h-48 w-full bg-slate-100">
+                    {imgUrl ? (
+                      <Image
+                        src={imgUrl}
+                        alt={biz.name_en}
+                        fill
+                        unoptimized
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-300">
+                        <Building2 className="w-12 h-12" />
+                      </div>
+                    )}
+
+                    {/* Featured Pill */}
+                    <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm px-2.5 py-1 rounded-full text-[10px] font-bold text-amber-700 flex items-center gap-1 shadow-sm border border-amber-200">
+                      <span>👑 Featured</span>
                     </div>
-                  )}
 
-                  {/* Verification Badge */}
-                  <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm px-2.5 py-1 rounded-full text-[10px] font-bold text-blue-700 flex items-center gap-1 shadow-sm">
-                    <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Verified</span>
+                    {/* Rating */}
+                    <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm px-2 py-1 rounded-lg text-[11px] font-bold text-slate-800 flex items-center gap-1 shadow-sm border border-slate-200">
+                      <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                      <span>{biz.ratingAvg || 4.8}</span>
+                    </div>
                   </div>
-
-                  {/* Rating */}
-                  <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm px-2 py-1 rounded-lg text-[11px] font-bold text-slate-800 flex items-center gap-1 shadow-sm border border-slate-200">
-                    <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                    <span>{biz.ratingAvg || 4.8}</span>
-                  </div>
-                </div>
 
                 {/* Content */}
                 <div className="p-5 space-y-2">
@@ -393,7 +392,8 @@ export default async function HomePage() {
                 </Link>
               </div>
             </div>
-          ))}
+          );
+        })}
         </div>
       </section>
 

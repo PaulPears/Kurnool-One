@@ -514,11 +514,6 @@ export default function DirectoryScreen({ route, navigation }: any) {
       />
     )}
 
-      {/* Directory Bottom Banner Ad */}
-      <View style={{ alignItems: 'center', backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingVertical: 4 }}>
-        <SafeBannerAd unitId={BANNER_AD_UNIT} />
-      </View>
-
       {/* Category Dropdown Selection Modal */}
       <Modal
         visible={showCategoryModal}

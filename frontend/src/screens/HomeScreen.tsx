@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   Image, TextInput, ActivityIndicator, StatusBar, Linking, StyleSheet, Modal,
-  Alert, BackHandler, ToastAndroid, Platform,
+  Alert, BackHandler, ToastAndroid, Platform, RefreshControl,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +25,7 @@ export default function HomeScreen({ navigation }: any) {
   const [topPros, setTopPros] = useState<ProfessionalItem[]>([]);
   const [offers, setOffers] = useState<OfferItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [showRegisterChooser, setShowRegisterChooser] = useState(false);
   const [showMenuDrawer, setShowMenuDrawer] = useState(false);
   const [userPhoto, setUserPhoto] = useState<string | null>(auth.currentUser?.photoURL || null);
@@ -37,25 +38,45 @@ export default function HomeScreen({ navigation }: any) {
   const prosIndexRef = useRef(0);
   const isProsDraggingRef = useRef(false);
 
-  // Double-tap hardware back button to exit
-  useEffect(() => {
-    let lastBackPressed = 0;
-    const backAction = () => {
-      const now = Date.now();
-      if (lastBackPressed && now - lastBackPressed < 2000) {
-        BackHandler.exitApp();
+  // Double-tap hardware back button to exit ONLY when on root Home screen
+  useFocusEffect(
+    useCallback(() => {
+      let lastBackPressed = 0;
+      const backAction = () => {
+        if (showMenuDrawer) {
+          setShowMenuDrawer(false);
+          return true;
+        }
+        if (showRegisterChooser) {
+          setShowRegisterChooser(false);
+          return true;
+        }
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+          return true;
+        }
+        const now = Date.now();
+        if (lastBackPressed && now - lastBackPressed < 2000) {
+          BackHandler.exitApp();
+          return true;
+        }
+        lastBackPressed = now;
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Press back again to exit Kurnool One', ToastAndroid.SHORT);
+        }
         return true;
-      }
-      lastBackPressed = now;
-      if (Platform.OS === 'android') {
-        ToastAndroid.show('Press back again to exit Kurnool One', ToastAndroid.SHORT);
-      }
-      return true;
-    };
+      };
 
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
-    return () => backHandler.remove();
-  }, []);
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+      return () => backHandler.remove();
+    }, [navigation, showMenuDrawer, showRegisterChooser])
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadHomeData();
+    setRefreshing(false);
+  };
 
   // Auto-scroll Featured Businesses every 4.5s
   useEffect(() => {
@@ -107,10 +128,19 @@ export default function HomeScreen({ navigation }: any) {
         fetchOffers().catch(() => []),
       ]);
       if (bizs && bizs.length > 0) {
-        // Prioritize yearly & premium subscribers, backfill with verified merchants
-        const sortedBizs = [...bizs].sort((a: BusinessItem, b: BusinessItem) => {
-          const aPriority = (a.planId === 'yearly' || a.planId === 'premium' || a.tier === 'featured') ? 2 : (a.paymentStatus === 'paid' ? 1 : 0);
-          const bPriority = (b.planId === 'yearly' || b.planId === 'premium' || b.tier === 'featured') ? 2 : (b.paymentStatus === 'paid' ? 1 : 0);
+        // Strictly filter to Featured and paid merchant listings (exclude free basic listings from Home carousel)
+        const paidOnly = bizs.filter((b: BusinessItem) =>
+          b.tier === 'featured' ||
+          b.tier === 'premium' ||
+          b.paymentStatus === 'paid' ||
+          b.planId === 'yearly' ||
+          b.planId === 'premium' ||
+          (b.planId as any) === 'biz_premium' ||
+          (b.planId as any) === 'biz_standard'
+        );
+        const sortedBizs = paidOnly.sort((a: BusinessItem, b: BusinessItem) => {
+          const aPriority = (a.planId === 'yearly' || a.planId === 'premium' || a.tier === 'featured') ? 2 : 1;
+          const bPriority = (b.planId === 'yearly' || b.planId === 'premium' || b.tier === 'featured') ? 2 : 1;
           return bPriority - aPriority;
         });
         setFeaturedBusinesses(sortedBizs);
@@ -118,10 +148,19 @@ export default function HomeScreen({ navigation }: any) {
         setFeaturedBusinesses([]);
       }
       if (pros && pros.length > 0) {
-        // Prioritize yearly & premium pros, backfill with verified specialists
-        const sortedPros = [...pros].sort((a: ProfessionalItem, b: ProfessionalItem) => {
-          const aPriority = (a.planId === 'yearly' || a.planId === 'elite' || a.planId === 'premium' || a.tier === 'featured') ? 2 : (a.paymentStatus === 'paid' ? 1 : 0);
-          const bPriority = (b.planId === 'yearly' || b.planId === 'elite' || b.planId === 'premium' || b.tier === 'featured') ? 2 : (b.paymentStatus === 'paid' ? 1 : 0);
+        // Strictly filter to paid and elite professionals
+        const paidPros = pros.filter((p: ProfessionalItem) =>
+          p.paymentStatus === 'paid' ||
+          p.tier === 'featured' ||
+          p.planId === 'yearly' ||
+          p.planId === 'elite' ||
+          p.planId === 'premium' ||
+          (p.planId as any) === 'pro_elite' ||
+          (p.planId as any) === 'pro_standard'
+        );
+        const sortedPros = paidPros.sort((a: ProfessionalItem, b: ProfessionalItem) => {
+          const aPriority = (a.planId === 'yearly' || a.planId === 'elite' || a.planId === 'premium') ? 2 : 1;
+          const bPriority = (b.planId === 'yearly' || b.planId === 'elite' || b.planId === 'premium') ? 2 : 1;
           return bPriority - aPriority;
         });
         setTopPros(sortedPros);
@@ -187,7 +226,13 @@ export default function HomeScreen({ navigation }: any) {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 110 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563EB']} />
+        }
+      >
         {/* Global Search Bar */}
         <TouchableOpacity
           activeOpacity={0.9}
@@ -601,6 +646,7 @@ export default function HomeScreen({ navigation }: any) {
                 { icon: 'sparkles-outline', label: language === 'en' ? '🤝 Kurnool One Partner (Earn Money)' : '🤝 కర్నూలు వన్ పార్ట్‌నర్ (ఆదాయం)', screen: 'PartnerProgram' },
                 { icon: 'newspaper-outline', label: language === 'en' ? 'City News & Updates' : 'నగర వార్తలు', screen: 'News' },
                 { icon: 'business-outline', label: language === 'en' ? 'Merchant Portal (My Shop)' : 'వ్యాపార పోర్టల్', screen: 'ManageBusiness' },
+                { icon: 'construct-outline', label: language === 'en' ? 'Professional Portal (My Services)' : 'వృత్తి నిపుణుల పోర్టల్', screen: 'ManageProfessional' },
                 { icon: 'settings-outline', label: language === 'en' ? 'Settings & Legal' : 'సెట్టింగులు & చట్టపరమైన', screen: 'Settings' },
                 { icon: 'person-outline', label: language === 'en' ? 'My Profile' : 'నా ప్రొఫైల్', screen: 'Profile' },
               ].map((item, idx) => (

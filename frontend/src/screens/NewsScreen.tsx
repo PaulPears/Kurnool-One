@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,10 @@ import {
   ScrollView,
   TextInput,
   Alert,
+  RefreshControl,
+  BackHandler,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
@@ -110,9 +113,44 @@ export default function NewsScreen({ navigation }: any) {
     }
   };
 
+  const [refreshing, setRefreshing] = useState(false);
+
   useEffect(() => {
     loadNews();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      const backAction = () => {
+        if (fullScreenNewsImage) {
+          setFullScreenNewsImage(null);
+          return true;
+        }
+        if (selectedArticle) {
+          setSelectedArticle(null);
+          return true;
+        }
+        if (submitModalVisible) {
+          setSubmitModalVisible(false);
+          return true;
+        }
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+          return true;
+        }
+        return false;
+      };
+
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+      return () => backHandler.remove();
+    }, [fullScreenNewsImage, selectedArticle, submitModalVisible, navigation])
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadNews();
+    setRefreshing(false);
+  };
 
   const loadNews = async () => {
     setLoading(true);
@@ -235,6 +273,9 @@ export default function NewsScreen({ navigation }: any) {
           renderItem={renderNewsItem}
           contentContainerStyle={[styles.listContent, { paddingBottom: 60 }]}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563EB']} />
+          }
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
               <Ionicons name="newspaper-outline" size={48} color="#9CA3AF" />
