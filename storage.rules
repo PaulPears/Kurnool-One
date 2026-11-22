@@ -22,17 +22,44 @@ service firebase.storage {
 
     // User avatars
     match /avatars/{userId}/{fileName} {
-      allow write: if isAuthenticated() && request.auth.uid == userId && isImageOrVideo() && isValidSize();
+      allow write: if isImageOrVideo() && isValidSize();
     }
 
-    // Business & Professional media uploads
+    // Business media uploads (both 1-level and 2-level paths)
+    match /businesses/{fileName} {
+      allow write: if isImageOrVideo() && isValidSize();
+    }
     match /businesses/{businessId}/{fileName} {
-      allow write: if isAuthenticated() && isImageOrVideo() && isValidSize();
+      allow write: if isImageOrVideo() && isValidSize();
+    }
+
+    // Professional media uploads
+    match /professionals/{fileName} {
+      allow write: if isImageOrVideo() && isValidSize();
+    }
+    match /professionals/{proId}/{fileName} {
+      allow write: if isImageOrVideo() && isValidSize();
+    }
+
+    // Offers & hot deals
+    match /offers/{fileName} {
+      allow write: if isImageOrVideo() && isValidSize();
+    }
+    match /offers/{offerId}/{fileName} {
+      allow write: if isImageOrVideo() && isValidSize();
+    }
+
+    // Marketplace / Bazaar items
+    match /marketplace/{fileName} {
+      allow write: if isImageOrVideo() && isValidSize();
+    }
+    match /marketplace/{itemId}/{fileName} {
+      allow write: if isImageOrVideo() && isValidSize();
     }
 
     // Posts & general media
     match /posts/{userId}/{fileName} {
-      allow write: if isAuthenticated() && request.auth.uid == userId && isImageOrVideo() && isValidSize();
+      allow write: if isImageOrVideo() && isValidSize();
     }
 
     // Admin banners

@@ -12,17 +12,14 @@ import { SafeNativeAd } from '../components/SafeNativeAd';
 import {
   fetchPlaces,
   fetchWorshipPlaces,
-  fetchEvents,
   PlaceItem,
-  EventItem,
 } from '../services/directoryService';
 
 export default function ExploreScreen({ navigation }: any) {
   const { language } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'tourist' | 'worship' | 'events'>('tourist');
+  const [activeTab, setActiveTab] = useState<'tourist' | 'worship'>('tourist');
   const [worshipFilter, setWorshipFilter] = useState<'all' | 'temple' | 'masjid' | 'church'>('all');
   const [places, setPlaces] = useState<PlaceItem[]>([]);
-  const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [selectedPlace, setSelectedPlace] = useState<PlaceItem | null>(null);
@@ -48,7 +45,8 @@ export default function ExploreScreen({ navigation }: any) {
           navigation.goBack();
           return true;
         }
-        return false;
+        navigation.navigate('Home');
+        return true;
       };
 
       const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
@@ -68,18 +66,13 @@ export default function ExploreScreen({ navigation }: any) {
       if (activeTab === 'tourist') {
         const data = await fetchPlaces();
         setPlaces(data || []);
-      } else if (activeTab === 'worship') {
+      } else {
         const data = await fetchWorshipPlaces();
         setPlaces(data || []);
-      } else {
-        const data = await fetchEvents();
-        setEvents(data || []);
       }
     } catch (e) {
       console.warn('Explore load error:', e);
-      if (activeTab === 'tourist') setPlaces([]);
-      else if (activeTab === 'worship') setPlaces([]);
-      else setEvents([]);
+      setPlaces([]);
     } finally {
       setLoading(false);
     }
@@ -162,20 +155,6 @@ export default function ExploreScreen({ navigation }: any) {
             {language === 'en' ? 'Places of Worship' : 'పుణ్యక్షేత్రాలు'}
           </Text>
         </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => setActiveTab('events')}
-          style={[styles.segmentBtn, activeTab === 'events' && styles.segmentBtnActive]}
-        >
-          <Ionicons
-            name="calendar"
-            size={15}
-            color={activeTab === 'events' ? '#2563EB' : '#64748B'}
-          />
-          <Text style={[styles.segmentText, activeTab === 'events' && styles.segmentTextActive]}>
-            {language === 'en' ? 'City Events' : 'నగర ఈవెంట్లు'}
-          </Text>
-        </TouchableOpacity>
       </View>
 
       {/* Sub-Filters for Places of Worship */}
@@ -209,61 +188,6 @@ export default function ExploreScreen({ navigation }: any) {
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color="#2563EB" />
         </View>
-      ) : activeTab === 'events' ? (
-        <FlatList
-          data={events}
-          keyExtractor={(item, index) => item?.id || String(index)}
-          contentContainerStyle={{ padding: 14, paddingBottom: 60 }}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563EB']} />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="calendar-outline" size={44} color="#94A3B8" />
-              <Text style={styles.emptyTitle}>
-                {language === 'en' ? 'No Upcoming Events' : 'రాబోయే ఈవెంట్లు ఏవీ లేవు'}
-              </Text>
-              <Text style={styles.emptySubtitle}>
-                {language === 'en' ? 'Cultural events and exhibitions will be posted here.' : 'నగర సాంస్కృతిక కార్యక్రమాలు ఇక్కడ పోస్ట్ చేయబడతాయి.'}
-              </Text>
-            </View>
-          }
-          renderItem={({ item }) => (
-            <View style={styles.eventCard}>
-              {item.posterUrl ? (
-                <Image source={{ uri: item.posterUrl }} style={styles.eventPoster} resizeMode="cover" />
-              ) : null}
-              <View style={styles.cardBody}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <View style={styles.datePill}>
-                    <Text style={styles.datePillText}>📅 {item.dateStr || 'This Month'} • {item.timeStr || 'Evening'}</Text>
-                  </View>
-                  <View style={styles.entryPill}>
-                    <Text style={styles.entryPillText}>{item.entryType || 'FREE'}</Text>
-                  </View>
-                </View>
-                <Text style={styles.placeName}>{item.title_en}</Text>
-                {item.title_te ? <Text style={styles.placeNameTe}>{item.title_te}</Text> : null}
-                <Text style={styles.placeAddress}>
-                  <Ionicons name="location-outline" size={13} color="#6B7280" /> {item.venue || 'Kurnool'}
-                </Text>
-                <View style={styles.eventFooter}>
-                  <Text style={{ fontSize: 11, color: '#64748B' }}>By {item.organizerName || 'Kurnool One'}</Text>
-                  {item.contactPhone ? (
-                    <TouchableOpacity
-                      onPress={() => Linking.openURL(`tel:${item.contactPhone}`)}
-                      style={styles.callBtn}
-                    >
-                      <Ionicons name="call" size={12} color="#FFFFFF" />
-                      <Text style={styles.callBtnText}>Contact</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-              </View>
-            </View>
-          )}
-        />
       ) : (
         <FlatList
           data={displayedPlaces}

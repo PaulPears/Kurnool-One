@@ -8,13 +8,15 @@ import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { auth } from '../config/firebase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from '../context/LanguageContext';
 import {
-  MASTER_CATEGORIES, SEED_BUSINESSES, SEED_PROFESSIONALS,
-  SEED_OFFERS,
-  fetchBusinesses, fetchProfessionals, fetchOffers, BusinessItem, ProfessionalItem, OfferItem,
+  MASTER_CATEGORIES,
+  fetchBusinesses, fetchProfessionals, fetchOffers, fetchMarketplaceItems,
+  BusinessItem, ProfessionalItem, OfferItem, MarketplaceItem,
 } from '../services/directoryService';
 import { SafeBannerAd, AD_TEST_ID } from '../components/SafeBannerAd';
+import { SafeNativeAd } from '../components/SafeNativeAd';
 
 const BANNER_AD_UNIT = __DEV__ ? AD_TEST_ID : 'ca-app-pub-6894923761807901/6222488522';
 
@@ -24,6 +26,7 @@ export default function HomeScreen({ navigation }: any) {
   const [featuredBusinesses, setFeaturedBusinesses] = useState<BusinessItem[]>([]);
   const [topPros, setTopPros] = useState<ProfessionalItem[]>([]);
   const [offers, setOffers] = useState<OfferItem[]>([]);
+  const [bazaarItems, setBazaarItems] = useState<MarketplaceItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showRegisterChooser, setShowRegisterChooser] = useState(false);
@@ -51,10 +54,6 @@ export default function HomeScreen({ navigation }: any) {
           setShowRegisterChooser(false);
           return true;
         }
-        if (navigation.canGoBack()) {
-          navigation.goBack();
-          return true;
-        }
         const now = Date.now();
         if (lastBackPressed && now - lastBackPressed < 2000) {
           BackHandler.exitApp();
@@ -69,7 +68,7 @@ export default function HomeScreen({ navigation }: any) {
 
       const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
       return () => backHandler.remove();
-    }, [navigation, showMenuDrawer, showRegisterChooser])
+    }, [showMenuDrawer, showRegisterChooser])
   );
 
   const onRefresh = async () => {
@@ -78,7 +77,7 @@ export default function HomeScreen({ navigation }: any) {
     setRefreshing(false);
   };
 
-  // Auto-scroll Featured Businesses every 4.5s
+  // Auto-scroll Featured Businesses every 3.0s
   useEffect(() => {
     if (!featuredBusinesses || featuredBusinesses.length <= 1) return;
     const interval = setInterval(() => {
@@ -88,11 +87,11 @@ export default function HomeScreen({ navigation }: any) {
         x: featuredIndexRef.current * 212,
         animated: true,
       });
-    }, 4500);
+    }, 3000);
     return () => clearInterval(interval);
   }, [featuredBusinesses]);
 
-  // Auto-scroll Skilled Professionals every 5s
+  // Auto-scroll Skilled Professionals every 3.2s
   useEffect(() => {
     if (!topPros || topPros.length <= 1) return;
     const interval = setInterval(() => {
@@ -102,13 +101,30 @@ export default function HomeScreen({ navigation }: any) {
         x: prosIndexRef.current * 152,
         animated: true,
       });
-    }, 5000);
+    }, 3200);
     return () => clearInterval(interval);
   }, [topPros]);
 
+  const loadUserPhoto = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('user');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.photoURL || parsed.avatarUrl || parsed.profileImage) {
+          setUserPhoto(parsed.photoURL || parsed.avatarUrl || parsed.profileImage);
+          return;
+        }
+      }
+      if (auth.currentUser?.photoURL) {
+        setUserPhoto(auth.currentUser.photoURL);
+      }
+    } catch {}
+  };
+
   useEffect(() => {
-    const unsub = auth.onAuthStateChanged((u) => {
-      setUserPhoto(u?.photoURL || null);
+    loadUserPhoto();
+    const unsub = auth.onAuthStateChanged(() => {
+      loadUserPhoto();
     });
     return unsub;
   }, []);
@@ -122,11 +138,23 @@ export default function HomeScreen({ navigation }: any) {
 
   const loadHomeData = async () => {
     try {
-      const [bizs, pros, offs] = await Promise.all([
+      loadUserPhoto();
+      const [bizs, pros, offs, mkt] = await Promise.all([
         fetchBusinesses().catch(() => []),
         fetchProfessionals().catch(() => []),
         fetchOffers().catch(() => []),
+        fetchMarketplaceItems().catch(() => []),
       ]);
+      if (offs && offs.length > 0) {
+        setOffers(offs.slice(0, 5));
+      } else {
+        setOffers([]);
+      }
+      if (mkt && mkt.length > 0) {
+        setBazaarItems(mkt.slice(0, 16));
+      } else {
+        setBazaarItems([]);
+      }
       if (bizs && bizs.length > 0) {
         // Strictly filter to Featured and paid merchant listings (exclude free basic listings from Home carousel)
         const paidOnly = bizs.filter((b: BusinessItem) =>
@@ -263,12 +291,12 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.highlightPill, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}
-            onPress={() => navigation.navigate('Offers')}
+            style={[styles.highlightPill, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
+            onPress={() => navigation.navigate('Offers', { initialTab: 'marketplace' })}
           >
-            <Ionicons name="flame" size={15} color="#DC2626" />
-            <Text style={[styles.highlightPillText, { color: '#B91C1C' }]}>
-              {language === 'en' ? 'Hot Deals' : 'ఆఫర్లు'}
+            <Ionicons name="cart" size={15} color="#059669" />
+            <Text style={[styles.highlightPillText, { color: '#047857' }]}>
+              {language === 'en' ? 'Kurnool Bazaar' : 'కర్నూలు బజార్'}
             </Text>
           </TouchableOpacity>
 
@@ -470,30 +498,190 @@ export default function HomeScreen({ navigation }: any) {
           ))}
         </ScrollView>
 
-        {/* Kurnool City News Banner */}
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => navigation.navigate('News')}
-          style={styles.newsBannerCard}
-        >
-          <View style={styles.newsBadgeRow}>
-            <View style={styles.newsLiveBadge}>
-              <View style={styles.newsLiveDot} />
-              <Text style={styles.newsLiveText}>{language === 'en' ? 'LOCAL UPDATES' : 'నగర విశేషాలు'}</Text>
+        {/* Native Sponsor / AdMob Ad Card */}
+        <View style={{ marginHorizontal: 14, marginVertical: 6 }}>
+          <SafeNativeAd />
+        </View>
+
+        {/* ─── FRESH OFFERS & DEALS SECTION (3-5 RECENT OFFERS) ─── */}
+        {offers.length > 0 && (
+          <View style={{ marginTop: 18, marginHorizontal: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="flame" size={20} color="#DC2626" />
+                <Text style={{ fontSize: 16, fontWeight: '900', color: '#111827' }}>
+                  {language === 'en' ? 'Fresh Deals & Discounts' : 'తాజా హాట్ ఆఫర్లు'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Offers', { initialTab: 'offers' })}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '800', color: '#DC2626' }}>
+                  {language === 'en' ? 'Explore All →' : 'అన్నీ చూడండి →'}
+                </Text>
+              </TouchableOpacity>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={styles.newsReadMore}>
-                {language === 'en' ? 'Read City News' : 'వార్తలు చదవండి'}
-              </Text>
-              <Ionicons name="arrow-forward" size={13} color="#2563EB" />
-            </View>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 6 }}>
+              {offers.slice(0, 5).map((deal) => (
+                <TouchableOpacity
+                  key={deal.id}
+                  activeOpacity={0.9}
+                  onPress={() => navigation.navigate('Offers', { initialTab: 'offers' })}
+                  style={{
+                    width: 220,
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: '#FECACA',
+                    overflow: 'hidden',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 6,
+                    elevation: 2,
+                  }}
+                >
+                  <View style={{ height: 100, backgroundColor: '#FEF2F2', position: 'relative' }}>
+                    {deal.bannerUrl ? (
+                      <Image source={{ uri: deal.bannerUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    ) : (
+                      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="pricetag" size={28} color="#DC2626" />
+                      </View>
+                    )}
+                    <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: '#DC2626', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '900' }}>{deal.discountText || 'OFFER'}</Text>
+                    </View>
+                  </View>
+                  <View style={{ padding: 10 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '900', color: '#111827' }} numberOfLines={1}>
+                      {language === 'en' ? deal.title_en : (deal.title_te || deal.title_en)}
+                    </Text>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#DC2626', marginTop: 2 }} numberOfLines={1}>
+                      📍 {deal.businessName}
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+                      <Text style={{ fontSize: 10, color: '#64748B' }}>
+                        ⏰ {deal.validUntil || 'Active'}
+                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                        <Ionicons name="eye-outline" size={12} color="#94A3B8" />
+                        <Text style={{ fontSize: 10, color: '#94A3B8' }}>{deal.viewCount || 0}</Text>
+                      </View>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
-          <Text style={styles.newsBannerTitle}>
-            {language === 'en'
-              ? 'Stay updated with local Kurnool developments, city announcements & cultural events.'
-              : 'కర్నూలు తాజా పరిణామాలు, ప్రభుత్వ నోటీసులు మరియు సాంస్కృతిక కార్యక్రమాలను తెలుసుకోండి.'}
-          </Text>
-        </TouchableOpacity>
+        )}
+
+        {/* ─── NATIVE ADVANCED AD 1 ─── */}
+        <View style={{ marginHorizontal: 14, marginTop: 14 }}>
+          <SafeNativeAd />
+        </View>
+
+        {/* ─── KURNOOL BAZAAR FEED WITH NATIVE ADS AFTER EVERY 4 ITEMS ─── */}
+        {bazaarItems.length > 0 && (
+          <View style={{ marginTop: 18, marginHorizontal: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="cart" size={20} color="#059669" />
+                <Text style={{ fontSize: 16, fontWeight: '900', color: '#111827' }}>
+                  {language === 'en' ? 'Kurnool Bazaar • Buy & Sell' : 'కర్నూలు బజార్ • అమ్మకాలు'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Offers', { initialTab: 'marketplace' })}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '800', color: '#059669' }}>
+                  {language === 'en' ? 'View All →' : 'అన్నీ చూడండి →'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {Array.from({ length: Math.ceil(bazaarItems.length / 4) }).map((_, chunkIdx) => {
+              const chunk = bazaarItems.slice(chunkIdx * 4, chunkIdx * 4 + 4);
+              return (
+                <View key={`bazaar_chunk_${chunkIdx}`}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                    {chunk.map((item) => {
+                      const itemImages = item.images && item.images.length > 0 ? item.images : item.imageUrl ? [item.imageUrl] : [];
+                      return (
+                        <TouchableOpacity
+                          key={item.id}
+                          activeOpacity={0.88}
+                          onPress={() => navigation.navigate('Offers', { initialTab: 'marketplace' })}
+                          style={{
+                            width: '48.5%',
+                            backgroundColor: '#FFFFFF',
+                            borderRadius: 14,
+                            marginBottom: 10,
+                            borderWidth: 1,
+                            borderColor: '#E2E8F0',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <View style={{ height: 100, backgroundColor: '#F1F5F9' }}>
+                            {itemImages.length > 0 ? (
+                              <Image source={{ uri: itemImages[0] }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                            ) : (
+                              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                                <Ionicons name="cart-outline" size={28} color="#94A3B8" />
+                              </View>
+                            )}
+                          </View>
+                          <View style={{ padding: 8 }}>
+                            <Text style={{ fontSize: 14, fontWeight: '900', color: '#059669' }}>{item.price}</Text>
+                            <Text style={{ fontSize: 12, fontWeight: '700', color: '#1E293B', marginTop: 2 }} numberOfLines={1}>
+                              {item.title_en}
+                            </Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                              <Text style={{ fontSize: 10, color: '#64748B' }} numberOfLines={1}>
+                                📍 {item.area || 'Kurnool'}
+                              </Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                                <Ionicons name="eye-outline" size={11} color="#94A3B8" />
+                                <Text style={{ fontSize: 10, color: '#94A3B8' }}>{item.viewCount || 0}</Text>
+                              </View>
+                            </View>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  <View style={{ marginVertical: 8 }}>
+                    <SafeNativeAd />
+                  </View>
+                </View>
+              );
+            })}
+
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Offers', { initialTab: 'marketplace' })}
+              style={{
+                backgroundColor: '#ECFDF5',
+                borderWidth: 1,
+                borderColor: '#A7F3D0',
+                paddingVertical: 12,
+                borderRadius: 12,
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'row',
+                gap: 6,
+                marginTop: 4,
+                marginBottom: 14,
+              }}
+            >
+              <Text style={{ color: '#065F46', fontWeight: '800', fontSize: 13 }}>
+                {language === 'en' ? 'Explore 100+ Items in Kurnool Bazaar →' : 'కర్నూలు బజార్‌లో మరిన్ని వస్తువులు చూడండి →'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Sponsor Ad Slot */}
         <View style={styles.adBannerSlot}>
@@ -754,7 +942,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#DBEAFE',
   },
   categoryLabel: {
-    fontSize: 11, fontWeight: '700', color: '#374151', textAlign: 'center', lineHeight: 14,
+    fontSize: 11, fontWeight: '700', color: '#374151', textAlign: 'center', lineHeight: 16, paddingBottom: 2,
   },
   prosScroll: { paddingHorizontal: 16, gap: 12 },
   proCard: {
@@ -767,8 +955,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginBottom: 8,
   },
   proAvatarText: { fontSize: 18, fontWeight: '900', color: '#2563EB' },
-  proName: { fontSize: 13, fontWeight: '800', color: '#111827', textAlign: 'center' },
-  proCategory: { fontSize: 11, fontWeight: '700', color: '#2563EB', marginTop: 2 },
+  proName: { fontSize: 13, fontWeight: '800', color: '#111827', textAlign: 'center', lineHeight: 18 },
+  proCategory: { fontSize: 11, fontWeight: '700', color: '#2563EB', marginTop: 2, lineHeight: 16 },
   proRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
   proRatingText: { fontSize: 11, fontWeight: '800', color: '#111827' },
   proCallBtn: {

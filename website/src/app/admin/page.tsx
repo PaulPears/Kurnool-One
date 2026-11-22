@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
@@ -89,7 +91,6 @@ import {
   BusinessItem,
   ProfessionalItem,
   PlaceItem,
-  EventItem,
   NewsItem,
   BloodDonorItem,
   HouseRentalItem,
@@ -121,7 +122,6 @@ type AdminTab =
   | 'reported_content'
   | 'places'
   | 'worship'
-  | 'events'
   | 'leads'
   | 'categories'
   | 'notifications'
@@ -163,7 +163,6 @@ export default function DedicatedAdminConsole() {
   const [reportsList, setReportsList] = useState<any[]>([]);
   const [places, setPlaces] = useState<PlaceItem[]>([]);
   const [worshipPlaces, setWorshipPlaces] = useState<PlaceItem[]>([]);
-  const [events, setEvents] = useState<EventItem[]>([]);
   const [leads, setLeads] = useState<LeadItem[]>([]);
   const [categoriesList, setCategoriesList] = useState<CategoryItem[]>(MASTER_CATEGORIES);
   const [notificationsList, setNotificationsList] = useState<BroadcastNotificationItem[]>([]);
@@ -206,7 +205,6 @@ export default function DedicatedAdminConsole() {
   // Upload progress indicators
   const [uploadingDealBanner, setUploadingDealBanner] = useState(false);
   const [uploadingPlacePhoto, setUploadingPlacePhoto] = useState(false);
-  const [uploadingEventPoster, setUploadingEventPoster] = useState(false);
   const [uploadingNotifBanner, setUploadingNotifBanner] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
@@ -228,12 +226,9 @@ export default function DedicatedAdminConsole() {
   const [showPlaceModal, setShowPlaceModal] = useState(false);
   const [editingPlace, setEditingPlace] = useState<PlaceItem | null>(null);
 
-  const [showEventModal, setShowEventModal] = useState(false);
-  const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
-
   const [deleteConfirmModal, setDeleteConfirmModal] = useState<{
     open: boolean;
-    type: 'business' | 'professional' | 'place' | 'event';
+    type: 'business' | 'professional' | 'place';
     id: string;
     title: string;
     phone?: string;
@@ -267,20 +262,6 @@ export default function DedicatedAdminConsole() {
     latitude: 15.8281,
     longitude: 78.0373,
     isPromoted: false,
-  });
-
-  const [eventForm, setEventForm] = useState({
-    title_en: '',
-    title_te: '',
-    dateStr: '',
-    timeStr: '',
-    venue: '',
-    organizerName: '',
-    contactPhone: '',
-    posterUrl: '',
-    entryType: 'free' as 'free' | 'ticketed',
-    ticketUrl: '',
-    status: 'approved' as 'approved' | 'pending',
   });
 
   // ─── AUTH CHECK ON MOUNT ───────────────────────────────────────────────────
@@ -421,15 +402,7 @@ export default function DedicatedAdminConsole() {
       });
       setWorshipPlaces(worshipList);
 
-      // 5. Events
-      const eventSnap = await getDocs(collection(db, 'events'));
-      const eventList: EventItem[] = [];
-      eventSnap.forEach((d) => {
-        eventList.push({ id: d.id, ...d.data() } as EventItem);
-      });
-      setEvents(eventList);
-
-      // 6. Platform Leads
+      // 5. Platform Leads
       try {
         const leadsData = await fetchPlatformLeads(200);
         setLeads(leadsData);
@@ -560,11 +533,13 @@ export default function DedicatedAdminConsole() {
         })));
 
         const userItems: any[] = [];
+        const seenUserIds = new Set<string>();
         if (phonesSnap) {
           phonesSnap.docs.forEach(d => {
             const data = d.data();
             const phone = d.id;
             const uData = userMap.get(data.userId) || {};
+            if (data.userId) seenUserIds.add(data.userId);
             const userBiz = bizList.find(b => b.ownerUid === data.userId || b.phone === phone);
             const userPro = proList.find(p => p.userId === data.userId || p.phone === phone);
             userItems.push({
@@ -583,6 +558,33 @@ export default function DedicatedAdminConsole() {
             });
           });
         }
+
+        // Include users authenticated via Google / Email who may not be in registered_phones
+        if (usersSnap) {
+          usersSnap.docs.forEach(d => {
+            if (!seenUserIds.has(d.id)) {
+              seenUserIds.add(d.id);
+              const uData = d.data();
+              const userBiz = bizList.find(b => b.ownerUid === d.id || (uData.phone && b.phone === uData.phone));
+              const userPro = proList.find(p => p.userId === d.id || (uData.phone && p.phone === uData.phone));
+              userItems.push({
+                id: d.id,
+                phone: uData.phone || uData.phoneNumber || 'Google / Email User',
+                userId: d.id,
+                role: uData.role || (userBiz ? 'business' : userPro ? 'professional' : 'user'),
+                fullName: uData.fullName || uData.displayName || uData.name || 'Citizen User',
+                email: uData.email || '',
+                createdAt: uData.createdAt,
+                activationCode: `KNL-${d.id.slice(-4).toUpperCase()}`,
+                plan: uData.planId || (userBiz ? 'Merchant Listing' : userPro ? 'Professional' : 'Standard Citizen'),
+                status: uData.isBanned ? 'banned' : 'active',
+                linkedBusiness: userBiz ? userBiz.name_en : null,
+                linkedProfessional: userPro ? `${userPro.fullName} (${userPro.category})` : null,
+              });
+            }
+          });
+        }
+
         setRegisteredUsers(userItems);
 
         // Subscriptions ledger
@@ -786,21 +788,6 @@ export default function DedicatedAdminConsole() {
       alert('Upload failed: ' + err.message);
     } finally {
       setUploadingPlacePhoto(false);
-    }
-  };
-
-  const handleUploadEventPoster = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingEventPoster(true);
-    try {
-      const url = await uploadMediaFile(file, 'events');
-      setEventForm(prev => ({ ...prev, posterUrl: url }));
-      setToast('Event poster uploaded!');
-    } catch (err: any) {
-      alert('Upload failed: ' + err.message);
-    } finally {
-      setUploadingEventPoster(false);
     }
   };
 
@@ -1087,9 +1074,6 @@ export default function DedicatedAdminConsole() {
         ]);
         setPlaces((prev) => prev.filter((p) => p.id !== id));
         setWorshipPlaces((prev) => prev.filter((p) => p.id !== id));
-      } else if (type === 'event') {
-        await deleteDoc(doc(db, 'events', id));
-        setEvents((prev) => prev.filter((e) => e.id !== id));
       }
 
       // Automatically release phone in registered_phones index so merchant can re-register if needed
@@ -1221,48 +1205,6 @@ export default function DedicatedAdminConsole() {
       loadData();
     } catch (err) {
       alert('Failed to save place: ' + err);
-    }
-  };
-
-  // ─── ACTIONS: SAVE / EDIT EVENT ────────────────────────────────────────────
-  const handleSaveEvent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!eventForm.title_en || !eventForm.dateStr || !eventForm.venue) {
-      alert('Please fill Title, Date and Venue');
-      return;
-    }
-
-    const eventData = {
-      title_en: eventForm.title_en,
-      title_te: eventForm.title_te || eventForm.title_en,
-      dateStr: eventForm.dateStr,
-      timeStr: eventForm.timeStr || '10:00 AM',
-      venue: eventForm.venue,
-      organizerName: eventForm.organizerName || 'Kurnool Community',
-      contactPhone: eventForm.contactPhone ? eventForm.contactPhone.trim() : '',
-      posterUrl: eventForm.posterUrl || 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800',
-      entryType: eventForm.entryType,
-      ticketUrl: eventForm.ticketUrl || '',
-      status: eventForm.status,
-      updatedAt: serverTimestamp(),
-    };
-
-    try {
-      if (editingEvent) {
-        await updateDoc(doc(db, 'events', editingEvent.id), eventData);
-        setToast('Event updated successfully.');
-      } else {
-        await addDoc(collection(db, 'events'), {
-          ...eventData,
-          createdAt: serverTimestamp(),
-        });
-        setToast('New City Event created successfully.');
-      }
-      setShowEventModal(false);
-      setEditingEvent(null);
-      loadData();
-    } catch (err) {
-      alert('Failed to save event: ' + err);
     }
   };
 
@@ -1484,10 +1426,10 @@ export default function DedicatedAdminConsole() {
         </div>
 
         {/* Navigation Tabs - Collapsible on Mobile */}
-        <nav className={`p-4 space-y-1.5 flex-1 ${mobileMenuOpen ? 'block' : 'hidden lg:block'}`}>
+        <nav className={`p-4 space-y-4 flex-1 overflow-y-auto ${mobileMenuOpen ? 'block' : 'hidden lg:block'}`}>
           <button
             onClick={() => selectTab('overview')}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition cursor-pointer ${
               activeTab === 'overview'
                 ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
@@ -1499,403 +1441,389 @@ export default function DedicatedAdminConsole() {
             </div>
           </button>
 
-          {/* Registered Users & Activation Codes */}
-          <button
-            onClick={() => {
-              selectTab('users');
-              setSearchQuery('');
-            }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
-              activeTab === 'users'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Users className="w-4 h-4 text-emerald-400" />
-              <div className="text-left">
-                <span className="block">Users & Activations</span>
-                <span className="block text-[10px] text-emerald-300 font-normal">Active Codes & Logins</span>
+          {/* ─── WORKSPACE 1: DIRECTORY & PROVIDERS ─── */}
+          <div className="space-y-1">
+            <div className="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-slate-500">
+              Directory & Providers
+            </div>
+
+            {/* Businesses */}
+            <button
+              onClick={() => {
+                selectTab('businesses');
+                setSearchQuery('');
+                setStatusFilter('all');
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'businesses'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Building2 className="w-4 h-4 text-blue-400" />
+                <span>Businesses</span>
               </div>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono font-bold">
-              {registeredUsers.length}
-            </span>
-          </button>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-300 font-mono">
+                {businesses.length}
+              </span>
+            </button>
 
-          {/* Subscriptions & Revenue Ledger */}
-          <button
-            onClick={() => {
-              selectTab('subscriptions');
-              setSearchQuery('');
-            }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
-              activeTab === 'subscriptions'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <CreditCard className="w-4 h-4 text-amber-400" />
-              <div className="text-left">
-                <span className="block">Subscriptions & Ledger</span>
-                <span className="block text-[10px] text-amber-300 font-normal">Razorpay Payments & History</span>
+            {/* Professionals */}
+            <button
+              onClick={() => {
+                selectTab('professionals');
+                setSearchQuery('');
+                setStatusFilter('all');
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'professionals'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <UserCheck className="w-4 h-4 text-emerald-400" />
+                <span>Professionals</span>
               </div>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold">
-              {subscriptionsList.length}
-            </span>
-          </button>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-300 font-mono">
+                {professionals.length}
+              </span>
+            </button>
 
-          <button
-            onClick={() => {
-              selectTab('businesses');
-              setSearchQuery('');
-              setStatusFilter('all');
-            }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
-              activeTab === 'businesses'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Building2 className="w-4 h-4" />
-              <span>Businesses</span>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-300 font-mono">
-              {businesses.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => {
-              selectTab('professionals');
-              setSearchQuery('');
-              setStatusFilter('all');
-            }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
-              activeTab === 'professionals'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <UserCheck className="w-4 h-4" />
-              <span>Professionals</span>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-300 font-mono">
-              {professionals.length}
-            </span>
-          </button>
-
-          {/* Hot Deals & Offers */}
-          <button
-            onClick={() => {
-              selectTab('hot_deals');
-              setSearchQuery('');
-            }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
-              activeTab === 'hot_deals'
-                ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Flame className="w-4 h-4 text-rose-500" />
-              <div className="text-left">
-                <span className="block">Hot Deals & Offers</span>
-                <span className="block text-[10px] text-rose-300/80 font-normal">Active Deals & Promos</span>
+            {/* Dynamic Categories */}
+            <button
+              onClick={() => selectTab('categories')}
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'categories'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Layers className="w-4 h-4 text-indigo-400" />
+                <span>Categories</span>
               </div>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/30 font-mono font-bold">
-              {offersList.length}
-            </span>
-          </button>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-300 font-mono">
+                {categoriesList.length}
+              </span>
+            </button>
 
-          {/* Reported Content & Moderation */}
-          <button
-            onClick={() => {
-              selectTab('reported_content');
-              setSearchQuery('');
-            }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
-              activeTab === 'reported_content'
-                ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Flag className="w-4 h-4 text-amber-500" />
-              <div className="text-left">
-                <span className="block">Reported Content</span>
-                <span className="block text-[10px] text-amber-300/80 font-normal">Flagged Posts & Reports</span>
+            {/* Platform Customer Leads */}
+            <button
+              onClick={() => {
+                selectTab('leads');
+                setSearchQuery('');
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'leads'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <PhoneCall className="w-4 h-4 text-emerald-400" />
+                <span>Customer Leads</span>
               </div>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold">
-              {reportsList.length}
-            </span>
-          </button>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800/60 font-mono font-bold">
+                {leads.length}
+              </span>
+            </button>
+          </div>
 
-          <button
-            onClick={() => {
-              selectTab('places');
-              setSearchQuery('');
-            }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
-              activeTab === 'places'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Landmark className="w-4 h-4" />
-              <span>Tourist Places & Forts</span>
+          {/* ─── WORKSPACE 2: CLASSIFIEDS & SERVICES ─── */}
+          <div className="space-y-1">
+            <div className="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-slate-500">
+              Classifieds & Services
             </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-300 font-mono">
-              {places.length}
-            </span>
-          </button>
 
-          <button
-            onClick={() => {
-              selectTab('worship');
-              setSearchQuery('');
-            }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
-              activeTab === 'worship'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Church className="w-4 h-4" />
-              <span>Places of Worship</span>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-300 font-mono">
-              {worshipPlaces.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => {
-              selectTab('events');
-              setSearchQuery('');
-            }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
-              activeTab === 'events'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Calendar className="w-4 h-4" />
-              <span>City Events</span>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-300 font-mono">
-              {events.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => {
-              selectTab('leads');
-              setSearchQuery('');
-            }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
-              activeTab === 'leads'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <PhoneCall className="w-4 h-4 text-emerald-400" />
-              <span>Customer Leads & Inquiries</span>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800/60 font-mono font-bold">
-              {leads.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => selectTab('categories')}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
-              activeTab === 'categories'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Layers className="w-4 h-4" />
-              <span>Dynamic Categories ({categoriesList.length})</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => {
-              selectTab('notifications');
-              setSearchQuery('');
-            }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
-              activeTab === 'notifications'
-                ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-md shadow-orange-600/30'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Bell className="w-4 h-4 text-amber-400" />
-              <div className="text-left">
-                <span className="block">Push Notifications</span>
-                <span className="block text-[10px] text-amber-300 font-normal">Broadcast to all apps</span>
+            {/* Hot Deals & Offers */}
+            <button
+              onClick={() => {
+                selectTab('hot_deals');
+                setSearchQuery('');
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'hot_deals'
+                  ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Flame className="w-4 h-4 text-rose-500" />
+                <span>Hot Deals & Offers</span>
               </div>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold">
-              {notificationsList.length}
-            </span>
-          </button>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/30 font-mono font-bold">
+                {offersList.length}
+              </span>
+            </button>
 
-          <button
-            onClick={() => {
-              selectTab('news');
-              setSearchQuery('');
-            }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
-              activeTab === 'news'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Megaphone className="w-4 h-4 text-blue-400" />
-              <div className="text-left">
-                <span className="block">City News & Submissions</span>
-                <span className="block text-[10px] text-blue-300 font-normal">Citizen Journalism</span>
+            {/* Marketplace Classifieds */}
+            <button
+              onClick={() => {
+                selectTab('marketplace');
+                setSearchQuery('');
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'marketplace'
+                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <ShoppingBag className="w-4 h-4 text-amber-400" />
+                <span>Kurnool Bazaar</span>
               </div>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 font-mono font-bold">
-              {newsList.filter(n => n.status === 'pending_approval').length > 0 ? `${newsList.filter(n => n.status === 'pending_approval').length} Pending` : newsList.length}
-            </span>
-          </button>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold">
+                {marketplaceList.length}
+              </span>
+            </button>
 
-          {/* Blood Donors Directory */}
-          <button
-            onClick={() => {
-              selectTab('blood_donors');
-              setSearchQuery('');
-            }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
-              activeTab === 'blood_donors'
-                ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <HeartPulse className="w-4 h-4 text-red-400" />
-              <div className="text-left">
-                <span className="block">Blood Donors Hub</span>
-                <span className="block text-[10px] text-red-300 font-normal">Emergency Directory</span>
+            {/* House Rentals */}
+            <button
+              onClick={() => {
+                selectTab('house_rentals');
+                setSearchQuery('');
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'house_rentals'
+                  ? 'bg-teal-600 text-white shadow-md shadow-teal-600/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Home className="w-4 h-4 text-teal-400" />
+                <span>House Rentals (To-Let)</span>
               </div>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-red-500/20 text-red-300 border border-red-500/30 font-mono font-bold">
-              {bloodDonorsList.length}
-            </span>
-          </button>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono font-bold">
+                {rentalsList.length}
+              </span>
+            </button>
 
-          {/* House Rentals */}
-          <button
-            onClick={() => {
-              selectTab('house_rentals');
-              setSearchQuery('');
-            }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
-              activeTab === 'house_rentals'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Home className="w-4 h-4 text-emerald-400" />
-              <div className="text-left">
-                <span className="block">House Rentals (To-Let)</span>
-                <span className="block text-[10px] text-emerald-300 font-normal">Properties & Vacancies</span>
+            {/* Blood Donors Directory */}
+            <button
+              onClick={() => {
+                selectTab('blood_donors');
+                setSearchQuery('');
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'blood_donors'
+                  ? 'bg-red-600 text-white shadow-md shadow-red-600/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <HeartPulse className="w-4 h-4 text-red-400" />
+                <span>Blood Donors Hub</span>
               </div>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono font-bold">
-              {rentalsList.length}
-            </span>
-          </button>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-red-500/20 text-red-300 border border-red-500/30 font-mono font-bold">
+                {bloodDonorsList.length}
+              </span>
+            </button>
+          </div>
 
-          {/* Marketplace Classifieds */}
-          <button
-            onClick={() => {
-              selectTab('marketplace');
-              setSearchQuery('');
-            }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
-              activeTab === 'marketplace'
-                ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <ShoppingBag className="w-4 h-4 text-amber-400" />
-              <div className="text-left">
-                <span className="block">Marketplace Classifieds</span>
-                <span className="block text-[10px] text-amber-300 font-normal">Pre-owned & Deals</span>
-              </div>
+          {/* ─── WORKSPACE 3: BROADCAST & COMMUNITY ─── */}
+          <div className="space-y-1">
+            <div className="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-slate-500">
+              Broadcast & Community
             </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold">
-              {marketplaceList.length}
-            </span>
-          </button>
 
-          {/* Kurnool One Partners & Payouts */}
-          <button
-            onClick={() => {
-              selectTab('partners');
-              setSearchQuery('');
-            }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
-              activeTab === 'partners'
-                ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Sparkles className="w-4 h-4 text-purple-400" />
-              <div className="text-left">
-                <span className="block">Partner Payouts</span>
-                <span className="block text-[10px] text-purple-300 font-normal">Earn & Referrals Hub</span>
+            {/* Push Notifications */}
+            <button
+              onClick={() => {
+                selectTab('notifications');
+                setSearchQuery('');
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'notifications'
+                  ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-md shadow-orange-600/30'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Bell className="w-4 h-4 text-amber-400" />
+                <span>Push Notifications</span>
               </div>
-            </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 font-mono font-bold">
-              {partnersList.length}
-            </span>
-          </button>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold">
+                {notificationsList.length}
+              </span>
+            </button>
 
-          {/* Activity Logs (Audit Trail) */}
-          <button
-            onClick={() => {
-              selectTab('activity_logs');
-              setSearchQuery('');
-            }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition ${
-              activeTab === 'activity_logs'
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="w-4 h-4 text-indigo-400" />
-              <div className="text-left">
-                <span className="block">Activity Logs</span>
-                <span className="block text-[10px] text-indigo-300 font-normal">Action Audit Trail</span>
+            {/* City News & Submissions */}
+            <button
+              onClick={() => {
+                selectTab('news');
+                setSearchQuery('');
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'news'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Megaphone className="w-4 h-4 text-blue-400" />
+                <span>City News</span>
               </div>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 font-mono font-bold">
+                {newsList.filter(n => n.status === 'pending_approval').length > 0 ? `${newsList.filter(n => n.status === 'pending_approval').length} Pending` : newsList.length}
+              </span>
+            </button>
+
+            {/* Tourist Places & Forts */}
+            <button
+              onClick={() => {
+                selectTab('places');
+                setSearchQuery('');
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'places'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Landmark className="w-4 h-4 text-yellow-400" />
+                <span>Tourist Attractions</span>
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-300 font-mono">
+                {places.length}
+              </span>
+            </button>
+
+            {/* Places of Worship */}
+            <button
+              onClick={() => {
+                selectTab('worship');
+                setSearchQuery('');
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'worship'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Church className="w-4 h-4 text-cyan-400" />
+                <span>Places of Worship</span>
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-300 font-mono">
+                {worshipPlaces.length}
+              </span>
+            </button>
+
+            {/* Reported Content & Moderation */}
+            <button
+              onClick={() => {
+                selectTab('reported_content');
+                setSearchQuery('');
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'reported_content'
+                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Flag className="w-4 h-4 text-amber-500" />
+                <span>Moderation Reports</span>
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold">
+                {reportsList.length}
+              </span>
+            </button>
+          </div>
+
+          {/* ─── WORKSPACE 4: FINANCE & ACCOUNTS ─── */}
+          <div className="space-y-1">
+            <div className="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-slate-500">
+              Finance & Accounts
             </div>
-            <span className="px-2 py-0.5 rounded-full text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono font-bold">
-              {auditLogs.length}
-            </span>
-          </button>
+
+            {/* Subscriptions & Revenue Ledger */}
+            <button
+              onClick={() => {
+                selectTab('subscriptions');
+                setSearchQuery('');
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'subscriptions'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <CreditCard className="w-4 h-4 text-amber-400" />
+                <span>Subscriptions & Ledger</span>
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold">
+                {subscriptionsList.length}
+              </span>
+            </button>
+
+            {/* Kurnool One Partners & Payouts */}
+            <button
+              onClick={() => {
+                selectTab('partners');
+                setSearchQuery('');
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'partners'
+                  ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Sparkles className="w-4 h-4 text-purple-400" />
+                <span>Partner Payouts</span>
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 font-mono font-bold">
+                {partnersList.length}
+              </span>
+            </button>
+
+            {/* Registered Users & Activation Codes */}
+            <button
+              onClick={() => {
+                selectTab('users');
+                setSearchQuery('');
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'users'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Users className="w-4 h-4 text-emerald-400" />
+                <span>All Users & Logins</span>
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono font-bold">
+                {registeredUsers.length}
+              </span>
+            </button>
+
+            {/* Activity Logs (Audit Trail) */}
+            <button
+              onClick={() => {
+                selectTab('activity_logs');
+                setSearchQuery('');
+              }}
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'activity_logs'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="w-4 h-4 text-indigo-400" />
+                <span>Action Audit Logs</span>
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono font-bold">
+                {auditLogs.length}
+              </span>
+            </button>
+          </div>
         </nav>
 
 
@@ -1931,21 +1859,19 @@ export default function DedicatedAdminConsole() {
               {activeTab === 'users' && 'Registered Users & Activation Codes'}
               {activeTab === 'businesses' && 'Commercial Businesses Management'}
               {activeTab === 'professionals' && 'Skilled Professionals Directory'}
-              {activeTab === 'hot_deals' && 'Hot Deals, Festival Offers & Flash Sales'}
+              {activeTab === 'hot_deals' && 'Hot Deals & Offers (Business & Pro Promotions)'}
               {activeTab === 'reported_content' && 'Reported Content & Community Moderation'}
               {activeTab === 'places' && 'Tourist Attractions & Heritage Places'}
               {activeTab === 'leads' && 'Platform Customer Leads & Inquiries'}
               {activeTab === 'categories' && 'Dynamic Category & Subcategory Taxonomy'}
               {activeTab === 'worship' && 'Places of Worship (Temples, Masjids, Churches)'}
-              {activeTab === 'events' && 'Kurnool City Events & Festivals'}
-              {activeTab === 'categories' && 'Master Categories (36 Business & 30 Pro)'}
               {activeTab === 'notifications' && 'Manual Push Notifications & Broadcast Campaigns'}
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
               {activeTab === 'notifications'
                 ? 'Send instant push broadcasts to all Kurnool mobile apps, businesses, and website visitors.'
                 : activeTab === 'hot_deals'
-                ? 'Manage active promotions, festival discounts, and merchant deals shown across app and website.'
+                ? 'Moderate and feature live promotions posted exclusively by registered Businesses and Skilled Professionals.'
                 : activeTab === 'reported_content'
                 ? 'Review user-flagged listings, community posts, and reports requiring administrator moderation.'
                 : 'Enterprise management portal for Kurnool One database and real-time app content.'}
@@ -1962,30 +1888,7 @@ export default function DedicatedAdminConsole() {
               <span>Refresh</span>
             </button>
 
-            {activeTab === 'hot_deals' && (
-              <button
-                onClick={() => {
-                  setEditingDeal(null);
-                  setDealForm({
-                    title_en: '',
-                    title_te: '',
-                    description_en: '',
-                    description_te: '',
-                    discountText: '',
-                    businessName: '',
-                    validUntil: '',
-                    category: 'clothing_fashion',
-                    phone: '',
-                    bannerUrl: '',
-                  });
-                  setShowDealModal(true);
-                }}
-                className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md transition flex items-center gap-1.5 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Publish New Deal</span>
-              </button>
-            )}
+
 
             {activeTab === 'places' && (
               <button
@@ -2044,32 +1947,6 @@ export default function DedicatedAdminConsole() {
                 <span>+ Add Place of Worship</span>
               </button>
             )}
-
-            {activeTab === 'events' && (
-              <button
-                onClick={() => {
-                  setEditingEvent(null);
-                  setEventForm({
-                    title_en: '',
-                    title_te: '',
-                    dateStr: '',
-                    timeStr: '10:00 AM',
-                    venue: '',
-                    organizerName: '',
-                    contactPhone: '',
-                    posterUrl: '',
-                    entryType: 'free',
-                    ticketUrl: '',
-                    status: 'approved',
-                  });
-                  setShowEventModal(true);
-                }}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black shadow-md transition flex items-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>+ Create City Event</span>
-              </button>
-            )}
           </div>
         </header>
 
@@ -2121,10 +1998,10 @@ export default function DedicatedAdminConsole() {
                 </div>
 
                 <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800">
-                  <span className="block text-xs font-bold text-slate-400">City Events</span>
-                  <span className="text-3xl font-black text-white mt-1 block">{events.length}</span>
+                  <span className="block text-xs font-bold text-slate-400">Customer Leads</span>
+                  <span className="text-3xl font-black text-white mt-1 block">{leads.length}</span>
                   <span className="text-[10px] text-emerald-400 font-medium mt-1 block">
-                    Upcoming activities
+                    Citizen inquiries
                   </span>
                 </div>
 
@@ -2202,22 +2079,21 @@ export default function DedicatedAdminConsole() {
 
                 <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-xl bg-emerald-500/20 text-emerald-400">
-                      <Calendar className="w-5 h-5" />
+                    <div className="p-3 rounded-xl bg-purple-500/20 text-purple-400">
+                      <Bell className="w-5 h-5" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-sm text-white">Publish City Events</h4>
-                      <p className="text-xs text-slate-400">Create upcoming events with organizer info</p>
+                      <h4 className="font-bold text-sm text-white">Broadcast Alerts</h4>
+                      <p className="text-xs text-slate-400">Send push notifications to all users</p>
                     </div>
                   </div>
                   <button
                     onClick={() => {
-                      setActiveTab('events');
-                      setShowEventModal(true);
+                      selectTab('notifications');
                     }}
-                    className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition"
+                    className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black transition cursor-pointer"
                   >
-                    + Create Event
+                    + Send Broadcast
                   </button>
                 </div>
               </div>
@@ -2655,42 +2531,30 @@ export default function DedicatedAdminConsole() {
                 <div>
                   <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 text-[11px] font-black uppercase tracking-wider mb-2">
                     <Flame className="w-3.5 h-3.5" />
-                    Hot Deals & Flash Offers
+                    Hot Deals & Offers Moderation
                   </div>
-                  <h2 className="text-xl font-black text-white">Merchant Deals & Festival Discounts</h2>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Manage active discount coupons and festival banners shown to Kurnool residents in the Deals tab of App & Website.
+                  <h2 className="text-xl font-black text-white">Live Merchant & Professional Offers</h2>
+                  <p className="text-xs text-slate-400 mt-1 max-w-xl leading-relaxed">
+                    Offers are published exclusively by registered Businesses and Skilled Professionals via the Kurnool One mobile app. Administrators can pin high-value deals to <strong className="text-amber-400">★ Featured</strong>, broadcast push notifications, or remove non-compliant deals.
                   </p>
                 </div>
-                <button
-                  onClick={() => {
-                    setEditingDeal(null);
-                    setDealForm({
-                      title_en: '',
-                      title_te: '',
-                      description_en: '',
-                      description_te: '',
-                      discountText: '',
-                      businessName: '',
-                      validUntil: '',
-                      category: 'clothing_fashion',
-                      phone: '',
-                      bannerUrl: '',
-                    });
-                    setShowDealModal(true);
-                  }}
-                  className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl transition flex items-center gap-2 shadow-lg shadow-rose-600/30 cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>+ Create New Deal</span>
-                </button>
+                <div className="flex items-center gap-3">
+                  <div className="px-3 py-2 bg-slate-950/80 rounded-xl border border-slate-800 text-center">
+                    <div className="text-base font-black text-white">{offersList.length}</div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">Total Deals</div>
+                  </div>
+                  <div className="px-3 py-2 bg-amber-500/10 rounded-xl border border-amber-500/30 text-center">
+                    <div className="text-base font-black text-amber-400">{offersList.filter(o => o.isFeatured).length}</div>
+                    <div className="text-[10px] text-amber-300 font-bold uppercase">Featured</div>
+                  </div>
+                </div>
               </div>
 
               {/* Deals Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {offersList.length === 0 ? (
                   <div className="col-span-3 p-12 text-center text-slate-500 bg-slate-900 border border-slate-800 rounded-2xl">
-                    No active deals found. Click "+ Create New Deal" to publish a special festival discount.
+                    No active deals found. Merchant and Professional offers published from the mobile app will appear here.
                   </div>
                 ) : (
                   offersList.map((deal) => (
@@ -2737,13 +2601,14 @@ export default function DedicatedAdminConsole() {
                             {deal.description_en}
                           </p>
                           <div className="text-xs font-bold text-blue-400 mt-2">
-                            🏪 {deal.businessName}
+                            🏪 {deal.businessName || 'Merchant'}
                           </div>
-                          {deal.phone && (
-                            <div className="text-xs text-slate-400 mt-0.5 font-mono">
-                              📞 {deal.phone}
-                            </div>
-                          )}
+                          <div className="flex items-center justify-between text-xs text-slate-400 mt-1">
+                            {deal.phone && (
+                              <span className="font-mono">📞 {deal.phone}</span>
+                            )}
+                            <span className="font-mono text-emerald-400">👁️ {Number((deal as any).views ?? (deal as any).viewCount ?? 0)} views</span>
+                          </div>
                         </div>
 
                         <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
@@ -2759,28 +2624,6 @@ export default function DedicatedAdminConsole() {
                           </button>
 
                           <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => {
-                                setEditingDeal(deal);
-                                setDealForm({
-                                  title_en: deal.title_en,
-                                  title_te: deal.title_te || '',
-                                  description_en: deal.description_en,
-                                  description_te: deal.description_te || '',
-                                  discountText: deal.discountText,
-                                  businessName: deal.businessName,
-                                  validUntil: deal.validUntil || '',
-                                  category: deal.category || 'clothing_fashion',
-                                  phone: deal.phone || '',
-                                  bannerUrl: deal.bannerUrl || (deal.images ? deal.images[0] : ''),
-                                });
-                                setShowDealModal(true);
-                              }}
-                              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
-                              title="Edit Deal"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
                             <button
                               onClick={() => handleBroadcastDealPush(deal)}
                               className="px-2 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 text-[11px] font-bold transition cursor-pointer flex items-center gap-1 border border-amber-500/30"
@@ -3294,89 +3137,6 @@ export default function DedicatedAdminConsole() {
             </div>
           )}
 
-          {/* ─── TAB 6: CITY EVENTS ──────────────────────────────────────────── */}
-          {activeTab === 'events' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {events.map((ev) => (
-                  <div
-                    key={ev.id}
-                    className="rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden flex flex-col justify-between"
-                  >
-                    <div>
-                      {ev.posterUrl && (
-                        <div className="h-44 w-full relative overflow-hidden bg-slate-950">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={ev.posterUrl}
-                            alt={ev.title_en}
-                            className="w-full h-full object-cover"
-                          />
-                          <span
-                            className={`absolute top-3 right-3 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
-                              ev.entryType === 'free'
-                                ? 'bg-emerald-950/80 text-emerald-300'
-                                : 'bg-purple-950/80 text-purple-300'
-                            }`}
-                          >
-                            {ev.entryType}
-                          </span>
-                        </div>
-                      )}
-                      <div className="p-5 space-y-2">
-                        <h3 className="font-bold text-white text-base">{ev.title_en}</h3>
-                        <div className="text-[11px] text-slate-400 space-y-1 pt-2">
-                          <div>📅 {ev.dateStr} • {ev.timeStr}</div>
-                          <div>📍 {ev.venue}</div>
-                          <div>📞 {ev.organizerName} ({ev.contactPhone})</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-slate-950/50 border-t border-slate-800 flex justify-end gap-2">
-                      <button
-                        onClick={() => {
-                          setEditingEvent(ev);
-                          setEventForm({
-                            title_en: ev.title_en,
-                            title_te: ev.title_te || '',
-                            dateStr: ev.dateStr,
-                            timeStr: ev.timeStr,
-                            venue: ev.venue,
-                            organizerName: ev.organizerName,
-                            contactPhone: ev.contactPhone,
-                            posterUrl: ev.posterUrl,
-                            entryType: ev.entryType,
-                            ticketUrl: ev.ticketUrl || '',
-                            status: ev.status,
-                          });
-                          setShowEventModal(true);
-                        }}
-                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition flex items-center gap-1"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>Edit</span>
-                      </button>
-                      <button
-                        onClick={() =>
-                          setDeleteConfirmModal({
-                            open: true,
-                            type: 'event',
-                            id: ev.id,
-                            title: ev.title_en,
-                          })
-                        }
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* ─── TAB: PLATFORM CUSTOMER LEADS ───────────────────────────────── */}
           {activeTab === 'leads' && (
             <div className="space-y-6">
@@ -3825,7 +3585,6 @@ export default function DedicatedAdminConsole() {
                           <option value="general">📢 General Announcement</option>
                           <option value="deal">🏷️ Deal / Offer Alert</option>
                           <option value="breaking">⚡ Breaking City News</option>
-                          <option value="event">🎉 Festival / Event</option>
                           <option value="alert">⚠️ Emergency / Public Alert</option>
                         </select>
                       </div>
@@ -3871,7 +3630,7 @@ export default function DedicatedAdminConsole() {
                         type="text"
                         value={notificationForm.actionUrl}
                         onChange={(e) => setNotificationForm({ ...notificationForm, actionUrl: e.target.value })}
-                        placeholder="e.g. /offers or /news or /events or https://..."
+                        placeholder="e.g. /offers or /news or /directory or https://..."
                         className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono outline-none focus:border-blue-500 text-[11px]"
                       />
                       <span className="text-[10px] text-slate-500 mt-1 block">
@@ -4366,7 +4125,7 @@ export default function DedicatedAdminConsole() {
 
 
 
-          {/* ─── TAB: MARKETPLACE CLASSIFIEDS ─── */}
+          {/* ─── TAB: KURNOOL BAZAAR CLASSIFIEDS ─── */}
           {activeTab === 'marketplace' && (
             <div className="space-y-6">
               {/* Header Card */}
@@ -4374,10 +4133,10 @@ export default function DedicatedAdminConsole() {
                 <div>
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <ShoppingBag className="w-5 h-5 text-amber-400" />
-                    <span>Citizen Classifieds & Marketplace</span>
+                    <span>Kurnool Bazaar (Community & Business Classifieds)</span>
                   </h3>
                   <p className="text-xs text-slate-400 mt-1">
-                    Manage pre-owned electronics, vehicles, and furniture listed by citizens across Kurnool.
+                    Manage items and classifieds listed by Citizens, Businesses, and Skilled Professionals across Kurnool.
                   </p>
                 </div>
                 <div className="flex items-center gap-2 text-xs">
@@ -4392,14 +4151,16 @@ export default function DedicatedAdminConsole() {
 
               {/* All Marketplace Items Table */}
               <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-x-auto">
-                <table className="w-full text-left text-xs text-slate-300 min-w-[600px]">
+                <table className="w-full text-left text-xs text-slate-300 min-w-[700px]">
                   <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-bold">
                     <tr>
                       <th className="py-3 px-4">Item Name</th>
                       <th className="py-3 px-4">Price</th>
                       <th className="py-3 px-4">Category</th>
+                      <th className="py-3 px-4">Seller / Source</th>
                       <th className="py-3 px-4">Seller Phone</th>
                       <th className="py-3 px-4">Area</th>
+                      <th className="py-3 px-4">Views</th>
                       <th className="py-3 px-4">Status</th>
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
@@ -4407,7 +4168,7 @@ export default function DedicatedAdminConsole() {
                   <tbody className="divide-y divide-slate-800/60">
                     {marketplaceList.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="text-center py-8 text-slate-500">
+                        <td colSpan={9} className="text-center py-8 text-slate-500">
                           No marketplace listings found.
                         </td>
                       </tr>
@@ -4423,12 +4184,24 @@ export default function DedicatedAdminConsole() {
                               {item.category}
                             </span>
                           </td>
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700 font-medium">
+                              {(item as any).sourceType === 'professional'
+                                ? `Pro: ${(item as any).proName || item.sellerName || 'Skilled Pro'}`
+                                : (item as any).sourceType === 'business'
+                                ? `Business: ${(item as any).businessName || 'Merchant'}`
+                                : `Citizen: ${item.sellerName || 'User'}`}
+                            </span>
+                          </td>
                           <td className="py-3 px-4 font-mono text-slate-300">
                             <a href={`tel:${item.sellerPhone}`} className="hover:underline hover:text-blue-400">
                               {item.sellerPhone}
                             </a>
                           </td>
                           <td className="py-3 px-4 text-slate-400">{item.area || 'Kurnool'}</td>
+                          <td className="py-3 px-4 font-mono text-emerald-400">
+                            👁️ {Number((item as any).views ?? (item as any).viewCount ?? 0)}
+                          </td>
                           <td className="py-3 px-4">
                             <button
                               onClick={() => handleToggleMarketplaceStatus(item.id, item.status)}
@@ -5249,188 +5022,6 @@ export default function DedicatedAdminConsole() {
                   className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black"
                 >
                   Save Place
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ─── MODAL: ADD / EDIT EVENT ──────────────────────────────────────── */}
-      {showEventModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-xl rounded-3xl p-6 sm:p-8 my-8 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h3 className="text-lg font-black text-white">
-                {editingEvent ? 'Edit City Event' : 'Create New City Event'}
-              </h3>
-              <button
-                onClick={() => setShowEventModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEvent} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-slate-400 font-bold mb-1">Event Title</label>
-                <input
-                  type="text"
-                  value={eventForm.title_en}
-                  onChange={(e) => setEventForm({ ...eventForm, title_en: e.target.value })}
-                  placeholder="e.g. Kurnool Trade Expo 2026"
-                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white outline-none"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-400 font-bold mb-1">Date</label>
-                  <input
-                    type="text"
-                    value={eventForm.dateStr}
-                    onChange={(e) => setEventForm({ ...eventForm, dateStr: e.target.value })}
-                    placeholder="e.g. 15 Nov 2026, Every Sunday"
-                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white outline-none"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-400 font-bold mb-1">Time</label>
-                  <input
-                    type="text"
-                    value={eventForm.timeStr}
-                    onChange={(e) => setEventForm({ ...eventForm, timeStr: e.target.value })}
-                    placeholder="e.g. 06:00 PM - 09:30 PM"
-                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-400 font-bold mb-1">Venue / Location</label>
-                <input
-                  type="text"
-                  value={eventForm.venue}
-                  onChange={(e) => setEventForm({ ...eventForm, venue: e.target.value })}
-                  placeholder="e.g. Municipal Grounds, Kurnool"
-                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white outline-none"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-400 font-bold mb-1">Organizer Name</label>
-                  <input
-                    type="text"
-                    value={eventForm.organizerName}
-                    onChange={(e) => setEventForm({ ...eventForm, organizerName: e.target.value })}
-                    placeholder="e.g. Kurnool Cultural Society"
-                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-400 font-bold mb-1">Organizer Contact Phone</label>
-                  <input
-                    type="text"
-                    value={eventForm.contactPhone}
-                    onChange={(e) => setEventForm({ ...eventForm, contactPhone: e.target.value })}
-                    placeholder="e.g. +91 98480 12345"
-                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-400 font-bold mb-1">Entry Type</label>
-                  <select
-                    value={eventForm.entryType}
-                    onChange={(e) => setEventForm({ ...eventForm, entryType: e.target.value as any })}
-                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white outline-none"
-                  >
-                    <option value="free">Free Entry</option>
-                    <option value="ticketed">Ticketed Event</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-400 font-bold mb-1">Status</label>
-                  <select
-                    value={eventForm.status}
-                    onChange={(e) => setEventForm({ ...eventForm, status: e.target.value as any })}
-                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white outline-none"
-                  >
-                    <option value="approved">Approved & Published</option>
-                    <option value="pending">Pending Moderation</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-slate-400 font-bold">Poster Image</label>
-                  <label className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold cursor-pointer transition">
-                    {uploadingEventPoster ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Uploading...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-3.5 h-3.5" />
-                        <span>Upload Poster</span>
-                      </>
-                    )}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      disabled={uploadingEventPoster}
-                      onChange={handleUploadEventPoster}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-                {eventForm.posterUrl ? (
-                  <div className="flex items-center gap-3 p-2 bg-slate-950 border border-slate-700 rounded-xl">
-                    <img
-                      src={eventForm.posterUrl}
-                      alt="Poster Preview"
-                      className="w-14 h-14 object-cover rounded-lg border border-slate-700"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <span className="text-xs text-white truncate block">{eventForm.posterUrl}</span>
-                      <button
-                        type="button"
-                        onClick={() => setEventForm({ ...eventForm, posterUrl: '' })}
-                        className="text-[11px] text-red-400 hover:underline mt-0.5"
-                      >
-                        Remove Poster
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <span className="text-[11px] text-slate-500 block">
-                    Upload official event banner or poster image from device.
-                  </span>
-                )}
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowEventModal(false)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black"
-                >
-                  Save Event
                 </button>
               </div>
             </form>

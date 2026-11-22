@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
   Image, Linking, ActivityIndicator, StatusBar, StyleSheet, Modal, Share,
@@ -23,14 +23,13 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BANNER_AD_UNIT = getAdUnitId('BANNER_OFFERS');
 import {
   fetchOffers,
-  fetchEvents,
   fetchMarketplaceItems,
   createMarketplaceItem,
   updateMarketplaceItem,
   deleteMarketplaceItem,
   uploadOfferImage,
+  trackItemView,
   OfferItem,
-  EventItem,
   MarketplaceItem,
 } from '../services/directoryService';
 
@@ -74,6 +73,7 @@ export interface MarketItem {
   sourceType?: 'user' | 'business' | 'professional';
   businessName?: string;
   professionalName?: string;
+  viewCount?: number;
 }
 
 const SEED_MARKET_ITEMS: MarketItem[] = [];
@@ -81,19 +81,19 @@ const SEED_MARKET_ITEMS: MarketItem[] = [];
 export default function OffersScreen({ route, navigation }: any) {
   const { language } = useLanguage();
   const initialTab = route?.params?.initialTab;
-  const [activeTab, setActiveTab] = useState<'offers' | 'marketplace' | 'events'>(
-    initialTab === 'marketplace' ? 'marketplace' : initialTab === 'events' ? 'events' : 'offers'
+  const [activeTab, setActiveTab] = useState<'offers' | 'marketplace'>(
+    initialTab === 'marketplace' ? 'marketplace' : 'offers'
   );
 
   const [offers, setOffers] = useState<OfferItem[]>([]);
   const [marketItems, setMarketItems] = useState<MarketItem[]>([]);
-  const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [reportingTarget, setReportingTarget] = useState<{ id: string; title: string; type: 'deal' | 'marketplace' } | null>(null);
 
   // Filter States
   const [dealSearchQuery, setDealSearchQuery] = useState('');
   const [selectedMarketCategory, setSelectedMarketCategory] = useState('all');
+  const [sellerTypeFilter, setSellerTypeFilter] = useState<'all' | 'business' | 'professional' | 'user'>('all');
 
   const handleToggleSold = async (item: MarketItem) => {
     const isCurrentlySold = item.status === 'sold';
@@ -117,29 +117,82 @@ export default function OffersScreen({ route, navigation }: any) {
   const displayedOffers = !dealSearchQuery.trim()
     ? offers
     : offers.filter(o => {
-        const q = dealSearchQuery.toLowerCase();
-        return (
-          (o.title_en || '').toLowerCase().includes(q) ||
-          (o.businessName || '').toLowerCase().includes(q) ||
-          (o.discountText || '').toLowerCase().includes(q) ||
-          (o.category || '').toLowerCase().includes(q) ||
-          (o.description_en || '').toLowerCase().includes(q)
-        );
-      });
+      const q = dealSearchQuery.toLowerCase();
+      return (
+        (o.title_en || '').toLowerCase().includes(q) ||
+        (o.businessName || '').toLowerCase().includes(q) ||
+        (o.discountText || '').toLowerCase().includes(q) ||
+        (o.category || '').toLowerCase().includes(q) ||
+        (o.description_en || '').toLowerCase().includes(q)
+      );
+    });
 
-  const displayedMarketItems = selectedMarketCategory === 'all'
-    ? marketItems
-    : marketItems.filter(m => m.category === selectedMarketCategory || (selectedMarketCategory === 'Furniture' && m.category?.toLowerCase().includes('furniture')));
+  const displayedMarketItems = marketItems.filter(m => {
+    const matchesCategory = selectedMarketCategory === 'all' || m.category === selectedMarketCategory || (selectedMarketCategory === 'Furniture' && m.category?.toLowerCase().includes('furniture'));
+    const matchesSeller = sellerTypeFilter === 'all' ||
+      (sellerTypeFilter === 'business' && (m.sourceType === 'business' || !!m.businessName)) ||
+      (sellerTypeFilter === 'professional' && (m.sourceType === 'professional' || !!m.professionalName)) ||
+      (sellerTypeFilter === 'user' && (!m.sourceType || m.sourceType === 'user') && !m.businessName && !m.professionalName);
+    return matchesCategory && matchesSeller;
+  });
 
   // Marketplace Post State
   const [postModalVisible, setPostModalVisible] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<OfferItem | null>(null);
   const [selectedMarketItem, setSelectedMarketItem] = useState<MarketItem | null>(null);
+  const [disclaimerExpanded, setDisclaimerExpanded] = useState(false);
+  const viewedItemsSession = useRef<Set<string>>(new Set());
+
+  const formatViewCount = (count?: number) => {
+    if (!count || count <= 0) return '0';
+    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+    if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
+    return String(count);
+  };
+
+  const closeDealModal = () => {
+    setViewerVisible(false);
+    setViewerImages([]);
+    setViewerIndex(0);
+    setSelectedDeal(null);
+  };
+
+  const closeMarketModal = () => {
+    setViewerVisible(false);
+    setViewerImages([]);
+    setViewerIndex(0);
+    setSelectedMarketItem(null);
+  };
 
   const handleOpenMarketItem = (item: MarketItem) => {
-    showInterstitialAd(() => {
+    setViewerVisible(false);
+    setViewerImages([]);
+    setViewerIndex(0);
+    if (item.id) {
+      trackItemView('marketplace', item.id);
+      const updatedCount = (item.viewCount || 0) + 1;
+      setMarketItems(prev => prev.map(m => m.id === item.id ? { ...m, viewCount: updatedCount } : m));
+      setSelectedMarketItem({ ...item, viewCount: updatedCount });
+    } else {
       setSelectedMarketItem(item);
-    });
+    }
+    setMarketPhotoIdx(0);
+    showInterstitialAd(() => { });
+  };
+
+  const handleOpenDeal = (deal: OfferItem) => {
+    setViewerVisible(false);
+    setViewerImages([]);
+    setViewerIndex(0);
+    if (deal.id) {
+      trackItemView('promotions', deal.id);
+      const updatedCount = (deal.viewCount || 0) + 1;
+      setOffers(prev => prev.map(d => d.id === deal.id ? { ...d, viewCount: updatedCount } : d));
+      setSelectedDeal({ ...deal, viewCount: updatedCount });
+    } else {
+      setSelectedDeal(deal);
+    }
+    setDealPhotoIdx(0);
   };
   const [dealPhotoIdx, setDealPhotoIdx] = useState(0);
   const [marketPhotoIdx, setMarketPhotoIdx] = useState(0);
@@ -166,39 +219,55 @@ export default function OffersScreen({ route, navigation }: any) {
     }
   };
 
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+  const viewerVisibleRef = useRef(viewerVisible);
+  viewerVisibleRef.current = viewerVisible;
+  const reportingTargetRef = useRef(reportingTarget);
+  reportingTargetRef.current = reportingTarget;
+  const selectedDealRef = useRef(selectedDeal);
+  selectedDealRef.current = selectedDeal;
+  const selectedMarketItemRef = useRef(selectedMarketItem);
+  selectedMarketItemRef.current = selectedMarketItem;
+  const postModalVisibleRef = useRef(postModalVisible);
+  postModalVisibleRef.current = postModalVisible;
+
   useFocusEffect(
     useCallback(() => {
       const backAction = () => {
-        if (viewerVisible) {
+        if (viewerVisibleRef.current) {
           setViewerVisible(false);
+          setViewerImages([]);
+          setViewerIndex(0);
           return true;
         }
-        if (reportingTarget) {
+        if (reportingTargetRef.current) {
           setReportingTarget(null);
           return true;
         }
-        if (selectedDeal) {
-          setSelectedDeal(null);
+        if (selectedDealRef.current) {
+          closeDealModal();
           return true;
         }
-        if (selectedMarketItem) {
-          setSelectedMarketItem(null);
+        if (selectedMarketItemRef.current) {
+          closeMarketModal();
           return true;
         }
-        if (postModalVisible) {
+        if (postModalVisibleRef.current) {
           setPostModalVisible(false);
           return true;
         }
-        if (navigation.canGoBack()) {
-          navigation.goBack();
+        if (activeTabRef.current === 'marketplace') {
+          setActiveTab('offers');
           return true;
         }
-        return false;
+        navigation.navigate('Home');
+        return true;
       };
 
       const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
       return () => backHandler.remove();
-    }, [viewerVisible, reportingTarget, selectedDeal, selectedMarketItem, postModalVisible, navigation])
+    }, [navigation])
   );
 
   const handleShareMarketItem = async (item: MarketItem) => {
@@ -245,12 +314,9 @@ export default function OffersScreen({ route, navigation }: any) {
           return offerDate >= todayDate;
         });
         setOffers(activeOffers);
-      } else if (activeTab === 'marketplace') {
+      } else {
         const liveItems = await fetchMarketplaceItems();
         setMarketItems(liveItems || []);
-      } else {
-        const data = await fetchEvents();
-        setEvents(data);
       }
     } catch (e) {
       console.error(e);
@@ -494,6 +560,38 @@ export default function OffersScreen({ route, navigation }: any) {
 
       {activeTab === 'marketplace' && (
         <View style={{ backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+          {/* 3-Way Seller Filter Segment Control */}
+          <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6 }}>
+            {[
+              { id: 'all', label: language === 'en' ? 'All Items' : 'అన్నీ' },
+              { id: 'business', label: language === 'en' ? '🏢 Stores' : '🏢 దుకాణాలు' },
+              { id: 'professional', label: language === 'en' ? '🔧 Pros' : '🔧 నిపుణులు' },
+              { id: 'user', label: language === 'en' ? '👤 Citizens' : '👤 పౌరులు' },
+            ].map((f) => {
+              const isSel = sellerTypeFilter === f.id;
+              return (
+                <TouchableOpacity
+                  key={f.id}
+                  onPress={() => setSellerTypeFilter(f.id as any)}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 7,
+                    borderRadius: 10,
+                    backgroundColor: isSel ? '#059669' : '#F8FAFC',
+                    borderWidth: 1,
+                    borderColor: isSel ? '#059669' : '#E2E8F0',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: isSel ? '900' : '700', color: isSel ? '#FFFFFF' : '#475569' }}>
+                    {f.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
             {MARKET_FILTER_CATEGORIES.map(cat => {
               const isSelected = selectedMarketCategory === cat.id;
@@ -587,10 +685,7 @@ export default function OffersScreen({ route, navigation }: any) {
             return (
               <TouchableOpacity
                 activeOpacity={0.92}
-                onPress={() => {
-                  setSelectedDeal(item);
-                  setDealPhotoIdx(0);
-                }}
+                onPress={() => handleOpenDeal(item)}
                 style={styles.compactDealCard}
               >
                 {/* Left Thumbnail (92x92) */}
@@ -648,9 +743,17 @@ export default function OffersScreen({ route, navigation }: any) {
                       </Text>
                     </View>
 
-                    <View style={styles.compactClaimBtn}>
-                      <Text style={styles.compactClaimBtnText}>Claim</Text>
-                      <Ionicons name="arrow-forward" size={10} color="#FFFFFF" />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#F1F5F9', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 5 }}>
+                        <Ionicons name="eye-outline" size={11} color="#64748B" />
+                        <Text style={{ fontSize: 10, color: '#64748B', fontWeight: '700' }}>{formatViewCount(item.viewCount)}</Text>
+                      </View>
+                      <View style={styles.compactClaimBtn}>
+                        <Text style={styles.compactClaimBtnText}>
+                          {language === 'en' ? 'View Offer' : 'ఆఫర్ చూడండి'}
+                        </Text>
+                        <Ionicons name="arrow-forward" size={10} color="#FFFFFF" />
+                      </View>
                     </View>
                   </View>
                 </View>
@@ -766,9 +869,17 @@ export default function OffersScreen({ route, navigation }: any) {
                   <Text style={styles.gridSub} numberOfLines={1}>
                     <Ionicons name="location-outline" size={11} color="#6B7280" /> {item.area}
                   </Text>
-                  <View style={styles.gridTapCue}>
-                    <Text style={[styles.gridTapCueText, { color: '#059669' }]}>{language === 'en' ? 'View Details' : 'వివరాలు'}</Text>
-                    <Ionicons name="arrow-forward" size={11} color="#059669" />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                    <View style={styles.gridTapCue}>
+                      <Text style={[styles.gridTapCueText, { color: '#059669' }]}>{language === 'en' ? 'View Details' : 'వివరాలు'}</Text>
+                      <Ionicons name="arrow-forward" size={11} color="#059669" />
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#F8FAFC', paddingHorizontal: 5, paddingVertical: 1.5, borderRadius: 4 }}>
+                      <Ionicons name="eye-outline" size={11} color="#64748B" />
+                      <Text style={{ fontSize: 10, color: '#64748B', fontWeight: '700' }}>
+                        {formatViewCount(item.viewCount)}
+                      </Text>
+                    </View>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -779,80 +890,46 @@ export default function OffersScreen({ route, navigation }: any) {
 
       {/* Sticky Bottom Community Disclaimer Banner */}
       <View style={styles.stickyDisclaimerWrap}>
-        <Ionicons name="shield-checkmark-outline" size={14} color="#64748B" style={{ marginTop: 1 }} />
-        <Text style={styles.stickyDisclaimerText}>
-          {language === 'en'
-            ? 'Independent civic platform. Deals, offers & marketplace items are posted directly by respective merchants & sellers. Kurnool One is not responsible for pricing or fulfillment.'
-            : 'స్వతంత్ర వేదిక. ఆఫర్లు & మార్కెట్‌ప్లేస్ ఉత్పత్తులు సంబంధిత విక్రేతల ద్వారా పోస్ట్ చేయబడతాయి. కర్నూలు వన్ లావాదేవీలకు బాధ్యత వహించదు.'}
-        </Text>
+        <TouchableOpacity
+          onPress={() => setDisclaimerExpanded(!disclaimerExpanded)}
+          activeOpacity={0.8}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, paddingRight: 6 }}>
+            <Ionicons name="shield-checkmark-outline" size={13} color="#475569" />
+            <Text style={styles.stickyDisclaimerText} numberOfLines={disclaimerExpanded ? undefined : 1}>
+              {activeTab === 'offers'
+                ? (language === 'en'
+                  ? (disclaimerExpanded
+                    ? 'Merchant Hot Deals: Discounts, pricing, and availability are set directly by respective local stores. Please verify offer terms in-store before purchase.'
+                    : 'Merchant Hot Deals · Local store terms apply')
+                  : (disclaimerExpanded
+                    ? 'వ్యాపార నిబంధనలు వర్తిస్తాయి. తగ్గింపులు మరియు లభ్యత సంబంధిత దుకాణం ద్వారా నిర్ణయించబడతాయి. కొనుగోలుకు ముందు నేరుగా ధృవీకరించుకోండి.'
+                    : 'వ్యాపార ఆఫర్లు · దుకాణ నిబంధనలు వర్తిస్తాయి'))
+                : (language === 'en'
+                  ? (disclaimerExpanded
+                    ? 'Kurnool Bazaar Safety: Community C2C classifieds. Inspect items in person before paying. Never send advance UPI payments to unknown parties.'
+                    : 'Kurnool Bazaar · Inspect before payment · No advance UPI')
+                  : (disclaimerExpanded
+                    ? 'కర్నూలు బజార్ భద్రత: వస్తువును నేరుగా పరిశీలించిన తర్వాతే చెల్లించండి. తెలియని వ్యక్తులకు ముందస్తు యూపీఐ చెల్లింపులు చేయవద్దు.'
+                    : 'కర్నూలు బజార్ · ముందస్తు యూపీఐ వద్దు · పరిశీలించి కొనండి'))
+              }
+            </Text>
+          </View>
+          <Ionicons name={disclaimerExpanded ? "chevron-down" : "chevron-up"} size={13} color="#64748B" />
+        </TouchableOpacity>
       </View>
 
       {/* Offers Bottom Banner Ad */}
       <View style={{ alignItems: 'center', backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingVertical: 4 }}>
         <SafeBannerAd unitId={BANNER_AD_UNIT} />
       </View>
-      {/* Full-Screen Image Viewer Modal */}
-      <Modal
-        visible={viewerVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setViewerVisible(false)}
-      >
-        <SafeAreaView style={styles.viewerOverlay}>
-          <StatusBar barStyle="light-content" backgroundColor="#000000" />
-          <View style={styles.viewerHeader}>
-            <View style={styles.viewerCounterBadge}>
-              <Text style={styles.viewerCounterText}>
-                {viewerImages.length > 1
-                  ? `${viewerIndex + 1} / ${viewerImages.length}`
-                  : '1 Photo'}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => setViewerVisible(false)}
-              style={styles.viewerCloseBtn}
-            >
-              <Ionicons name="close" size={26} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.viewerImageContainer}>
-            {viewerImages[viewerIndex] ? (
-              <Image
-                source={{ uri: viewerImages[viewerIndex] }}
-                style={styles.viewerImage}
-                resizeMode="contain"
-              />
-            ) : null}
-
-            {viewerImages.length > 1 && (
-              <View style={styles.viewerNavRow}>
-                <TouchableOpacity
-                  disabled={viewerIndex === 0}
-                  onPress={() => setViewerIndex(prev => Math.max(0, prev - 1))}
-                  style={[styles.viewerNavBtn, viewerIndex === 0 && { opacity: 0.3 }]}
-                >
-                  <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  disabled={viewerIndex === viewerImages.length - 1}
-                  onPress={() => setViewerIndex(prev => Math.min(viewerImages.length - 1, prev + 1))}
-                  style={[styles.viewerNavBtn, viewerIndex === viewerImages.length - 1 && { opacity: 0.3 }]}
-                >
-                  <Ionicons name="chevron-forward" size={28} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </SafeAreaView>
-      </Modal>
 
       {/* Deal Details Modal */}
       <Modal
         visible={!!selectedDeal}
         animationType="slide"
-        onRequestClose={() => setSelectedDeal(null)}
+        onRequestClose={closeDealModal}
       >
         {selectedDeal && (
           <SafeAreaView style={styles.detailsModalContainer}>
@@ -867,7 +944,7 @@ export default function OffersScreen({ route, navigation }: any) {
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={() => setSelectedDeal(null)}
+                onPress={closeDealModal}
                 style={styles.detailsModalCloseBtn}
               >
                 <Ionicons name="close" size={24} color="#1E293B" />
@@ -1010,7 +1087,7 @@ export default function OffersScreen({ route, navigation }: any) {
       <Modal
         visible={!!selectedMarketItem}
         animationType="slide"
-        onRequestClose={() => setSelectedMarketItem(null)}
+        onRequestClose={closeMarketModal}
       >
         {selectedMarketItem && (
           <SafeAreaView style={styles.detailsModalContainer}>
@@ -1025,7 +1102,7 @@ export default function OffersScreen({ route, navigation }: any) {
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={() => setSelectedMarketItem(null)}
+                onPress={closeMarketModal}
                 style={styles.detailsModalCloseBtn}
               >
                 <Ionicons name="close" size={24} color="#1E293B" />
@@ -1414,6 +1491,71 @@ export default function OffersScreen({ route, navigation }: any) {
         </SafeAreaView>
       </Modal>
 
+      {/* Full-Screen Image Viewer Modal (Rendered at root for top z-index and clean stacking) */}
+      <Modal
+        visible={viewerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setViewerVisible(false);
+          setViewerImages([]);
+          setViewerIndex(0);
+        }}
+      >
+        <SafeAreaView style={styles.viewerOverlay}>
+          <StatusBar barStyle="light-content" backgroundColor="#000000" />
+          <View style={styles.viewerHeader}>
+            <View style={styles.viewerCounterBadge}>
+              <Text style={styles.viewerCounterText}>
+                {viewerImages.length > 1
+                  ? `${viewerIndex + 1} / ${viewerImages.length}`
+                  : '1 Photo'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => {
+                setViewerVisible(false);
+                setViewerImages([]);
+                setViewerIndex(0);
+              }}
+              style={styles.viewerCloseBtn}
+            >
+              <Ionicons name="close" size={26} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.viewerImageContainer}>
+            {viewerImages[viewerIndex] ? (
+              <Image
+                source={{ uri: viewerImages[viewerIndex] }}
+                style={styles.viewerImage}
+                resizeMode="contain"
+              />
+            ) : null}
+
+            {viewerImages.length > 1 && (
+              <View style={styles.viewerNavRow}>
+                <TouchableOpacity
+                  disabled={viewerIndex === 0}
+                  onPress={() => setViewerIndex(prev => Math.max(0, prev - 1))}
+                  style={[styles.viewerNavBtn, viewerIndex === 0 && { opacity: 0.3 }]}
+                >
+                  <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  disabled={viewerIndex === viewerImages.length - 1}
+                  onPress={() => setViewerIndex(prev => Math.min(viewerImages.length - 1, prev + 1))}
+                  style={[styles.viewerNavBtn, viewerIndex === viewerImages.length - 1 && { opacity: 0.3 }]}
+                >
+                  <Ionicons name="chevron-forward" size={28} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </SafeAreaView>
+      </Modal>
+
       {/* Report Modal */}
       {reportingTarget && (
         <ReportModal
@@ -1560,8 +1702,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
   },
   stickyDisclaimerText: {
     flex: 1,

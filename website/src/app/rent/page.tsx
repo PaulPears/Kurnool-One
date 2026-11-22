@@ -26,16 +26,16 @@ import {
   fetchHouseRentals,
   createHouseRental,
   HouseRentalItem,
-  SEED_HOUSE_RENTALS,
 } from '@/services/directoryService';
 import { useLanguage } from '@/context/LanguageContext';
+import AppInstallModal from '@/components/AppInstallModal';
 
 const BHK_FILTERS = ['All', '1 RK', '1 BHK', '2 BHK', '3 BHK', 'Commercial'];
 
 export default function HouseRentPage() {
   const { language, t } = useLanguage();
   const [selectedBhk, setSelectedBhk] = useState('All');
-  const [rentals, setRentals] = useState<HouseRentalItem[]>(SEED_HOUSE_RENTALS);
+  const [rentals, setRentals] = useState<HouseRentalItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -62,6 +62,8 @@ export default function HouseRentPage() {
   const [imageUrl, setImageUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [postSuccess, setPostSuccess] = useState(false);
+  const [appModalOpen, setAppModalOpen] = useState(false);
+  const [appModalAction, setAppModalAction] = useState('Contact Landlord');
 
   useEffect(() => {
     loadRentals();
@@ -71,10 +73,10 @@ export default function HouseRentPage() {
     setLoading(true);
     try {
       const data = await fetchHouseRentals(selectedBhk);
-      setRentals(data && data.length > 0 ? data : SEED_HOUSE_RENTALS);
+      setRentals(data || []);
     } catch (err) {
       console.error(err);
-      setRentals(SEED_HOUSE_RENTALS);
+      setRentals([]);
     } finally {
       setLoading(false);
     }
@@ -173,7 +175,10 @@ export default function HouseRentPage() {
 
           <div className="pt-2 flex flex-wrap items-center gap-3">
             <button
-              onClick={() => setPostModalOpen(true)}
+              onClick={() => {
+                setAppModalAction('Post To-Let Property in Kurnool');
+                setAppModalOpen(true);
+              }}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white text-teal-800 hover:bg-emerald-50 font-bold text-sm shadow-lg transition cursor-pointer"
             >
               <PlusCircle className="w-4 h-4 text-teal-700" />
@@ -331,23 +336,27 @@ export default function HouseRentPage() {
 
               {/* Call & WhatsApp Actions */}
               <div className="p-4 bg-slate-50 border-t border-slate-100 grid grid-cols-2 gap-2">
-                <a
-                  href={`tel:${rental.ownerPhone}`}
+                <button
+                  onClick={() => {
+                    setAppModalAction(`Call Landlord (${rental.title_en})`);
+                    setAppModalOpen(true);
+                  }}
                   className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs transition shadow-sm cursor-pointer"
                 >
                   <Phone className="w-3.5 h-3.5" />
                   <span>{t('Call Landlord', 'కాల్ చేయండి')}</span>
-                </a>
+                </button>
 
-                <a
-                  href={`https://wa.me/91${rental.ownerWhatsapp?.replace(/[^0-9]/g, '') || rental.ownerPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hello, I saw your rental listing "${rental.title_en}" on Kurnool One Web App. Is it still available?`)}`}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  onClick={() => {
+                    setAppModalAction(`WhatsApp Landlord (${rental.title_en})`);
+                    setAppModalOpen(true);
+                  }}
                   className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-sm cursor-pointer"
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
                   <span>WhatsApp</span>
-                </a>
+                </button>
               </div>
             </div>
           ))}
@@ -568,6 +577,13 @@ export default function HouseRentPage() {
           </div>
         </div>
       )}
+
+      {/* App Install Required Modal */}
+      <AppInstallModal
+        isOpen={appModalOpen}
+        onClose={() => setAppModalOpen(false)}
+        actionName={appModalAction}
+      />
     </div>
   );
 }

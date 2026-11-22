@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Phone, MessageCircle, Navigation, Globe, Share2, Check } from 'lucide-react';
 import { trackBusinessInteraction } from '@/services/directoryService';
+import AppInstallModal from './AppInstallModal';
 
 interface BusinessActionButtonsProps {
   businessId: string;
@@ -22,6 +23,8 @@ export default function BusinessActionButtons({
   name,
 }: BusinessActionButtonsProps) {
   const [copied, setCopied] = React.useState(false);
+  const [appModalOpen, setAppModalOpen] = useState(false);
+  const [modalAction, setModalAction] = useState('Call this Business');
 
   // Track profile view on page load (guarded by sessionStorage per business)
   useEffect(() => {
@@ -35,14 +38,14 @@ export default function BusinessActionButtons({
 
   const handleCallClick = () => {
     trackBusinessInteraction(businessId, 'call');
-    window.location.href = `tel:${phone}`;
+    setModalAction(`Call ${name}`);
+    setAppModalOpen(true);
   };
 
   const handleWhatsAppClick = () => {
     trackBusinessInteraction(businessId, 'whatsapp');
-    const cleanNumber = whatsapp ? whatsapp.replace(/[^0-9]/g, '') : '';
-    const waUrl = `https://wa.me/91${cleanNumber}?text=${encodeURIComponent(`Hello ${name}, I found your listing on Kurnool One.`)}`;
-    window.open(waUrl, '_blank', 'noopener,noreferrer');
+    setModalAction(`Chat with ${name} on WhatsApp`);
+    setAppModalOpen(true);
   };
 
   const handleShareClick = async () => {
@@ -121,6 +124,13 @@ export default function BusinessActionButtons({
       >
         {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
       </button>
+
+      {/* App Install Required Modal */}
+      <AppInstallModal
+        isOpen={appModalOpen}
+        onClose={() => setAppModalOpen(false)}
+        actionName={modalAction}
+      />
     </div>
   );
 }

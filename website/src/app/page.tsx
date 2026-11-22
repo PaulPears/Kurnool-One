@@ -45,21 +45,30 @@ import {
   fetchPlaces,
   fetchWorshipPlaces,
   fetchOffers,
-  fetchEvents,
 } from '@/services/directoryService';
 import AppDownloadBanner from '@/components/AppDownloadBanner';
 
 export const revalidate = 60; // ISR cache for 60 seconds
 
 export default async function HomePage() {
-  const [businesses, professionals, places, worshipPlaces, offers, events] = await Promise.all([
+  const [businesses, professionals, places, worshipPlaces, offers] = await Promise.all([
     fetchBusinesses(),
     fetchProfessionals(),
     fetchPlaces(),
     fetchWorshipPlaces(),
     fetchOffers(),
-    fetchEvents(),
   ]);
+
+  // Priority visibility rules: Only Featured businesses appear in Home Showcase
+  const featuredBusinesses = businesses.filter(
+    (b) => b.tier === 'featured' || b.tier === 'premium' || b.planId === 'premium' || b.planId === 'yearly'
+  );
+  const displayedBusinesses = featuredBusinesses.length > 0 ? featuredBusinesses.slice(0, 6) : businesses.slice(0, 6);
+
+  const featuredPros = professionals.filter(
+    (p) => p.verifiedProfessional || p.planId === 'pro_elite' || p.planId === 'pro_standard' || (p as any).isFeatured
+  );
+  const displayedPros = featuredPros.length > 0 ? featuredPros.slice(0, 4) : professionals.slice(0, 4);
 
   const categoryIcons: Record<string, React.ReactNode> = {
     restaurants_cafes: <Utensils className="w-5 h-5 text-amber-600" />,
@@ -298,7 +307,7 @@ export default async function HomePage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {businesses.slice(0, 6).map((biz) => {
+          {displayedBusinesses.map((biz) => {
             const imgUrl = biz.coverImage || biz.bannerUrl || (biz as any).thumbnailUrl || (biz as any).logoUrl || (biz.images && biz.images[0]);
             return (
               <div
@@ -445,7 +454,7 @@ export default async function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {professionals.slice(0, 4).map((pro) => (
+            {displayedPros.map((pro) => (
               <div
                 key={pro.id}
                 className="bg-white text-slate-900 rounded-2xl p-5 shadow-sm border border-slate-200/80 space-y-3 flex flex-col justify-between"

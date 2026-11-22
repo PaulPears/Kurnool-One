@@ -21,7 +21,6 @@ import {
   fetchBloodDonors,
   registerBloodDonor,
   BloodDonorItem,
-  SEED_BLOOD_DONORS,
 } from '@/services/directoryService';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -30,7 +29,7 @@ const BLOOD_GROUPS = ['All', 'O+', 'A+', 'B+', 'AB+', 'O-', 'A-', 'B-', 'AB-'];
 export default function BloodDonorsPage() {
   const { language, t } = useLanguage();
   const [selectedGroup, setSelectedGroup] = useState('All');
-  const [donors, setDonors] = useState<BloodDonorItem[]>(SEED_BLOOD_DONORS);
+  const [donors, setDonors] = useState<BloodDonorItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -53,10 +52,10 @@ export default function BloodDonorsPage() {
     setLoading(true);
     try {
       const data = await fetchBloodDonors(selectedGroup);
-      setDonors(data && data.length > 0 ? data : SEED_BLOOD_DONORS);
+      setDonors(data || []);
     } catch (err) {
       console.error(err);
-      setDonors(SEED_BLOOD_DONORS);
+      setDonors([]);
     } finally {
       setLoading(false);
     }

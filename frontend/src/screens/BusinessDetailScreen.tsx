@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, Image, TouchableOpacity,
-  Linking, Alert, Modal, TextInput, ActivityIndicator, Share, StyleSheet,
+  Linking, Alert, Modal, TextInput, ActivityIndicator, Share, StyleSheet, Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,7 @@ import { MASTER_CATEGORIES } from '../data/masterCategories';
 import { auth } from '../config/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ReportModal } from '../components/ReportModal';
+import CustomerLeadModal, { LEAD_USER_KEY } from '../components/CustomerLeadModal';
 
 export default function BusinessDetailScreen({ route, navigation }: any) {
   const { businessId } = route.params || {};
@@ -29,6 +30,11 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
   const [userRating, setUserRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+
+  // Customer Lead Modal state
+  const [leadModalVisible, setLeadModalVisible] = useState(false);
+  const [leadActionType, setLeadActionType] = useState<'call' | 'whatsapp'>('call');
+  const [activePhotoIdx, setActivePhotoIdx] = useState(0);
 
   const [currentUserUid, setCurrentUserUid] = useState<string | null>(auth.currentUser?.uid || null);
   const [currentUserPhone, setCurrentUserPhone] = useState<string>('');
@@ -54,27 +60,44 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
     )
   );
 
-  const logLead = async (b: BusinessItem | null, actionType: 'view' | 'call' | 'whatsapp') => {
+  const logLead = async (
+    b: BusinessItem | null,
+    actionType: 'view' | 'call' | 'whatsapp',
+    passedName?: string,
+    passedPhone?: string
+  ) => {
     try {
       if (!b) return;
       const currentUser = auth.currentUser;
       if (b.ownerUid && currentUser && b.ownerUid === currentUser.uid) {
         return; // Don't log owner viewing own business
       }
-      let citizenName = currentUser?.displayName || 'Kurnool Resident';
-      let citizenPhone = currentUser?.phoneNumber || '';
+      let citizenName = passedName || currentUser?.displayName || 'Kurnool Resident';
+      let citizenPhone = passedPhone || currentUser?.phoneNumber || '';
       let citizenArea = '';
       let citizenGender = '';
 
-      const stored = await AsyncStorage.getItem('user');
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (parsed.name) citizenName = parsed.name;
-          if (parsed.phone) citizenPhone = parsed.phone;
-          if (parsed.location) citizenArea = parsed.location;
-          if (parsed.gender) citizenGender = parsed.gender;
-        } catch {}
+      if (!passedPhone) {
+        const savedLeadUser = await AsyncStorage.getItem(LEAD_USER_KEY);
+        if (savedLeadUser) {
+          try {
+            const p = JSON.parse(savedLeadUser);
+            if (p.name) citizenName = p.name;
+            if (p.phone) citizenPhone = p.phone;
+          } catch {}
+        }
+        if (!citizenPhone) {
+          const stored = await AsyncStorage.getItem('user');
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored);
+              if (parsed.name) citizenName = parsed.name;
+              if (parsed.phone) citizenPhone = parsed.phone;
+              if (parsed.location) citizenArea = parsed.location;
+              if (parsed.gender) citizenGender = parsed.gender;
+            } catch {}
+          }
+        }
       }
 
       await recordCustomerLead({
@@ -112,22 +135,54 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
     }
   };
 
-  const handleCall = () => {
-    if (business?.phone) {
-      if (businessId) trackBusinessInteraction(businessId, 'call');
-      logLead(business, 'call');
-      Linking.openURL(`tel:${business.phone}`).catch(() => {});
+  const checkAndInitiateLead = async (action: 'call' | 'whatsapp') => {
+    let customerPhone = '';
+    let customerName = '';
+
+    try {
+      const savedLeadUser = await AsyncStorage.getItem(LEAD_USER_KEY);
+      if (savedLeadUser) {
+        const parsed = JSON.parse(savedLeadUser);
+        customerPhone = parsed.phone || '';
+        customerName = parsed.name || '';
+      } else {
+        const storedUser = await AsyncStorage.getItem('user');
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          customerPhone = parsed.phone || '';
+          customerName = parsed.name || '';
+        }
+      }
+    } catch {}
+
+    if (customerPhone && customerPhone.length === 10) {
+      executeLeadAction(action, customerName, customerPhone);
+    } else {
+      setLeadActionType(action);
+      setLeadModalVisible(true);
     }
   };
 
-  const handleWhatsApp = () => {
-    if (business?.whatsapp) {
-      if (businessId) trackBusinessInteraction(businessId, 'whatsapp');
-      logLead(business, 'whatsapp');
-      const clean = business.whatsapp.replace(/[^0-9]/g, '');
+  const executeLeadAction = (action: 'call' | 'whatsapp', customerName?: string, customerPhone?: string) => {
+    if (!business) return;
+    if (businessId) trackBusinessInteraction(businessId, action);
+    logLead(business, action, customerName, customerPhone);
+
+    if (action === 'call' && business.phone) {
+      Linking.openURL(`tel:${business.phone}`).catch(() => {});
+    } else if (action === 'whatsapp' && (business.whatsapp || business.phone)) {
+      const clean = (business.whatsapp || business.phone).replace(/[^0-9]/g, '');
       const waNumber = clean.startsWith('91') ? clean : `91${clean}`;
-      Linking.openURL(`https://wa.me/${waNumber}?text=Hello, I found your listing on Kurnool One.`).catch(() => {});
+      Linking.openURL(`https://wa.me/${waNumber}?text=Hello ${business.name_en}, I found your listing on Kurnool One.`).catch(() => {});
     }
+  };
+
+  const handleCall = () => {
+    checkAndInitiateLead('call');
+  };
+
+  const handleWhatsApp = () => {
+    checkAndInitiateLead('whatsapp');
   };
 
   const handleDirections = () => {
@@ -222,8 +277,40 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
       </View>
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        {/* Cover Photo */}
-        {business.coverImage || business.bannerUrl || (business.images && business.images.length > 0) ? (
+        {/* Cover / Multiple Photos Carousel */}
+        {business.images && business.images.length > 1 ? (
+          <View style={{ position: 'relative' }}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(e) => {
+                const screenWidth = Dimensions.get('window').width;
+                const idx = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
+                setActivePhotoIdx(idx);
+              }}
+            >
+              {business.images.map((imgUri, idx) => (
+                <Image
+                  key={idx}
+                  source={{ uri: imgUri }}
+                  style={[styles.coverImage, { width: Dimensions.get('window').width }]}
+                  resizeMode="cover"
+                />
+              ))}
+            </ScrollView>
+            <View style={{
+              position: 'absolute', bottom: 12, right: 12,
+              backgroundColor: 'rgba(0,0,0,0.65)',
+              paddingHorizontal: 8, paddingVertical: 4,
+              borderRadius: 12,
+            }}>
+              <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800' }}>
+                {activePhotoIdx + 1} / {business.images.length}
+              </Text>
+            </View>
+          </View>
+        ) : business.coverImage || business.bannerUrl || (business.images && business.images.length > 0) ? (
           <Image
             source={{ uri: business.coverImage || business.bannerUrl || business.images[0] }}
             style={styles.coverImage}
@@ -387,6 +474,68 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
             ) : null}
           </View>
 
+          {/* Social Media & Online Profiles */}
+          {(business.socialLinks?.instagram || business.socialLinks?.facebook || business.socialLinks?.youtube || business.socialLinks?.twitter || business.socialLinks?.linkedin || business.website) ? (
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>
+                {language === 'en' ? 'Social & Online Profiles' : 'సోషల్ మీడియా ప్రొఫైల్స్'}
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {business.socialLinks?.instagram ? (
+                  <TouchableOpacity
+                    onPress={() => {
+                      const url = business.socialLinks!.instagram!;
+                      const target = url.startsWith('http') ? url : `https://${url}`;
+                      Linking.openURL(target).catch(() => {});
+                    }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FDF2F8', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#FBCFE8' }}
+                  >
+                    <Ionicons name="logo-instagram" size={16} color="#DB2777" />
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#BE185D' }}>Instagram</Text>
+                  </TouchableOpacity>
+                ) : null}
+
+                {business.socialLinks?.facebook ? (
+                  <TouchableOpacity
+                    onPress={() => {
+                      const url = business.socialLinks!.facebook!;
+                      const target = url.startsWith('http') ? url : `https://${url}`;
+                      Linking.openURL(target).catch(() => {});
+                    }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EFF6FF', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#BFDBFE' }}
+                  >
+                    <Ionicons name="logo-facebook" size={16} color="#1D4ED8" />
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#1D4ED8' }}>Facebook</Text>
+                  </TouchableOpacity>
+                ) : null}
+
+                {business.socialLinks?.youtube ? (
+                  <TouchableOpacity
+                    onPress={() => {
+                      const url = business.socialLinks!.youtube!;
+                      const target = url.startsWith('http') ? url : `https://${url}`;
+                      Linking.openURL(target).catch(() => {});
+                    }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF2F2', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#FECACA' }}
+                  >
+                    <Ionicons name="logo-youtube" size={16} color="#DC2626" />
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#B91C1C' }}>YouTube</Text>
+                  </TouchableOpacity>
+                ) : null}
+
+                {business.website ? (
+                  <TouchableOpacity
+                    onPress={handleWebsite}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F0FDF4', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: '#BBF7D0' }}
+                  >
+                    <Ionicons name="globe-outline" size={16} color="#16A34A" />
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#15803D' }}>Website</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </View>
+          ) : null}
+
           {/* About / Description */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>About</Text>
@@ -529,6 +678,20 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
           </View>
         </View>
       </Modal>
+
+      {/* Customer Callback & Direct Lead Modal */}
+      {business ? (
+        <CustomerLeadModal
+          visible={leadModalVisible}
+          targetName={business.name_en}
+          actionType={leadActionType}
+          onClose={() => setLeadModalVisible(false)}
+          onSubmit={(name, phone) => {
+            setLeadModalVisible(false);
+            executeLeadAction(leadActionType, name, phone);
+          }}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
-  Alert, ActivityIndicator, StyleSheet, StatusBar, Linking, Share, Clipboard,
+  Alert, ActivityIndicator, StyleSheet, StatusBar, Linking, Share, Clipboard, BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,7 +34,13 @@ export default function PartnerProgramScreen({ navigation }: any) {
 
   useEffect(() => {
     loadPartnerData();
-  }, []);
+    const onBackPress = () => {
+      navigation.goBack();
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [navigation]);
 
   const loadPartnerData = async () => {
     setLoading(true);
@@ -489,6 +495,91 @@ export default function PartnerProgramScreen({ navigation }: any) {
               <Text style={styles.planSub}>₹499 subscription</Text>
             </View>
             <Text style={styles.commissionAmt}>₹150</Text>
+          </View>
+        </View>
+
+        {/* 4-Channel Field Partner Playbook */}
+        <View style={styles.tableCard}>
+          <Text style={styles.tableTitle}>
+            {language === 'en' ? '💡 4 Ways to Onboard & Earn' : '💡 వ్యాపారాలను చేర్పించే 4 మార్గాలు'}
+          </Text>
+
+          {/* 1. Calling Local Businesses */}
+          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12, backgroundColor: '#EFF6FF', padding: 12, borderRadius: 10 }}>
+            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#DBEAFE', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="call" size={18} color="#2563EB" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#1E40AF' }}>
+                {language === 'en' ? '1. Phone Outreach' : '1. ఫోన్ కాల్స్ ద్వారా'}
+              </Text>
+              <Text style={{ fontSize: 11, color: '#3B82F6', marginTop: 2, lineHeight: 15 }}>
+                {language === 'en'
+                  ? 'Call local shops & restaurants from local directories. Explain Kurnool One’s city-wide reach & 0% lead commission.'
+                  : 'స్థానిక దుకాణదారులకు కాల్ చేసి యాప్ ద్వారా స్థానిక కస్టమర్లను ఎలా పొందవచ్చో వివరించండి.'}
+              </Text>
+            </View>
+          </View>
+
+          {/* 2. Direct Business Visits */}
+          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12, backgroundColor: '#F0FDF4', padding: 12, borderRadius: 10 }}>
+            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#DCFCE7', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="storefront" size={18} color="#16A34A" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#166534' }}>
+                {language === 'en' ? '2. Direct Store Visits' : '2. దుకాణాలను నేరుగా సందర్శించడం'}
+              </Text>
+              <Text style={{ fontSize: 11, color: '#15803D', marginTop: 2, lineHeight: 15 }}>
+                {language === 'en'
+                  ? 'Visit shops, function halls & showrooms in your area. Help owners register on their mobile and upload shop photos.'
+                  : 'మీ సమీప షాపులు, ఫంక్షన్ హాళ్లను సందర్శించి యజమానులకు యాప్‌లో రిజిస్ట్రేషన్ చేయడంలో సహాయపడండి.'}
+              </Text>
+            </View>
+          </View>
+
+          {/* 3. Professional Outreach */}
+          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12, backgroundColor: '#FDF4FF', padding: 12, borderRadius: 10 }}>
+            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#FAE8FF', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="construct" size={18} color="#A855F7" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#86198F' }}>
+                {language === 'en' ? '3. Skilled Pro Outreach' : '3. నిపుణులు & టెక్నీషియన్లు'}
+              </Text>
+              <Text style={{ fontSize: 11, color: '#9333EA', marginTop: 2, lineHeight: 15 }}>
+                {language === 'en'
+                  ? 'Onboard AC technicians, electricians, plumbers, photographers & tutors to start receiving direct citizen calls.'
+                  : 'ఎలక్ట్రీషియన్లు, ప్లంబర్లు, ఏసీ రిపేర్ నిపుణులను చేర్పించి వారికి నేరుగా కస్టమర్ కాల్స్ వచ్చేలా చేయండి.'}
+              </Text>
+            </View>
+          </View>
+
+          {/* 4. Referral Link Sharing */}
+          <View style={{ flexDirection: 'row', gap: 12, backgroundColor: '#FFFBEB', padding: 12, borderRadius: 10 }}>
+            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="share-social" size={18} color="#D97706" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#92400E' }}>
+                {language === 'en' ? '4. 1-Tap Referral Links' : '4. వాట్సాప్ రెఫరల్ లింక్స్'}
+              </Text>
+              <Text style={{ fontSize: 11, color: '#B45309', marginTop: 2, lineHeight: 15 }}>
+                {language === 'en'
+                  ? 'Share your unique referral link on WhatsApp status & merchant groups. You automatically get credited on activation.'
+                  : 'మీ రెఫరల్ లింక్‌ను వాట్సాప్ గ్రూపులలో షేర్ చేయండి. వ్యాపారాలు రిజిస్టర్ కాగానే ఆటోమేటిక్‌గా కమీషన్ పొందండి.'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Zero Cash Warning */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, backgroundColor: '#FEF2F2', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#FECACA' }}>
+            <Ionicons name="alert-circle" size={16} color="#DC2626" />
+            <Text style={{ fontSize: 11, color: '#991B1B', fontWeight: '700', flex: 1 }}>
+              {language === 'en'
+                ? 'Zero-Cash Policy: Never collect cash. All subscriptions must be paid directly on Kurnool One app via online gateway.'
+                : 'నగదు స్వీకరణ నిషిద్ధం: వినియోగదారులు నేరుగా యాప్ ద్వారా మాత్రమే ఆన్‌లైన్ చెల్లింపులు చేయాలి.'}
+            </Text>
           </View>
         </View>
 

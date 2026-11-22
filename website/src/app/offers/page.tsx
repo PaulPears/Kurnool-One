@@ -24,22 +24,18 @@ import {
   fetchMarketplaceItems,
   createMarketplaceItem,
   deleteMarketplaceItem,
-  fetchEvents,
   OfferItem,
   MarketplaceItem,
-  EventItem,
-  SEED_OFFERS,
-  SEED_MARKET_ITEMS,
 } from '@/services/directoryService';
 import { useLanguage } from '@/context/LanguageContext';
+import AppInstallModal from '@/components/AppInstallModal';
 
 export default function OffersPage() {
   const { language, t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'deals' | 'market' | 'events'>('deals');
+  const [activeTab, setActiveTab] = useState<'deals' | 'market'>('deals');
 
-  const [offers, setOffers] = useState<OfferItem[]>(SEED_OFFERS);
-  const [marketItems, setMarketItems] = useState<MarketplaceItem[]>(SEED_MARKET_ITEMS);
-  const [events, setEvents] = useState<EventItem[]>([]);
+  const [offers, setOffers] = useState<OfferItem[]>([]);
+  const [marketItems, setMarketItems] = useState<MarketplaceItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Lightbox Viewer
@@ -59,6 +55,8 @@ export default function OffersPage() {
   const [postImageUrl, setPostImageUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [postSuccess, setPostSuccess] = useState(false);
+  const [appModalOpen, setAppModalOpen] = useState(false);
+  const [appModalAction, setAppModalAction] = useState('Claim Offer');
 
   useEffect(() => {
     loadData();
@@ -69,16 +67,15 @@ export default function OffersPage() {
     try {
       if (activeTab === 'deals') {
         const data = await fetchOffers();
-        setOffers(data && data.length > 0 ? data : SEED_OFFERS);
+        setOffers(data || []);
       } else if (activeTab === 'market') {
         const data = await fetchMarketplaceItems();
-        setMarketItems(data && data.length > 0 ? data : SEED_MARKET_ITEMS);
-      } else if (activeTab === 'events') {
-        const data = await fetchEvents();
-        setEvents(data);
+        setMarketItems(data || []);
       }
     } catch (err) {
       console.error(err);
+      if (activeTab === 'deals') setOffers([]);
+      else setMarketItems([]);
     } finally {
       setLoading(false);
     }
@@ -150,7 +147,7 @@ export default function OffersPage() {
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-black text-white leading-tight">
-            {t('Kurnool Deals, Classifieds & Events', 'కర్నూలు డీల్స్, అమ్మకాలు & నగర వేడుకలు')}
+            {t('Kurnool Deals & Classifieds', 'కర్నూలు డీల్స్ & అమ్మకాలు')}
           </h1>
 
           <p className="text-amber-100 text-sm sm:text-base leading-relaxed">
@@ -200,18 +197,6 @@ export default function OffersPage() {
             <ShoppingBag className="w-4 h-4 text-orange-600" />
             <span>{t('Citizen Classifieds (Buy & Sell)', 'సిటిజెన్ క్లాసిఫైడ్స్ (అమ్మకాలు)')}</span>
           </button>
-
-          <button
-            onClick={() => setActiveTab('events')}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer ${
-              activeTab === 'events'
-                ? 'bg-white text-slate-900 shadow-md'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Calendar className="w-4 h-4 text-rose-600" />
-            <span>{t('City Events', 'నగర వేడుకలు')}</span>
-          </button>
         </div>
       </div>
 
@@ -251,13 +236,16 @@ export default function OffersPage() {
 
               {offer.phone && (
                 <div className="p-4 bg-slate-50 border-t border-slate-100">
-                  <a
-                    href={`tel:${offer.phone}`}
+                  <button
+                    onClick={() => {
+                      setAppModalAction(`Claim offer from ${offer.businessName}`);
+                      setAppModalOpen(true);
+                    }}
                     className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition cursor-pointer"
                   >
                     <Phone className="w-3.5 h-3.5" />
                     <span>{t('Call to Claim Offer', 'ఆఫర్ కోసం కాల్ చేయండి')}</span>
-                  </a>
+                  </button>
                 </div>
               )}
             </div>
@@ -273,7 +261,10 @@ export default function OffersPage() {
               {t('Pre-owned vehicles, mobiles, electronics & furniture in Kurnool', 'కర్నూలులో సెకండ్-హ్యాండ్ బైక్‌లు, మొబైల్స్, ఫర్నిచర్ అమ్మకాలు')}
             </span>
             <button
-              onClick={() => setPostModalOpen(true)}
+              onClick={() => {
+                setAppModalAction('Post Classified Item in Kurnool Bazaar');
+                setAppModalOpen(true);
+              }}
               className="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-sm"
             >
               <PlusCircle className="w-4 h-4" />
@@ -338,97 +329,31 @@ export default function OffersPage() {
                 </div>
 
                 <div className="p-4 bg-slate-50 border-t border-slate-100 grid grid-cols-2 gap-2">
-                  <a
-                    href={`tel:${item.sellerPhone}`}
+                  <button
+                    onClick={() => {
+                      setAppModalAction(`Call Seller (${item.sellerName})`);
+                      setAppModalOpen(true);
+                    }}
                     className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition cursor-pointer"
                   >
                     <Phone className="w-3.5 h-3.5" />
                     <span>{t('Call Seller', 'కాల్ చేయండి')}</span>
-                  </a>
+                  </button>
 
-                  <a
-                    href={`https://wa.me/91${item.sellerWhatsapp?.replace(/[^0-9]/g, '') || item.sellerPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hello, I saw your classified item "${item.title_en}" on Kurnool One. Is it still available?`)}`}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    onClick={() => {
+                      setAppModalAction(`WhatsApp Seller (${item.sellerName})`);
+                      setAppModalOpen(true);
+                    }}
                     className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition cursor-pointer"
                   >
                     <MessageCircle className="w-3.5 h-3.5" />
                     <span>WhatsApp</span>
-                  </a>
+                  </button>
                 </div>
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Tab 3: City Events */}
-      {activeTab === 'events' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {events.map((event) => (
-            <div
-              key={event.id}
-              className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-xl transition flex flex-col justify-between"
-            >
-              <div>
-                {event.posterUrl && (
-                  <div className="h-44 bg-slate-100 overflow-hidden">
-                    <img
-                      src={event.posterUrl}
-                      alt={event.title_en}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
-                <div className="p-6 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="inline-block px-3 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-black uppercase">
-                      {event.category || 'City Event'}
-                    </span>
-                    {event.entryType === 'free' ? (
-                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                        {t('Free Entry', 'ఉచిత ప్రవేశం')}
-                      </span>
-                    ) : (
-                      <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
-                        {event.ticketPrice || 'Ticketed'}
-                      </span>
-                    )}
-                  </div>
-
-                  <h3 className="font-extrabold text-slate-900 text-lg">
-                    {language === 'te' && event.title_te ? event.title_te : event.title_en}
-                  </h3>
-
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{event.dateStr} • {event.timeStr || 'All Day'}</span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="truncate">{event.venue}</span>
-                  </div>
-
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    <span className="font-bold text-slate-700">{t('Organizer:', 'నిర్వాహకులు:')}</span> {event.organizerName}
-                  </p>
-                </div>
-              </div>
-
-              {event.contactPhone && (
-                <div className="p-4 bg-slate-50 border-t border-slate-100">
-                  <a
-                    href={`tel:${event.contactPhone}`}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition cursor-pointer"
-                  >
-                    <Phone className="w-3.5 h-3.5" />
-                    <span>{t('Contact Organizer', 'నిర్వాహకుడిని సంప్రదించండి')}</span>
-                  </a>
-                </div>
-              )}
-            </div>
-          ))}
         </div>
       )}
 
@@ -631,6 +556,13 @@ export default function OffersPage() {
           </div>
         </div>
       )}
+
+      {/* App Install Required Modal */}
+      <AppInstallModal
+        isOpen={appModalOpen}
+        onClose={() => setAppModalOpen(false)}
+        actionName={appModalAction}
+      />
     </div>
   );
 }

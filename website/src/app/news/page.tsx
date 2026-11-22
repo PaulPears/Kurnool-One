@@ -23,7 +23,6 @@ import {
   fetchNews,
   submitNewsStory,
   NewsItem,
-  SEED_NEWS,
 } from '@/services/directoryService';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -32,7 +31,7 @@ const NEWS_CATEGORIES = ['All', 'Development', 'Civic', 'Traffic', 'Culture & To
 export default function NewsPage() {
   const { language, t } = useLanguage();
   const [selectedCat, setSelectedCat] = useState('All');
-  const [newsList, setNewsList] = useState<NewsItem[]>(SEED_NEWS);
+  const [newsList, setNewsList] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -63,10 +62,10 @@ export default function NewsPage() {
     setLoading(true);
     try {
       const data = await fetchNews();
-      setNewsList(data && data.length > 0 ? data : SEED_NEWS);
+      setNewsList(data || []);
     } catch (err) {
       console.error(err);
-      setNewsList(SEED_NEWS);
+      setNewsList([]);
     } finally {
       setLoading(false);
     }

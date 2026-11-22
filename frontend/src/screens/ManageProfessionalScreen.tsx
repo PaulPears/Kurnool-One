@@ -40,6 +40,7 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
   const [allProfiles, setAllProfiles] = useState<ProfessionalItem[]>([]);
   const [showProfilePicker, setShowProfilePicker] = useState(false);
   const [leads, setLeads] = useState<LeadItem[]>([]);
+  const [showAllLeadsModal, setShowAllLeadsModal] = useState(false);
   const [showRazorpayModal, setShowRazorpayModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'pro_standard' | 'pro_premium'>('pro_standard');
@@ -735,9 +736,6 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
           style={styles.offerCtaCard}
         >
           <View style={{ flex: 1 }}>
-            <View style={{ alignSelf: 'flex-start', backgroundColor: '#9A3412', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, marginBottom: 6 }}>
-              <Text style={{ color: '#FED7AA', fontSize: 10, fontWeight: '900', letterSpacing: 0.5 }}>⚡ BOOST CLIENT INQUIRIES</Text>
-            </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="flame" size={18} color="#FEF08A" />
               <Text style={styles.offerCtaTitle}>Post an Offer</Text>
@@ -756,91 +754,168 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
           </View>
         </TouchableOpacity>
 
-        {/* ─── POST TO BAZAAR CTA ─── */}
+        {/* Sell Equipment / Tools / Products on Kurnool Bazaar */}
         <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => {
-            if (profile?.paymentStatus !== 'paid') {
-              Alert.alert(
-                'Professional Feature',
-                'Posting service packages and equipment to Kurnool Bazaar is exclusive to verified professionals. Upgrade your profile to post.',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Upgrade Plan', onPress: () => setShowUpgradeModal(true) },
-                ]
-              );
-              return;
-            }
-            setBazaarModalVisible(true);
-          }}
-          style={[styles.offerCtaCard, { backgroundColor: '#059669', marginTop: 10 }]}
+          onPress={() => setBazaarModalVisible(true)}
+          style={[styles.offerCtaCard, { backgroundColor: '#065F46', borderColor: '#059669', marginTop: 10 }]}
         >
           <View style={{ flex: 1 }}>
-            <View style={{ alignSelf: 'flex-start', backgroundColor: '#064E3B', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, marginBottom: 6 }}>
-              <Text style={{ color: '#A7F3D0', fontSize: 10, fontWeight: '900', letterSpacing: 0.5 }}>💼 BAZAAR LISTINGS</Text>
-            </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="cart" size={18} color="#A7F3D0" />
-              <Text style={styles.offerCtaTitle}>Post a Product</Text>
-              {profile?.paymentStatus !== 'paid' && (
-                <View style={{ backgroundColor: 'rgba(0,0,0,0.25)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                  <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '800' }}>🔒 UPGRADE</Text>
-                </View>
-              )}
+              <Text style={[styles.offerCtaTitle, { color: '#FFFFFF' }]}>
+                {language === 'en' ? 'Sell on Kurnool Bazaar' : 'కర్నూలు బజార్‌లో అమ్మండి'}
+              </Text>
+              <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '800' }}>C2C BAZAAR</Text>
+              </View>
             </View>
-            <Text style={styles.offerCtaSub}>
-              List products for sale in Kurnool Bazaar.
+            <Text style={[styles.offerCtaSub, { color: '#D1FAE5' }]}>
+              {language === 'en'
+                ? 'Sell tools, equipment, spare parts, or products to citizens across Kurnool.'
+                : 'మీ పరికరాలు, టూల్స్ లేదా వస్తువులను కర్నూలు ప్రజలకు నేరుగా అమ్మండి.'}
             </Text>
           </View>
-          <View style={[styles.offerCtaBtn, { backgroundColor: '#064E3B' }]}>
-            <Text style={styles.offerCtaBtnText}>Post Product →</Text>
+          <View style={[styles.offerCtaBtn, { backgroundColor: '#059669' }]}>
+            <Text style={[styles.offerCtaBtnText, { color: '#FFFFFF' }]}>+ Sell Item →</Text>
           </View>
         </TouchableOpacity>
 
-        {/* ─── MY BAZAAR LISTINGS ─── */}
+        {/* My Bazaar Listings */}
         {myBazaarItems.length > 0 && (
-          <View style={{ marginTop: 14, backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ fontSize: 15, fontWeight: '800', color: '#0F172A' }}>
-                💼 My Bazaar Listings ({myBazaarItems.length})
-              </Text>
-              <TouchableOpacity onPress={() => setBazaarModalVisible(true)}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669' }}>+ Add New</Text>
-              </TouchableOpacity>
-            </View>
+          <View style={{ marginTop: 12, marginBottom: 12 }}>
+            <Text style={[styles.sectionHeader, { marginBottom: 8 }]}>
+              {language === 'en' ? 'My Bazaar Items' : 'నా బజార్ ప్రకటనలు'} ({myBazaarItems.length})
+            </Text>
             {myBazaarItems.map((item) => (
-              <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
-                <View style={{ flex: 1, marginRight: 10 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#1E293B' }} numberOfLines={1}>
-                      {item.title_en}
-                    </Text>
-                    {item.status === 'sold' && (
-                      <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 }}>
-                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#DC2626' }}>SOLD</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669', marginTop: 2 }}>{item.price}</Text>
+              <View key={item.id} style={[styles.leadCard, { marginBottom: 8 }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#111827' }}>{item.title_en || (item as any).title}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669', marginTop: 2 }}>₹{item.price}</Text>
+                  <Text style={{ fontSize: 11, color: '#64748B', marginTop: 1 }}>Status: {item.status?.toUpperCase()}</Text>
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
                   <TouchableOpacity
                     onPress={() => handleMarkSoldBazaar(item)}
-                    style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: item.status === 'sold' ? '#ECFDF5' : '#F1F5F9' }}
+                    style={{ backgroundColor: item.status === 'sold' ? '#059669' : '#F59E0B', paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6 }}
                   >
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: item.status === 'sold' ? '#059669' : '#64748B' }}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700' }}>
                       {item.status === 'sold' ? 'Activate' : 'Mark Sold'}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => handleDeleteBazaarItem(item.id)}
-                    style={{ padding: 6, borderRadius: 6, backgroundColor: '#FEE2E2' }}
+                    style={{ backgroundColor: '#EF4444', paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6 }}
                   >
-                    <Ionicons name="trash-outline" size={14} color="#DC2626" />
+                    <Ionicons name="trash-outline" size={14} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
               </View>
             ))}
+          </View>
+        )}
+
+        {/* ─── LIVE CLIENT LEADS SECTION ─────────────── */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 18, marginBottom: 10 }}>
+          <Text style={styles.sectionHeader}>
+            {language === 'en' ? 'Live Client Leads' : 'క్లయింట్ లీడ్స్'} ({leads.length})
+          </Text>
+          <TouchableOpacity onPress={loadData} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="refresh" size={14} color="#0D9488" />
+            <Text style={{ fontSize: 12, color: '#0D9488', fontWeight: '700' }}>Refresh</Text>
+          </TouchableOpacity>
+        </View>
+
+        {leads.length === 0 ? (
+          <View style={styles.emptyLeadsBox}>
+            <Ionicons name="notifications-outline" size={26} color="#94A3B8" />
+            <Text style={styles.emptyLeadsTitle}>No Leads Yet</Text>
+            <Text style={styles.emptyLeadsSub}>
+              When citizens in Kurnool view your profile or initiate a call/WhatsApp inquiry, their lead details will appear here instantly.
+            </Text>
+          </View>
+        ) : (
+          <View style={{ gap: 10, marginBottom: 16 }}>
+            {[...leads]
+              .sort((a, b) => {
+                const tA = (a as any).createdAt?.toMillis ? (a as any).createdAt.toMillis() : new Date((a as any).createdAt || 0).getTime();
+                const tB = (b as any).createdAt?.toMillis ? (b as any).createdAt.toMillis() : new Date((b as any).createdAt || 0).getTime();
+                return tB - tA;
+              })
+              .slice(0, 5)
+              .map((item, idx) => (
+                <View key={item.id || idx} style={styles.leadCard}>
+                  <View style={[
+                    styles.leadIconWrap,
+                    { backgroundColor: item.actionType === 'call' ? '#ECFDF5' : item.actionType === 'whatsapp' ? '#F0FDF4' : '#EFF6FF' }
+                  ]}>
+                    <Ionicons
+                      name={item.actionType === 'call' ? 'call' : item.actionType === 'whatsapp' ? 'logo-whatsapp' : 'eye'}
+                      size={16}
+                      color={item.actionType === 'call' ? '#059669' : item.actionType === 'whatsapp' ? '#16A34A' : '#0D9488'}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text style={styles.leadCitizenName}>{item.citizenName || 'Kurnool Resident'}</Text>
+                      <View style={[
+                        styles.leadBadge,
+                        { backgroundColor: item.actionType === 'call' ? '#ECFDF5' : item.actionType === 'whatsapp' ? '#F0FDF4' : '#EFF6FF' }
+                      ]}>
+                        <Text style={[
+                          styles.leadBadgeText,
+                          { color: item.actionType === 'call' ? '#059669' : item.actionType === 'whatsapp' ? '#16A34A' : '#0D9488' }
+                        ]}>
+                          {item.actionType === 'call' ? 'CALL' : item.actionType === 'whatsapp' ? 'WHATSAPP' : 'VIEWED'}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.leadAreaText}>
+                      📍 {item.citizenArea || 'Kurnool City'} {item.citizenGender ? `• ${item.citizenGender}` : ''}
+                    </Text>
+                    {item.citizenPhone ? (
+                      <Text style={styles.leadPhoneText}>📞 +91 {item.citizenPhone}</Text>
+                    ) : null}
+                  </View>
+                  {item.citizenPhone ? (
+                    <View style={{ flexDirection: 'row', gap: 6, marginLeft: 8 }}>
+                      <TouchableOpacity
+                        onPress={() => Linking.openURL(`tel:${item.citizenPhone}`).catch(() => {})}
+                        style={[styles.leadCallBtn, { backgroundColor: '#0D9488' }]}
+                      >
+                        <Ionicons name="call" size={13} color="#FFFFFF" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => Linking.openURL(`https://wa.me/91${item.citizenPhone?.replace(/\D/g, '')}?text=Hello, thank you for checking out my services on Kurnool One! How can I assist you?`).catch(() => {})}
+                        style={styles.leadWaBtn}
+                      >
+                        <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
+                </View>
+              ))}
+
+            {leads.length > 5 && (
+              <TouchableOpacity
+                onPress={() => setShowAllLeadsModal(true)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#F0FDFA',
+                  paddingVertical: 10,
+                  borderRadius: 10,
+                  gap: 6,
+                  borderWidth: 1,
+                  borderColor: '#99F6E4',
+                  marginTop: 4,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#0D9488' }}>
+                  {language === 'en' ? `Show More Leads (${leads.length - 5} More) →` : `మరిన్ని లీడ్స్ చూడండి (${leads.length - 5}) →`}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -1483,94 +1558,6 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
         }}
       />
 
-      {/* ─── POST PRODUCT / EQUIPMENT TO BAZAAR MODAL ───────────── */}
-      <Modal visible={bazaarModalVisible} transparent animationType="slide">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalContent}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <View>
-                <Text style={styles.modalTitle}>💼 List Equipment or Package</Text>
-                <Text style={{ fontSize: 11, color: '#64748B' }}>Post in Kurnool Bazaar with verified pro badge</Text>
-              </View>
-              <TouchableOpacity onPress={() => setBazaarModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.label}>Title *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. Bosch Hammer Drill Machine or Full AC Service"
-                value={bazaarTitle}
-                onChangeText={setBazaarTitle}
-              />
-
-              <Text style={styles.label}>Price (₹) *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. ₹2,500"
-                value={bazaarPrice}
-                onChangeText={setBazaarPrice}
-              />
-
-              <Text style={styles.label}>Category</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. Tools, Machinery, Home Service Package"
-                value={bazaarCategory}
-                onChangeText={setBazaarCategory}
-              />
-
-              <Text style={styles.label}>Description / Details</Text>
-              <TextInput
-                style={[styles.input, { height: 70, textAlignVertical: 'top' }]}
-                placeholder="Good working condition / package includes inspection & gas top-up..."
-                multiline
-                value={bazaarDescription}
-                onChangeText={setBazaarDescription}
-              />
-
-              <Text style={styles.label}>Photos (Up to 3)</Text>
-              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
-                {bazaarImages.map((uri, idx) => (
-                  <View key={idx} style={styles.offerThumbnailWrap}>
-                    <Image source={{ uri }} style={styles.offerThumbnailImg} />
-                    <TouchableOpacity
-                      onPress={() => setBazaarImages(prev => prev.filter((_, i) => i !== idx))}
-                      style={styles.removeThumbnailBtn}
-                    >
-                      <Ionicons name="close" size={14} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-                {bazaarImages.length < 3 && (
-                  <TouchableOpacity
-                    onPress={handlePickBazaarImage}
-                    style={styles.addOfferPhotoBtn}
-                  >
-                    <Ionicons name="camera-outline" size={24} color="#059669" />
-                    <Text style={[styles.addOfferPhotoText, { color: '#059669' }]}>+ Add Photo</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              <TouchableOpacity
-                onPress={handlePublishBazaarItem}
-                disabled={publishingBazaar}
-                style={[styles.saveBtn, { backgroundColor: '#059669', marginTop: 8 }]}
-              >
-                {publishingBazaar ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.saveBtnText}>Publish to Kurnool Bazaar</Text>
-                )}
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
       {/* ─── SWITCH PROFESSIONAL PROFILE PICKER MODAL ────────────────── */}
       <Modal visible={showProfilePicker} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
@@ -1617,6 +1604,89 @@ export default function ManageProfessionalScreen({ navigation, route }: any) {
                   </TouchableOpacity>
                 );
               })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── ALL LEADS MODAL ─────────────────────────────────────── */}
+      <Modal visible={showAllLeadsModal} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalSheet, { maxHeight: '80%' }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <View>
+                <Text style={styles.modalTitle}>
+                  {language === 'en' ? 'All Client Leads' : 'అన్ని క్లయింట్ లీడ్స్'} ({leads.length})
+                </Text>
+                <Text style={{ fontSize: 11, color: '#64748B' }}>
+                  {language === 'en' ? 'Chronological list with most recent inquiries on top' : 'ఇటీవలి విచారణలు పైభాగంలో ఉంటాయి'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowAllLeadsModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ marginTop: 8 }}>
+              <View style={{ gap: 10, paddingBottom: 20 }}>
+                {[...leads]
+                  .sort((a, b) => {
+                    const tA = (a as any).createdAt?.toMillis ? (a as any).createdAt.toMillis() : new Date((a as any).createdAt || 0).getTime();
+                    const tB = (b as any).createdAt?.toMillis ? (b as any).createdAt.toMillis() : new Date((b as any).createdAt || 0).getTime();
+                    return tB - tA;
+                  })
+                  .map((item, idx) => (
+                    <View key={item.id || idx} style={styles.leadCard}>
+                      <View style={[
+                        styles.leadIconWrap,
+                        { backgroundColor: item.actionType === 'call' ? '#ECFDF5' : item.actionType === 'whatsapp' ? '#F0FDF4' : '#EFF6FF' }
+                      ]}>
+                        <Ionicons
+                          name={item.actionType === 'call' ? 'call' : item.actionType === 'whatsapp' ? 'logo-whatsapp' : 'eye'}
+                          size={16}
+                          color={item.actionType === 'call' ? '#059669' : item.actionType === 'whatsapp' ? '#16A34A' : '#0D9488'}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Text style={styles.leadCitizenName}>{item.citizenName || 'Kurnool Resident'}</Text>
+                          <View style={[
+                            styles.leadBadge,
+                            { backgroundColor: item.actionType === 'call' ? '#ECFDF5' : item.actionType === 'whatsapp' ? '#F0FDF4' : '#EFF6FF' }
+                          ]}>
+                            <Text style={[
+                              styles.leadBadgeText,
+                              { color: item.actionType === 'call' ? '#059669' : item.actionType === 'whatsapp' ? '#16A34A' : '#0D9488' }
+                            ]}>
+                              {item.actionType === 'call' ? 'CALL' : item.actionType === 'whatsapp' ? 'WHATSAPP' : 'VIEWED'}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={styles.leadAreaText}>
+                          📍 {item.citizenArea || 'Kurnool City'} {item.citizenGender ? `• ${item.citizenGender}` : ''}
+                        </Text>
+                        {item.citizenPhone ? (
+                          <Text style={styles.leadPhoneText}>📞 +91 {item.citizenPhone}</Text>
+                        ) : null}
+                      </View>
+                      {item.citizenPhone ? (
+                        <View style={{ flexDirection: 'row', gap: 6, marginLeft: 8 }}>
+                          <TouchableOpacity
+                            onPress={() => Linking.openURL(`tel:${item.citizenPhone}`).catch(() => {})}
+                            style={[styles.leadCallBtn, { backgroundColor: '#0D9488' }]}
+                          >
+                            <Ionicons name="call" size={13} color="#FFFFFF" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => Linking.openURL(`https://wa.me/91${item.citizenPhone?.replace(/\D/g, '')}?text=Hello, thank you for checking out my services on Kurnool One! How can I assist you?`).catch(() => {})}
+                            style={styles.leadWaBtn}
+                          >
+                            <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        </View>
+                      ) : null}
+                    </View>
+                  ))}
+              </View>
             </ScrollView>
           </View>
         </View>

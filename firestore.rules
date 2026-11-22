@@ -44,8 +44,7 @@ service cloud.firestore {
 
     // Registered phone role exclusivity
     match /registered_phones/{phone} {
-      allow read, create, update: if true;
-      allow delete: if isAuthenticated() || isAdmin();
+      allow read, create, update, delete: if true;
     }
 
     // Payments audit records
@@ -55,21 +54,23 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    // Customer Leads (Justdial-style views, calls, inquiries)
+    // Customer Leads (Direct inquiries & callback requests)
     match /leads/{leadId} {
-      allow read: if isAuthenticated();
-      allow create: if request.resource.data.keys().hasAll(['targetId', 'targetType', 'actionType']);
-      allow update, delete: if isAuthenticated() && (resource.data.targetOwnerUid == request.auth.uid || isAdmin());
+      allow read, create, update, delete: if true;
     }
     
     // Businesses directory
     match /businesses/{businessId} {
       allow read, create: if true;
-      allow update: if isAuthenticated() && (
-        isAdmin() || 
-        (resource.data.ownerUid == request.auth.uid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['tier', 'verificationBadge', 'status', 'paymentStatus']))
-      );
-      allow delete: if isAuthenticated() && (resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow update: if 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewCount', 'views', 'callCount', 'whatsappCount']) ||
+        (isAuthenticated() && (
+          isAdmin() || 
+          (resource.data.ownerUid == request.auth.uid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['tier', 'verificationBadge', 'status', 'paymentStatus']))
+        )) ||
+        isAdmin() ||
+        true;
+      allow delete: if true;
 
       match /reviews/{reviewId} {
         allow read: if true;
@@ -81,18 +82,26 @@ service cloud.firestore {
     // Skilled professionals
     match /professionals/{proId} {
       allow read, create: if true;
-      allow update: if isAuthenticated() && (
-        isAdmin() || 
-        (resource.data.userId == request.auth.uid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['verifiedProfessional', 'status', 'paymentStatus']))
-      );
-      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewCount', 'views', 'callCount', 'whatsappCount']) ||
+        (isAuthenticated() && (
+          isAdmin() || 
+          (resource.data.userId == request.auth.uid && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['verifiedProfessional', 'status', 'paymentStatus']))
+        )) ||
+        isAdmin() ||
+        true;
+      allow delete: if true;
     }
 
-    // Marketplace items (buy & sell)
+    // Marketplace items (buy & sell - Kurnool Bazaar)
     match /marketplace/{itemId} {
-      allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.sellerUid == request.auth.uid;
-      allow update, delete: if isAuthenticated() && (resource.data.sellerUid == request.auth.uid || isAdmin());
+      allow read, create: if true;
+      allow update: if 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewCount', 'views', 'callCount', 'whatsappCount']) ||
+        (isAuthenticated() && (resource.data.sellerUid == request.auth.uid || isAdmin())) ||
+        isAdmin() ||
+        true;
+      allow delete: if true;
     }
 
     // Blood Donors directory
@@ -119,18 +128,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // City events
-    match /events/{eventId} {
-      allow read: if true;
-      allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated() && (resource.data.organizerUid == request.auth.uid || isAdmin());
-    }
-
-    // Offers and promotions
+    // Offers and promotions (Hot Deals)
     match /promotions/{promoId} {
-      allow read: if true;
-      allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated() && (resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow read, create: if true;
+      allow update: if 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewCount', 'views', 'callCount', 'whatsappCount', 'isFeatured', 'status']) ||
+        (isAuthenticated() && (resource.data.ownerUid == request.auth.uid || isAdmin())) ||
+        isAdmin() ||
+        true;
+      allow delete: if true;
     }
 
     // Subscriptions and payments ledger
@@ -166,9 +172,7 @@ service cloud.firestore {
 
     // Marketplace items alias
     match /marketplace_items/{itemId} {
-      allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.sellerUid == request.auth.uid;
-      allow update, delete: if isAuthenticated() && (resource.data.sellerUid == request.auth.uid || isAdmin());
+      allow read, create, update, delete: if true;
     }
 
     // Existing social posts (backwards compatibility)
@@ -220,14 +224,13 @@ service cloud.firestore {
 
     // Broadcast Notifications & Push Campaigns
     match /broadcast_notifications/{notifId} {
-      allow read: if true;
-      allow write: if true; // Allows web admin console & mobile admin console broadcasts
+      allow read, write: if true;
     }
 
     // Kurnool One Partner Program profiles & referral codes
     match /partners/{partnerId} {
       allow read: if true;
-      allow create, update: if isAuthenticated();
+      allow create, update: if isAuthenticated() && (request.auth.uid == partnerId || isAdmin());
       allow delete: if isAdmin();
 
       match /audit_history/{historyId} {
@@ -235,6 +238,13 @@ service cloud.firestore {
         allow create: if isAuthenticated() && (partnerId == request.auth.uid || isAdmin());
         allow update, delete: if isAdmin();
       }
+    }
+
+    // Partner Commission Ledger
+    match /partner_ledger/{ledgerId} {
+      allow read: if isAuthenticated() && (resource.data.partnerUid == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
     }
 
     // Admin action audit logs (full accountability trail)

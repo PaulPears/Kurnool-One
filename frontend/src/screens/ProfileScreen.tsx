@@ -11,6 +11,7 @@ import {
   StyleSheet,
   StatusBar,
   Linking,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -47,7 +48,13 @@ export default function ProfileScreen({ route, navigation }: any) {
   useFocusEffect(
     React.useCallback(() => {
       loadProfile(user !== null);
-    }, [paramUserId])
+      const backAction = () => {
+        navigation.navigate('Home');
+        return true;
+      };
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+      return () => backHandler.remove();
+    }, [paramUserId, user, navigation])
   );
 
   const loadProfile = async (silent = false) => {

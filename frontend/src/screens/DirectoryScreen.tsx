@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, FlatList, TouchableOpacity,
-  TextInput, Image, ActivityIndicator, StatusBar, Linking, StyleSheet, Modal, ScrollView, RefreshControl,
+  TextInput, Image, ActivityIndicator, StatusBar, Linking, StyleSheet, Modal, ScrollView, RefreshControl, BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -66,10 +66,30 @@ export default function DirectoryScreen({ route, navigation }: any) {
     loadData();
   }, [selectedCategory, activeTab]);
 
+  const selectedCategoryRef = useRef(selectedCategory);
+  selectedCategoryRef.current = selectedCategory;
+  const searchQueryRef = useRef(searchQuery);
+  searchQueryRef.current = searchQuery;
+
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [selectedCategory, activeTab])
+      const backAction = () => {
+        if (selectedCategoryRef.current !== 'all') {
+          setSelectedCategory('all');
+          setSelectedSubcategory('all');
+          return true;
+        }
+        if (searchQueryRef.current.trim().length > 0) {
+          setSearchQuery('');
+          return true;
+        }
+        navigation.navigate('Home');
+        return true;
+      };
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+      return () => backHandler.remove();
+    }, [navigation])
   );
 
   const loadData = async () => {

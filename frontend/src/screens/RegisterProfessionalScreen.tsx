@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
   Image, Alert, ActivityIndicator, StyleSheet, StatusBar, Modal,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,8 +47,16 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
     const unsub = auth.onAuthStateChanged((u) => {
       setCurrentUser(u);
     });
-    return unsub;
-  }, []);
+    const onBackPress = () => {
+      navigation.goBack();
+      return true;
+    };
+    const backSub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => {
+      unsub();
+      backSub.remove();
+    };
+  }, [navigation]);
 
   useEffect(() => {
     if (isFocused) {
@@ -380,7 +388,7 @@ export default function RegisterProfessionalScreen({ navigation }: any) {
           </View>
           <View style={styles.benefitRow}>
             <Ionicons name="checkmark-circle" size={15} color="#0D9488" />
-            <Text style={styles.benefitText}>Broadcast 3 Free Push Notifications / day for jobs & availability</Text>
+            <Text style={styles.benefitText}>Direct Customer Inquiries with 0% Commission</Text>
           </View>
           <View style={styles.benefitRow}>
             <Ionicons name="checkmark-circle" size={15} color="#0D9488" />

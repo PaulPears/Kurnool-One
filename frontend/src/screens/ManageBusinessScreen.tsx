@@ -20,6 +20,7 @@ import {
   fetchMyMarketplaceItems,
   updateMarketplaceItem,
   deleteMarketplaceItem,
+  recordSubscriptionPayment,
   BusinessItem,
   LeadItem,
   MarketplaceItem,
@@ -43,6 +44,7 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'biz_standard' | 'biz_premium'>('biz_standard');
   const [leads, setLeads] = useState<LeadItem[]>([]);
+  const [showAllLeadsModal, setShowAllLeadsModal] = useState(false);
 
   // Edit fields
   const [phone, setPhone] = useState('');
@@ -72,6 +74,8 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
   const [coverImageUrl, setCoverImageUrl] = useState('');
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [galleryPhotos, setGalleryPhotos] = useState<string[]>([]);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
 
   const toggleAmenity = (name: string) => {
@@ -206,6 +210,8 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
     setDescription(b.description_en || '');
     setLogoUrl(b.logoUrl || '');
     setCoverImageUrl(b.coverImage || b.bannerUrl || (b.images && b.images[0]) || '');
+    const allImgs = Array.isArray(b.images) && b.images.length > 0 ? b.images : Array.isArray(b.galleryUrls) ? b.galleryUrls : [];
+    setGalleryPhotos(allImgs);
     setSelectedAmenities(Array.isArray(b.amenities) ? b.amenities : []);
 
     const leadsList = await fetchMyLeads(b.ownerUid || uid, b.id);
@@ -343,6 +349,63 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
         setUploadingCover(false);
       }
     }
+  };
+
+  const pickAndUploadGalleryPhoto = async () => {
+    if (!business) return;
+    const isPaid = business.paymentStatus === 'paid' && (
+      business.tier === 'standard' ||
+      business.tier === 'featured' ||
+      business.tier === 'premium' ||
+      business.planId === 'premium' ||
+      business.planId === 'yearly' ||
+      business.planId === 'half_yearly'
+    );
+    if (!isPaid) {
+      Alert.alert(
+        language === 'en' ? 'Standard / Featured Perk' : 'స్టాండర్డ్ / ఫీచర్డ్ ఫీచర్',
+        language === 'en'
+          ? 'Free Basic accounts include 1 storefront photo. Upgrade to Standard or Featured to add up to 10 photos in your business gallery!'
+          : 'ఉచిత ఖాతాకు 1 ఫోటో మాత్రమే అనుమతించబడుతుంది. మీ వ్యాపారానికి 10 ఫోటోల గ్యాలరీని జోడించడానికి అప్‌గ్రేడ్ చేయండి!',
+        [
+          { text: language === 'en' ? 'Cancel' : 'రద్దు', style: 'cancel' },
+          { text: language === 'en' ? 'Upgrade Plan' : 'అప్‌గ్రేడ్ చేయండి', onPress: () => setShowUpgradeModal(true) },
+        ]
+      );
+      return;
+    }
+
+    if (galleryPhotos.length >= 10) {
+      Alert.alert(language === 'en' ? 'Limit Reached' : 'పరిమితి ముగిసింది', 'You can upload up to 10 gallery photos.');
+      return;
+    }
+
+    const res = await pickImageWithFreeStyleCrop();
+    if (res?.uri) {
+      setUploadingGallery(true);
+      try {
+        const url = await uploadBusinessCover(res.uri);
+        const updated = [...galleryPhotos, url].slice(0, 10);
+        await updateBusinessProfile(business.id, { images: updated, galleryUrls: updated });
+        setGalleryPhotos(updated);
+        setBusiness(prev => (prev ? { ...prev, images: updated, galleryUrls: updated } : null));
+        Alert.alert('Success', 'Gallery photo added successfully!');
+      } catch (err: any) {
+        Alert.alert('Error', err.message || 'Failed to upload photo');
+      } finally {
+        setUploadingGallery(false);
+      }
+    }
+  };
+
+  const handleRemoveGalleryPhoto = async (index: number) => {
+    if (!business) return;
+    const updated = galleryPhotos.filter((_, i) => i !== index);
+    try {
+      await updateBusinessProfile(business.id, { images: updated, galleryUrls: updated });
+      setGalleryPhotos(updated);
+      setBusiness(prev => (prev ? { ...prev, images: updated, galleryUrls: updated } : null));
+    } catch {}
   };
 
   const handleSaveProfile = async () => {
@@ -677,7 +740,7 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
             </View>
             <Text style={{ fontSize: 12.5, color: '#7F1D1D', lineHeight: 18, marginBottom: 12 }}>
               {language === 'en'
-                ? 'Your storefront listing is currently unpaid. Complete payment via Razorpay to activate your public verified listing across Kurnool and unlock direct customer inquiries.'
+                ? 'Your storefront listing is currently unpaid. Complete payment via Razorpay to activate your public store listing across Kurnool and unlock direct customer inquiries.'
                 : 'మీ దుకాణం ఇంకా చెల్లింపు పూర్తి కాలేదు. రేజర్‌పే ద్వారా చెల్లింపు పూర్తి చేసి మీ లిస్టింగ్‌ను యాక్టివేట్ చేయండి.'}
             </Text>
             <TouchableOpacity
@@ -705,19 +768,19 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
         <View style={styles.kpiGrid}>
           <View style={styles.kpiCard}>
             <Ionicons name="eye" size={22} color="#2563EB" />
-            <Text style={styles.kpiValue}>{business.viewCount || 148}</Text>
+            <Text style={styles.kpiValue}>{business.viewCount || 0}</Text>
             <Text style={styles.kpiLabel}>Profile Views</Text>
           </View>
 
           <View style={styles.kpiCard}>
             <Ionicons name="call" size={22} color="#10B981" />
-            <Text style={styles.kpiValue}>{business.callCount || 42}</Text>
+            <Text style={styles.kpiValue}>{business.callCount || 0}</Text>
             <Text style={styles.kpiLabel}>Phone Calls</Text>
           </View>
 
           <View style={styles.kpiCard}>
             <Ionicons name="logo-whatsapp" size={22} color="#16A34A" />
-            <Text style={styles.kpiValue}>{business.whatsappCount || 68}</Text>
+            <Text style={styles.kpiValue}>{business.whatsappCount || 0}</Text>
             <Text style={styles.kpiLabel}>WhatsApp Leads</Text>
           </View>
 
@@ -749,58 +812,87 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
           </View>
         ) : (
           <View style={{ gap: 10, marginBottom: 16 }}>
-            {leads.slice(0, 10).map((item, idx) => (
-              <View key={item.id || idx} style={styles.leadCard}>
-                <View style={[
-                  styles.leadIconWrap,
-                  { backgroundColor: item.actionType === 'call' ? '#ECFDF5' : item.actionType === 'whatsapp' ? '#F0FDF4' : '#EFF6FF' }
-                ]}>
-                  <Ionicons
-                    name={item.actionType === 'call' ? 'call' : item.actionType === 'whatsapp' ? 'logo-whatsapp' : 'eye'}
-                    size={16}
-                    color={item.actionType === 'call' ? '#059669' : item.actionType === 'whatsapp' ? '#16A34A' : '#2563EB'}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Text style={styles.leadCitizenName}>{item.citizenName || 'Kurnool Resident'}</Text>
-                    <View style={[
-                      styles.leadBadge,
-                      { backgroundColor: item.actionType === 'call' ? '#ECFDF5' : item.actionType === 'whatsapp' ? '#F0FDF4' : '#EFF6FF' }
-                    ]}>
-                      <Text style={[
-                        styles.leadBadgeText,
-                        { color: item.actionType === 'call' ? '#059669' : item.actionType === 'whatsapp' ? '#16A34A' : '#2563EB' }
-                      ]}>
-                        {item.actionType === 'call' ? 'CALL' : item.actionType === 'whatsapp' ? 'WHATSAPP' : 'VIEWED'}
-                      </Text>
-                    </View>
+            {[...leads]
+              .sort((a, b) => {
+                const tA = (a as any).createdAt?.toMillis ? (a as any).createdAt.toMillis() : new Date((a as any).createdAt || 0).getTime();
+                const tB = (b as any).createdAt?.toMillis ? (b as any).createdAt.toMillis() : new Date((b as any).createdAt || 0).getTime();
+                return tB - tA;
+              })
+              .slice(0, 5)
+              .map((item, idx) => (
+                <View key={item.id || idx} style={styles.leadCard}>
+                  <View style={[
+                    styles.leadIconWrap,
+                    { backgroundColor: item.actionType === 'call' ? '#ECFDF5' : item.actionType === 'whatsapp' ? '#F0FDF4' : '#EFF6FF' }
+                  ]}>
+                    <Ionicons
+                      name={item.actionType === 'call' ? 'call' : item.actionType === 'whatsapp' ? 'logo-whatsapp' : 'eye'}
+                      size={16}
+                      color={item.actionType === 'call' ? '#059669' : item.actionType === 'whatsapp' ? '#16A34A' : '#2563EB'}
+                    />
                   </View>
-                  <Text style={styles.leadAreaText}>
-                    📍 {item.citizenArea || 'Kurnool City'} {item.citizenGender ? `• ${item.citizenGender}` : ''}
-                  </Text>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text style={styles.leadCitizenName}>{item.citizenName || 'Kurnool Resident'}</Text>
+                      <View style={[
+                        styles.leadBadge,
+                        { backgroundColor: item.actionType === 'call' ? '#ECFDF5' : item.actionType === 'whatsapp' ? '#F0FDF4' : '#EFF6FF' }
+                      ]}>
+                        <Text style={[
+                          styles.leadBadgeText,
+                          { color: item.actionType === 'call' ? '#059669' : item.actionType === 'whatsapp' ? '#16A34A' : '#2563EB' }
+                        ]}>
+                          {item.actionType === 'call' ? 'CALL' : item.actionType === 'whatsapp' ? 'WHATSAPP' : 'VIEWED'}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.leadAreaText}>
+                      📍 {item.citizenArea || 'Kurnool City'} {item.citizenGender ? `• ${item.citizenGender}` : ''}
+                    </Text>
+                    {item.citizenPhone ? (
+                      <Text style={styles.leadPhoneText}>📞 +91 {item.citizenPhone}</Text>
+                    ) : null}
+                  </View>
                   {item.citizenPhone ? (
-                    <Text style={styles.leadPhoneText}>📞 +91 {item.citizenPhone}</Text>
+                    <View style={{ flexDirection: 'row', gap: 6, marginLeft: 8 }}>
+                      <TouchableOpacity
+                        onPress={() => Linking.openURL(`tel:${item.citizenPhone}`).catch(() => {})}
+                        style={styles.leadCallBtn}
+                      >
+                        <Ionicons name="call" size={13} color="#FFFFFF" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => Linking.openURL(`https://wa.me/91${item.citizenPhone?.replace(/\D/g, '')}?text=Hello, thank you for checking out ${business.name_en} on Kurnool One! How can we assist you?`).catch(() => {})}
+                        style={styles.leadWaBtn}
+                      >
+                        <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
                   ) : null}
                 </View>
-                {item.citizenPhone ? (
-                  <View style={{ flexDirection: 'row', gap: 6, marginLeft: 8 }}>
-                    <TouchableOpacity
-                      onPress={() => Linking.openURL(`tel:${item.citizenPhone}`).catch(() => {})}
-                      style={styles.leadCallBtn}
-                    >
-                      <Ionicons name="call" size={13} color="#FFFFFF" />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => Linking.openURL(`https://wa.me/91${item.citizenPhone?.replace(/\D/g, '')}?text=Hello, thank you for checking out ${business.name_en} on Kurnool One! How can we assist you?`).catch(() => {})}
-                      style={styles.leadWaBtn}
-                    >
-                      <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  </View>
-                ) : null}
-              </View>
-            ))}
+              ))}
+
+            {leads.length > 5 && (
+              <TouchableOpacity
+                onPress={() => setShowAllLeadsModal(true)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#EFF6FF',
+                  paddingVertical: 10,
+                  borderRadius: 10,
+                  gap: 6,
+                  borderWidth: 1,
+                  borderColor: '#BFDBFE',
+                  marginTop: 4,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#2563EB' }}>
+                  {language === 'en' ? `Show More Leads (${leads.length - 5} More) →` : `మరిన్ని లీడ్స్ చూడండి (${leads.length - 5}) →`}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -818,9 +910,9 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
             );
             if (!isEligible) {
               Alert.alert(
-                language === 'en' ? 'Verified Merchant Feature' : 'వెరిఫైడ్ వ్యాపార ఫీచర్',
+                language === 'en' ? 'Promotional Feature' : 'ప్రచార ఫీచర్',
                 language === 'en'
-                  ? 'Publishing Hot Deals and Festival Offers is exclusively available to Standard Verified and Premium Featured merchants. Upgrade your store listing to broadcast discounts to all Kurnool citizens.'
+                  ? 'Publishing Hot Deals and Festival Offers is exclusively available to Standard and Premium Featured merchants. Upgrade your store listing to broadcast discounts to all Kurnool citizens.'
                   : 'హాట్ డీల్స్ మరియు పండుగ ఆఫర్లను పోస్ట్ చేయడానికి మీ వ్యాపారాన్ని స్టాండర్డ్ లేదా ప్రీమియంకు అప్‌గ్రేడ్ చేయండి.',
                 [
                   { text: language === 'en' ? 'Cancel' : 'రద్దు', style: 'cancel' },
@@ -984,6 +1076,61 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
                 )}
               </TouchableOpacity>
               <Text style={styles.pickerLabel}>16:9 Cover Banner</Text>
+            </View>
+          </View>
+
+          {/* Business Gallery Photos (Up to 10 for Paid) */}
+          <View style={{ marginTop: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#1E293B' }}>
+                {language === 'en' ? 'Storefront & Product Gallery Photos' : 'వ్యాపార గ్యాలరీ ఫోటోలు'} ({galleryPhotos.length}/10)
+              </Text>
+              {business.paymentStatus !== 'paid' && (
+                <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#B45309' }}>1 Free Photo</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+              {galleryPhotos.map((imgUri, idx) => (
+                <View key={idx} style={{ position: 'relative', width: 70, height: 70, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#CBD5E1' }}>
+                  <Image source={{ uri: imgUri }} style={{ width: '100%', height: '100%' }} />
+                  <TouchableOpacity
+                    onPress={() => handleRemoveGalleryPhoto(idx)}
+                    style={{ position: 'absolute', top: 3, right: 3, backgroundColor: 'rgba(0,0,0,0.65)', borderRadius: 10, padding: 2 }}
+                  >
+                    <Ionicons name="close" size={14} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              {galleryPhotos.length < 10 && (
+                <TouchableOpacity
+                  onPress={pickAndUploadGalleryPhoto}
+                  disabled={uploadingGallery}
+                  style={{
+                    width: 70,
+                    height: 70,
+                    borderRadius: 12,
+                    borderWidth: 1.5,
+                    borderStyle: 'dashed',
+                    borderColor: '#93C5FD',
+                    backgroundColor: '#EFF6FF',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {uploadingGallery ? (
+                    <ActivityIndicator size="small" color="#2563EB" />
+                  ) : (
+                    <>
+                      <Ionicons name="add-circle" size={24} color="#2563EB" />
+                      <Text style={{ fontSize: 9, fontWeight: '700', color: '#1D4ED8', marginTop: 2 }}>+ Add Photo</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </View>
@@ -1201,6 +1348,38 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
               onChangeText={setDiscountTag}
             />
 
+            {/* Quick Discount Suggestions */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginVertical: 6 }}>
+              {[
+                'FLAT 10% OFF',
+                'FLAT 20% OFF',
+                'FLAT 50% OFF',
+                'BUY 1 GET 1 FREE',
+                'UP TO 40% OFF',
+                'FREE CONSULTATION',
+                'FREE INSPECTION',
+                'FESTIVAL SPECIAL DEAL',
+                '₹100 OFF ON ₹500+',
+              ].map((chip) => (
+                <TouchableOpacity
+                  key={chip}
+                  onPress={() => setDiscountTag(chip)}
+                  style={{
+                    backgroundColor: discountTag === chip ? '#2563EB' : '#EFF6FF',
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: discountTag === chip ? '#2563EB' : '#BFDBFE',
+                  }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: discountTag === chip ? '#FFFFFF' : '#1D4ED8' }}>
+                    {chip}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
             <Text style={styles.label}>Offer Expiry Date *</Text>
             <TouchableOpacity
               activeOpacity={0.8}
@@ -1361,7 +1540,7 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
                       color={selectedUpgradePlan === 'biz_standard' ? '#2563EB' : '#94A3B8'}
                     />
                     <Text style={[styles.upgradePlanName, selectedUpgradePlan === 'biz_standard' && { color: '#1D4ED8' }]}>
-                      Standard Verified
+                      Standard Listing
                     </Text>
                   </View>
                   <View style={styles.upgradePriceBadge}>
@@ -1369,7 +1548,7 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
                   </View>
                 </View>
                 <View style={{ marginTop: 6, gap: 3, paddingLeft: 28 }}>
-                  <Text style={styles.upgradePerk}>• Blue Verified Merchant Badge</Text>
+                  <Text style={styles.upgradePerk}>• ⭐ Standard Merchant Badge</Text>
                   <Text style={styles.upgradePerk}>• Direct WhatsApp & Call buttons</Text>
                   <Text style={styles.upgradePerk}>• Priority ranking above free stores</Text>
                 </View>
@@ -1426,7 +1605,7 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
       <RazorpayModal
         visible={showRazorpayModal}
         onClose={() => setShowRazorpayModal(false)}
-        planName={selectedUpgradePlan === 'biz_premium' ? 'Premium Featured Business (1 Year)' : 'Standard Verified Business (6 Months)'}
+        planName={selectedUpgradePlan === 'biz_premium' ? 'Premium Featured Business (1 Year)' : 'Standard Business Listing (6 Months)'}
         amount={selectedUpgradePlan === 'biz_premium' ? 999 : 399}
         entityName={business?.name_en || 'Business'}
         customerPhone={business?.phone}
@@ -1451,6 +1630,29 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
                 orderId,
                 status: 'published',
               });
+
+              try {
+                await recordSubscriptionPayment({
+                  userId: auth.currentUser?.uid || '',
+                  userPhone: business.phone,
+                  userEmail: (business as any).ownerEmail || (business as any).email || '',
+                  entityId: business.id,
+                  entityType: 'business',
+                  entityName: business.name_en,
+                  planId: targetPlanId,
+                  planName: selectedUpgradePlan === 'biz_premium' ? 'Premium Featured Business (1 Year)' : 'Standard Verified Business (6 Months)',
+                  amount: selectedUpgradePlan === 'biz_premium' ? 999 : 399,
+                  currency: 'INR',
+                  transactionId: paymentId || orderId || `pay_${Date.now()}`,
+                  orderId: orderId || undefined,
+                  startDate: new Date().toISOString().split('T')[0],
+                  expiresAt: expiryDate,
+                  status: 'active',
+                });
+              } catch (subErr) {
+                console.warn('Subscription ledger record error:', subErr);
+              }
+
               setBusiness((prev) => (prev ? {
                 ...prev,
                 paymentStatus: 'paid',
@@ -1550,6 +1752,89 @@ export default function ManageBusinessScreen({ navigation, route }: any) {
                   <Text style={styles.saveBtnText}>Publish to Kurnool Bazaar</Text>
                 )}
               </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── ALL LEADS MODAL ─────────────────────────────────────── */}
+      <Modal visible={showAllLeadsModal} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalSheet, { maxHeight: '80%' }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <View>
+                <Text style={styles.modalTitle}>
+                  {language === 'en' ? 'All Customer Leads' : 'అన్ని కస్టమర్ లీడ్స్'} ({leads.length})
+                </Text>
+                <Text style={{ fontSize: 11, color: '#64748B' }}>
+                  {language === 'en' ? 'Chronological list with most recent inquiries on top' : 'ఇటీవలి విచారణలు పైభాగంలో ఉంటాయి'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowAllLeadsModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ marginTop: 8 }}>
+              <View style={{ gap: 10, paddingBottom: 20 }}>
+                {[...leads]
+                  .sort((a, b) => {
+                    const tA = (a as any).createdAt?.toMillis ? (a as any).createdAt.toMillis() : new Date((a as any).createdAt || 0).getTime();
+                    const tB = (b as any).createdAt?.toMillis ? (b as any).createdAt.toMillis() : new Date((b as any).createdAt || 0).getTime();
+                    return tB - tA;
+                  })
+                  .map((item, idx) => (
+                    <View key={item.id || idx} style={styles.leadCard}>
+                      <View style={[
+                        styles.leadIconWrap,
+                        { backgroundColor: item.actionType === 'call' ? '#ECFDF5' : item.actionType === 'whatsapp' ? '#F0FDF4' : '#EFF6FF' }
+                      ]}>
+                        <Ionicons
+                          name={item.actionType === 'call' ? 'call' : item.actionType === 'whatsapp' ? 'logo-whatsapp' : 'eye'}
+                          size={16}
+                          color={item.actionType === 'call' ? '#059669' : item.actionType === 'whatsapp' ? '#16A34A' : '#2563EB'}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Text style={styles.leadCitizenName}>{item.citizenName || 'Kurnool Resident'}</Text>
+                          <View style={[
+                            styles.leadBadge,
+                            { backgroundColor: item.actionType === 'call' ? '#ECFDF5' : item.actionType === 'whatsapp' ? '#F0FDF4' : '#EFF6FF' }
+                          ]}>
+                            <Text style={[
+                              styles.leadBadgeText,
+                              { color: item.actionType === 'call' ? '#059669' : item.actionType === 'whatsapp' ? '#16A34A' : '#2563EB' }
+                            ]}>
+                              {item.actionType === 'call' ? 'CALL' : item.actionType === 'whatsapp' ? 'WHATSAPP' : 'VIEWED'}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={styles.leadAreaText}>
+                          📍 {item.citizenArea || 'Kurnool City'} {item.citizenGender ? `• ${item.citizenGender}` : ''}
+                        </Text>
+                        {item.citizenPhone ? (
+                          <Text style={styles.leadPhoneText}>📞 +91 {item.citizenPhone}</Text>
+                        ) : null}
+                      </View>
+                      {item.citizenPhone ? (
+                        <View style={{ flexDirection: 'row', gap: 6, marginLeft: 8 }}>
+                          <TouchableOpacity
+                            onPress={() => Linking.openURL(`tel:${item.citizenPhone}`).catch(() => {})}
+                            style={styles.leadCallBtn}
+                          >
+                            <Ionicons name="call" size={13} color="#FFFFFF" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => Linking.openURL(`https://wa.me/91${item.citizenPhone?.replace(/\D/g, '')}?text=Hello, thank you for checking out ${business?.name_en || 'our business'} on Kurnool One! How can we assist you?`).catch(() => {})}
+                            style={styles.leadWaBtn}
+                          >
+                            <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        </View>
+                      ) : null}
+                    </View>
+                  ))}
+              </View>
             </ScrollView>
           </View>
         </View>

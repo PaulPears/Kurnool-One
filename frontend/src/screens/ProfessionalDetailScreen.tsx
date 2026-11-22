@@ -14,10 +14,12 @@ import {
   ProfessionalReview,
   addProfessionalReview,
   fetchProfessionalReviews,
+  trackProfessionalInteraction,
 } from '../services/directoryService';
 import { auth } from '../config/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ReportModal } from '../components/ReportModal';
+import CustomerLeadModal, { LEAD_USER_KEY } from '../components/CustomerLeadModal';
 
 export default function ProfessionalDetailScreen({ route, navigation }: any) {
   const { pro: initialPro, proId } = (route.params || {}) as { pro?: ProfessionalItem; proId?: string };
@@ -34,6 +36,10 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
   const [userRating, setUserRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+
+  // Customer Lead Modal state
+  const [leadModalVisible, setLeadModalVisible] = useState(false);
+  const [leadActionType, setLeadActionType] = useState<'call' | 'whatsapp'>('call');
 
   useEffect(() => {
     AsyncStorage.getItem('user').then(stored => {
@@ -112,27 +118,42 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
     )
   );
 
-  const logProLead = async (actionType: 'view' | 'call' | 'whatsapp') => {
+  const logProLead = async (actionType: 'view' | 'call' | 'whatsapp', passedName?: string, passedPhone?: string) => {
     try {
       if (!pro) return;
+      if (pro.id) {
+        trackProfessionalInteraction(pro.id, actionType);
+      }
       const currentUser = auth.currentUser;
       if (pro.userId && currentUser && pro.userId === currentUser.uid) {
         return;
       }
-      let citizenName = currentUser?.displayName || 'Kurnool Resident';
-      let citizenPhone = currentUser?.phoneNumber || '';
+      let citizenName = passedName || currentUser?.displayName || 'Kurnool Resident';
+      let citizenPhone = passedPhone || currentUser?.phoneNumber || '';
       let citizenArea = '';
       let citizenGender = '';
 
-      const stored = await AsyncStorage.getItem('user');
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (parsed.name) citizenName = parsed.name;
-          if (parsed.phone) citizenPhone = parsed.phone;
-          if (parsed.location) citizenArea = parsed.location;
-          if (parsed.gender) citizenGender = parsed.gender;
-        } catch {}
+      if (!passedPhone) {
+        const savedLeadUser = await AsyncStorage.getItem(LEAD_USER_KEY);
+        if (savedLeadUser) {
+          try {
+            const p = JSON.parse(savedLeadUser);
+            if (p.name) citizenName = p.name;
+            if (p.phone) citizenPhone = p.phone;
+          } catch {}
+        }
+        if (!citizenPhone) {
+          const stored = await AsyncStorage.getItem('user');
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored);
+              if (parsed.name) citizenName = parsed.name;
+              if (parsed.phone) citizenPhone = parsed.phone;
+              if (parsed.location) citizenArea = parsed.location;
+              if (parsed.gender) citizenGender = parsed.gender;
+            } catch {}
+          }
+        }
       }
 
       await recordCustomerLead({
@@ -156,20 +177,54 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
     }
   }, [pro?.id]);
 
-  const handleCall = () => {
-    if (pro?.phone) {
-      logProLead('call');
-      Linking.openURL(`tel:${pro.phone}`).catch(() => {});
+  const checkAndInitiateLead = async (action: 'call' | 'whatsapp') => {
+    let customerPhone = '';
+    let customerName = '';
+
+    try {
+      const savedLeadUser = await AsyncStorage.getItem(LEAD_USER_KEY);
+      if (savedLeadUser) {
+        const parsed = JSON.parse(savedLeadUser);
+        customerPhone = parsed.phone || '';
+        customerName = parsed.name || '';
+      } else {
+        const storedUser = await AsyncStorage.getItem('user');
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          customerPhone = parsed.phone || '';
+          customerName = parsed.name || '';
+        }
+      }
+    } catch {}
+
+    if (customerPhone && customerPhone.length === 10) {
+      executeLeadAction(action, customerName, customerPhone);
+    } else {
+      setLeadActionType(action);
+      setLeadModalVisible(true);
     }
   };
 
-  const handleWhatsApp = () => {
-    if (pro && (pro.whatsapp || pro.phone)) {
-      logProLead('whatsapp');
+  const executeLeadAction = (action: 'call' | 'whatsapp', customerName?: string, customerPhone?: string) => {
+    if (!pro) return;
+    if (pro.id) trackProfessionalInteraction(pro.id, action);
+    logProLead(action, customerName, customerPhone);
+
+    if (action === 'call' && pro.phone) {
+      Linking.openURL(`tel:${pro.phone}`).catch(() => {});
+    } else if (action === 'whatsapp' && (pro.whatsapp || pro.phone)) {
       const num = (pro.whatsapp || pro.phone).replace(/[^0-9]/g, '');
       const waNumber = num.startsWith('91') ? num : `91${num}`;
       Linking.openURL(`https://wa.me/${waNumber}?text=Hello ${pro.fullName}, I found your profile on Kurnool One and need your service.`).catch(() => {});
     }
+  };
+
+  const handleCall = () => {
+    checkAndInitiateLead('call');
+  };
+
+  const handleWhatsApp = () => {
+    checkAndInitiateLead('whatsapp');
   };
 
   const handleOpenLink = (url?: string) => {
@@ -557,6 +612,20 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
           reportType="professional"
         />
       )}
+
+      {/* Customer Lead Callback Modal */}
+      {pro ? (
+        <CustomerLeadModal
+          visible={leadModalVisible}
+          targetName={pro.fullName}
+          actionType={leadActionType}
+          onClose={() => setLeadModalVisible(false)}
+          onSubmit={(name, phone) => {
+            setLeadModalVisible(false);
+            executeLeadAction(leadActionType, name, phone);
+          }}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

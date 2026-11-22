@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Phone, MessageCircle, Share2, Check } from 'lucide-react';
 import { recordCustomerLead } from '@/services/directoryService';
 import { useAuth } from '@/context/AuthContext';
+import AppInstallModal from './AppInstallModal';
 
 interface ProfessionalActionButtonsProps {
   proId: string;
@@ -23,6 +24,8 @@ export default function ProfessionalActionButtons({
   targetOwnerUid,
 }: ProfessionalActionButtonsProps) {
   const [copied, setCopied] = useState(false);
+  const [appModalOpen, setAppModalOpen] = useState(false);
+  const [modalAction, setModalAction] = useState('Contact Professional');
   const { user } = useAuth();
 
   useEffect(() => {
@@ -54,7 +57,8 @@ export default function ProfessionalActionButtons({
       citizenName: user?.displayName || 'Kurnool Resident',
       citizenPhone: user?.phoneNumber || '',
     });
-    window.location.href = `tel:${phone}`;
+    setModalAction(`Call ${fullName} (${category})`);
+    setAppModalOpen(true);
   };
 
   const handleWhatsApp = () => {
@@ -68,12 +72,8 @@ export default function ProfessionalActionButtons({
       citizenName: user?.displayName || 'Kurnool Resident',
       citizenPhone: user?.phoneNumber || '',
     });
-    const cleanNumber = (whatsapp || phone).replace(/[^0-9]/g, '');
-    const waNumber = cleanNumber.startsWith('91') ? cleanNumber : `91${cleanNumber}`;
-    const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(
-      `Hello ${fullName}, I found your ${category} profile on Kurnool One and would like to inquire about your services.`
-    )}`;
-    window.open(waUrl, '_blank', 'noopener,noreferrer');
+    setModalAction(`WhatsApp ${fullName} (${category})`);
+    setAppModalOpen(true);
   };
 
   const handleShare = async () => {
@@ -134,6 +134,13 @@ export default function ProfessionalActionButtons({
           </>
         )}
       </button>
+
+      {/* App Install Required Modal */}
+      <AppInstallModal
+        isOpen={appModalOpen}
+        onClose={() => setAppModalOpen(false)}
+        actionName={modalAction}
+      />
     </div>
   );
 }

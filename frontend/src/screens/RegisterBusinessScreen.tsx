@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
   Image, Alert, ActivityIndicator, StyleSheet, StatusBar, Modal,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -46,8 +46,16 @@ export default function RegisterBusinessScreen({ navigation }: any) {
     const unsub = auth.onAuthStateChanged((u) => {
       setCurrentUser(u);
     });
-    return unsub;
-  }, []);
+    const onBackPress = () => {
+      navigation.goBack();
+      return true;
+    };
+    const backSub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => {
+      unsub();
+      backSub.remove();
+    };
+  }, [navigation]);
 
   useEffect(() => {
     if (isFocused) {
@@ -85,7 +93,7 @@ export default function RegisterBusinessScreen({ navigation }: any) {
   const getPlanDetails = () => {
     if (selectedPlan === 'biz_free') return { amount: 0, name: 'Free Basic Listing (₹0)' };
     if (selectedPlan === 'biz_premium') return { amount: 999, name: 'Premium Featured (1 Year - ₹999)' };
-    return { amount: 399, name: 'Standard Verified (6 Months - ₹399)' };
+    return { amount: 399, name: 'Standard Listing (6 Months - ₹399)' };
   };
   const [nameEn, setNameEn] = useState('');
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
@@ -419,7 +427,7 @@ export default function RegisterBusinessScreen({ navigation }: any) {
             </View>
             <View style={styles.benefitRow}>
               <Ionicons name="checkmark-circle" size={15} color="#16A34A" />
-              <Text style={styles.benefitText}>Broadcast 5 Free Push Notifications / day for deals & offers</Text>
+              <Text style={styles.benefitText}>Publish Hot Deals & Offers on Kurnool One with Instant Discovery</Text>
             </View>
             <View style={styles.benefitRow}>
               <Ionicons name="checkmark-circle" size={15} color="#16A34A" />
@@ -775,7 +783,7 @@ export default function RegisterBusinessScreen({ navigation }: any) {
             Choose Listing & Advertising Plan
           </Text>
           <Text style={{ fontSize: 12, color: '#64748B', marginBottom: 12, lineHeight: 16 }}>
-            Official commercial listing, verified blue tick badge, direct customer call button & promotion on Kurnool One.
+            Commercial directory listing, Featured/Standard promotion badges, direct customer call button & promotion on Kurnool One.
           </Text>
 
           <View style={{ gap: 12, marginBottom: 16 }}>

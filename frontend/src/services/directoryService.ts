@@ -216,21 +216,6 @@ export interface PlaceItem {
   isPromoted: boolean;
 }
 
-export interface EventItem {
-  id: string;
-  title_en: string;
-  title_te?: string;
-  dateStr: string;
-  timeStr: string;
-  venue: string;
-  organizerName: string;
-  contactPhone: string;
-  posterUrl: string;
-  entryType: 'free' | 'ticketed';
-  ticketUrl?: string;
-  status: 'approved' | 'pending';
-}
-
 export interface OfferItem {
   id: string;
   title_en: string;
@@ -246,6 +231,7 @@ export interface OfferItem {
   images?: string[];
   phone?: string;
   category: string;
+  viewCount?: number;
 }
 
 export interface BusinessReview {
@@ -1012,388 +998,15 @@ export const LEGACY_BUSINESS_CATEGORY_MAP: Record<string, string> = {
 
 // ─── INITIAL SEED DATA (KURNOOL ATTRACTIONS & HERITAGE) ─────────────────────
 
-export const SEED_PLACES: PlaceItem[] = [
-  {
-    id: 'place_konda_reddy_fort',
-    type: 'tourist',
-    name_en: 'Konda Reddy Buruju (Fort)',
-    name_te: 'కొండారెడ్డి బురుజు (కోట)',
-    description_en: 'Iconic historic fort bastion built during the Vijayanagara empire, named after the valiant ruler Konda Reddy. Features underground tunnels, historic cannons, and an evening sound and light show.',
-    description_te: 'విజయనగర సామ్రాజ్య కాలంలో నిర్మించిన చారిత్రక కోట బురుజు. కర్నూలు నగర నడిబొడ్డున ఉన్న అత్యంత ప్రసిద్ధ పర్యాటక ప్రదేశం.',
-    address: 'Old Bus Stand Road, Kurnool, AP 518001',
-    timings: '09:00 AM - 06:00 PM (Daily)',
-    entryFee: 'Free Entry',
-    photos: ['https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?w=800&auto=format&fit=crop&q=80'],
-    latitude: 15.8281,
-    longitude: 78.0373,
-    isPromoted: true,
-  },
-  {
-    id: 'place_orvakal_rock_garden',
-    type: 'tourist',
-    name_en: 'Orvakal Rock Garden',
-    name_te: 'ఓర్వకల్లు రాక్ గార్డెన్',
-    description_en: 'Ancient natural quartz and silica rock formations spread over 1000 acres around a serene water body. Famous for film shootings, trekking, cave paths, and boating.',
-    description_te: 'సహజసిద్ధమైన శిలాజాలు మరియు జలాశయాలతో కూడిన అందమైన రాక్ గార్డెన్. సినిమాల షూటింగ్‌లకు ప్రసిద్ధి.',
-    address: 'NH 44, Orvakal, Kurnool, AP 518010',
-    timings: '08:00 AM - 06:00 PM',
-    entryFee: '₹20 per adult',
-    photos: ['https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80'],
-    latitude: 15.6888,
-    longitude: 78.2144,
-    isPromoted: true,
-  },
-  {
-    id: 'place_rollapadu_sanctuary',
-    type: 'tourist',
-    name_en: 'Rollapadu Bird & Wildlife Sanctuary',
-    name_te: 'రోళ్లపాడు పక్షుల అభయారణ్యం',
-    description_en: 'Protected wildlife sanctuary famous for the endangered Great Indian Bustard, blackbucks, foxes, migratory birds, and grassland biodiversity.',
-    description_te: 'అరుదైన బట్టమేక పక్షులు మరియు కృష్ణజింకలకు ఆవాసమైన ప్రముఖ వన్యప్రాణుల అభయారణ్యం.',
-    address: 'Rollapadu, Near Nandikotkur, Kurnool District, AP',
-    timings: '07:00 AM - 05:30 PM',
-    entryFee: '₹30 per person',
-    photos: ['https://images.unsplash.com/photo-1534567153574-2b12153a87f0?w=800&auto=format&fit=crop&q=80'],
-    latitude: 15.7533,
-    longitude: 78.3667,
-    isPromoted: false,
-  },
-  {
-    id: 'place_belum_caves',
-    type: 'tourist',
-    name_en: 'Belum Caves',
-    name_te: 'బెలూమ్ గుహలు',
-    description_en: 'Second longest cave network in the Indian subcontinent, renowned for speleothems, stalactites, stalagmites, freshwater chambers, and underground streams.',
-    description_te: 'భారతదేశంలోనే రెండవ అతిపెద్ద సహజ సున్నపురాయి గుహలు. అద్భుతమైన స్టాలక్టైట్ మరియు స్టాలగ్మైట్ నిర్మాణాలు.',
-    address: 'Belum Village, Kolimigundla Mandal, Kurnool District, AP',
-    timings: '10:00 AM - 05:00 PM',
-    entryFee: '₹65 per person',
-    photos: ['https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800&auto=format&fit=crop&q=80'],
-    latitude: 15.1031,
-    longitude: 78.1136,
-    isPromoted: true,
-  },
-];
+export const SEED_PLACES: PlaceItem[] = [];
 
-export const SEED_WORSHIP_PLACES: PlaceItem[] = [
-  {
-    id: 'worship_jagannatha_gattu',
-    type: 'temple',
-    name_en: 'Jagannatha Gattu Temple & Giant Shiva',
-    name_te: 'జగన్నాథ గట్టు శివాలయం',
-    description_en: 'Perched atop a hillock overlooking Kurnool city, featuring a historic temple of Lord Shiva and a towering colossal Shiva statue visible from miles away.',
-    description_te: 'కొండపై కొలువైన పురాతన శివాలయం మరియు నగరమంతా కనిపించే భారీ శివుని విగ్రహం.',
-    address: 'Jagannatha Gattu Hill, Dinnedevarapadu, Kurnool, AP 518002',
-    timings: '06:00 AM - 08:00 PM',
-    entryFee: 'Free Darshan',
-    photos: ['https://images.unsplash.com/photo-1545232979-8bf68ee9b1af?w=800&auto=format&fit=crop&q=80'],
-    latitude: 15.7891,
-    longitude: 78.0212,
-    isPromoted: true,
-  },
-  {
-    id: 'worship_yaganti_temple',
-    type: 'temple',
-    name_en: 'Yaganti Sri Uma Maheshwara Temple',
-    name_te: 'యాగంటి శ్రీ ఉమామహేశ్వర స్వామి దేవస్థానం',
-    description_en: 'Famous 15th-century Vijayanagara Shiva temple where the stone Nandi statue is believed to grow continuously. Known for the Agastya cave and perpetual natural pushkarini.',
-    description_te: 'నిరంతరం పెరుగుతుందని ప్రతీతి ఉన్న రాతి నంది మరియు అగస్త్య గుహలకు ప్రసిద్ధి చెందిన పుణ్యక్షేత్రం.',
-    address: 'Yaganti, Banaganapalle Mandal, Kurnool District, AP',
-    timings: '06:00 AM - 01:00 PM, 03:00 PM - 08:00 PM',
-    entryFee: 'Free Entry',
-    photos: ['https://images.unsplash.com/photo-1609766857041-ed402ea8069a?w=800&auto=format&fit=crop&q=80'],
-    latitude: 15.3496,
-    longitude: 78.1408,
-    isPromoted: true,
-  },
-  {
-    id: 'worship_mahanandi',
-    type: 'temple',
-    name_en: 'Mahanandi Temple & Sacred Pushkarini',
-    name_te: 'మహానంది క్షేత్రం & రుద్రగుండం',
-    description_en: 'Ancient Nava Nandi temple surrounded by lush Nallamala forest hills, famous for crystalline natural warm spring pushkarini flowing perpetually beneath the Shiva Lingam.',
-    description_te: 'స్వచ్ఛమైన సహజ ఉష్ణోదక పుష్కరిణి గల ప్రసిద్ధ నవనందులలో ఒకటైన మహానంది పుణ్యక్షేత్రం.',
-    address: 'Mahanandi, Kurnool / Nandyal, AP 518502',
-    timings: '05:30 AM - 08:30 PM',
-    entryFee: 'Free Darshan',
-    photos: ['https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=800&auto=format&fit=crop&q=80'],
-    latitude: 15.4833,
-    longitude: 78.6167,
-    isPromoted: true,
-  },
-  {
-    id: 'worship_kurnool_jamia_masjid',
-    type: 'masjid',
-    name_en: 'Kurnool Historic Jamia Masjid',
-    name_te: 'కర్నూలు చారిత్రక జామియా మసీదు',
-    description_en: 'Centuries-old central grand mosque with imposing stone minarets, serene ablution courtyard, and historic Islamic architectural heritage in the heart of Kurnool old town.',
-    description_te: 'చారిత్రక కట్టడం మరియు కర్నూలు పాత నగరంలోని ప్రధాన ఆధ్యాత్మిక కేంద్రం.',
-    address: 'One Town, Near Fort Road, Kurnool, AP 518001',
-    timings: '05:00 AM - 09:30 PM',
-    entryFee: 'Open for Prayers',
-    photos: ['https://images.unsplash.com/photo-1564769625905-50e93615e769?w=800&auto=format&fit=crop&q=80'],
-    latitude: 15.8315,
-    longitude: 78.0401,
-    isPromoted: false,
-  },
-  {
-    id: 'worship_coles_church',
-    type: 'church',
-    name_en: 'Coles Memorial Church (Historic Heritage)',
-    name_te: 'కోల్స్ మెమోరియల్ చర్చ్ (చారిత్రక చర్చి)',
-    description_en: 'Centenary Gothic-architectural Christian sanctuary founded in Kurnool, noted for serene prayer hall, vintage stained glass panels, and peaceful community worship.',
-    description_te: 'గోథిక్ నిర్మాణ శైలి కలిగిన శతాబ్దాల నాటి ప్రార్థనా మందిరం మరియు పవిత్ర క్షేత్రం.',
-    address: 'Near Collectorate & Coles College Road, Kurnool, AP 518002',
-    timings: '06:00 AM - 08:30 PM (Sunday Service: 09:00 AM)',
-    entryFee: 'Free Entry',
-    photos: ['https://images.unsplash.com/photo-1548625361-19598285903b?w=800&auto=format&fit=crop&q=80'],
-    latitude: 15.8285,
-    longitude: 78.0345,
-    isPromoted: false,
-  },
-];
+export const SEED_WORSHIP_PLACES: PlaceItem[] = [];
 
-export const SEED_PROFESSIONALS: ProfessionalItem[] = [
-  {
-    id: 'pro_venkat_electrician',
-    fullName: 'P. Venkat Ramana',
-    category: 'electrician',
-    categoryName_te: 'ఎలక్ట్రీషియన్',
-    experienceYears: 8,
-    serviceAreas: ['Bhagya Nagar', 'Collectorate', 'Prakash Nagar', 'Santosh Nagar'],
-    phone: '+919848123450',
-    whatsapp: '+919848123450',
-    ratingAvg: 4.8,
-    ratingCount: 62,
-    startingPrice: '₹250',
-    pricingUnit: 'per visit',
-    about_en: 'Expert in house electrical wiring, short circuit repair, MCB fixes, ceiling fan installation, and inverter setups across Kurnool.',
-    about_te: 'ఇంటి వైరింగ్, షార్ట్ సర్క్యూట్ రిపేర్ మరియు ఇన్వర్టర్ సెటప్ నిపుణుడు.',
-    status: 'active',
-    verifiedProfessional: true,
-  },
-  {
-    id: 'pro_suresh_plumber',
-    fullName: 'K. Suresh Kumar',
-    category: 'plumber',
-    categoryName_te: 'ప్లంబర్',
-    experienceYears: 11,
-    serviceAreas: ['Old City', 'C-Camp', 'Joharapuram', 'B-Camp'],
-    phone: '+919848234561',
-    whatsapp: '+919848234561',
-    ratingAvg: 4.7,
-    ratingCount: 48,
-    startingPrice: '₹300',
-    pricingUnit: 'per service',
-    about_en: 'Complete bathroom plumbing solutions, pipeline leakage repair, water motor pump installations, and water tank cleaning.',
-    about_te: 'పైప్‌లైన్ లీకేజ్ రిపేర్, మోటార్ పంపు బిగింపు మరియు వాటర్ ట్యాంక్ క్లీనింగ్.',
-    status: 'active',
-    verifiedProfessional: true,
-  },
-  {
-    id: 'pro_rajesh_ac_tech',
-    fullName: 'M. Rajesh',
-    category: 'ac_repair',
-    categoryName_te: 'ఏసీ & ఫ్రిజ్ టెక్నీషియన్',
-    experienceYears: 6,
-    serviceAreas: ['All Kurnool City Areas'],
-    phone: '+919848345672',
-    whatsapp: '+919848345672',
-    ratingAvg: 4.9,
-    ratingCount: 75,
-    startingPrice: '₹450',
-    pricingUnit: 'per AC service',
-    about_en: 'Split and window AC gas charging, deep jet cleaning, PCB repair, and refrigerator troubleshooting.',
-    about_te: 'ఏసీ గ్యాస్ ఛార్జింగ్, డీప్ జెట్ క్లీనింగ్ మరియు ఫ్రిజ్ రిపేర్ సేవలు.',
-    status: 'active',
-    verifiedProfessional: true,
-  },
-];
+export const SEED_PROFESSIONALS: ProfessionalItem[] = [];
 
-export const SEED_BUSINESSES: BusinessItem[] = [
-  {
-    id: 'biz_mourya_inn',
-    name_en: 'Hotel Mourya Inn',
-    name_te: 'హోటల్ మౌర్య ఇన్',
-    categoryId: 'hotels_lodges',
-    address: 'Bhagya Nagar, Near Old Bus Stand, Kurnool, AP 518001',
-    landmark: 'Near Old Bus Stand',
-    phone: '+918518224999',
-    whatsapp: '+919848011223',
-    ratingAvg: 4.5,
-    ratingCount: 128,
-    description_en: 'Premier luxury hotel offering premium AC suites, multi-cuisine restaurants, and banquet halls in the heart of Kurnool city.',
-    description_te: 'కర్నూలు నడిబొడ్డున ఉన్న ప్రముఖ లగ్జరీ హోటల్, ఏసీ గదులు మరియు బ్యాంక్వెట్ హాళ్ళు.',
-    images: ['https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800'],
-    status: 'published',
-    tier: 'premium',
-    planId: 'premium',
-    verificationBadge: 'verified_business',
-    claimStatus: 'verified',
-  },
-  {
-    id: 'biz_kurnool_ruchulu',
-    name_en: 'Kurnool Ruchulu Restaurant',
-    name_te: 'కర్నూలు రుచులు రెస్టారెంట్',
-    categoryId: 'restaurants_dining',
-    address: 'Collectorate Complex Road, Kurnool, AP 518002',
-    landmark: 'Opp. ZP Office',
-    phone: '+919440054321',
-    whatsapp: '+919440054321',
-    ratingAvg: 4.7,
-    ratingCount: 214,
-    description_en: 'Authentic Rayalaseema cuisine, famous Kurnool spicy Natu Kodi Pulao, Uggani Bajji, and Ragi Sangati with mutton curry.',
-    description_te: 'ప్రసిద్ధ రాయలసీమ వంటకాలు, నాటుకోడి పులావ్ మరియు రాగి సంకటి.',
-    images: ['https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800'],
-    status: 'published',
-    tier: 'free',
-    planId: 'half_yearly',
-    verificationBadge: 'verified_business',
-    claimStatus: 'verified',
-  },
-  {
-    id: 'biz_balaji_supermarket',
-    name_en: 'Sri Balaji Supermarket',
-    name_te: 'శ్రీ బాలాజీ సూపర్ మార్కెట్',
-    categoryId: 'supermarkets_grocery',
-    address: 'Prakash Nagar Main Road, Kurnool, AP 518004',
-    landmark: 'Near Venkateswara Swamy Temple',
-    phone: '+919848523456',
-    whatsapp: '+919848523456',
-    ratingAvg: 4.6,
-    ratingCount: 95,
-    description_en: 'One-stop grocery and daily essentials store featuring fresh organic produce, daily household items, and doorstep delivery across Kurnool.',
-    description_te: 'తాజా కూరగాయలు, కిరాణా సరుకులు మరియు హోమ్ డెలివరీ సౌకర్యం.',
-    images: ['https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=800'],
-    status: 'published',
-    tier: 'free',
-    planId: 'free',
-    verificationBadge: 'none',
-    claimStatus: 'unclaimed',
-  },
-  {
-    id: 'biz_sai_silk_palace',
-    name_en: 'Sri Sai Silk Palace',
-    name_te: 'శ్రీ సాయి సిల్క్ ప్యాలెస్',
-    categoryId: 'clothing_fashion',
-    address: 'Park Road, Old City, Kurnool, AP 518001',
-    landmark: 'Near Raj Vihar Centre',
-    phone: '+919848012345',
-    whatsapp: '+919848012345',
-    ratingAvg: 4.8,
-    ratingCount: 160,
-    description_en: 'Exclusive bridal silk sarees, Gadwal & Dharmavaram handlooms, wedding sherwanis, and festive wear collections.',
-    description_te: 'వివాహ పట్టుచీరలు, గద్వాల & ధర్మవరం చేనేత వస్త్రాల ప్రత్యేక షోరూమ్.',
-    images: ['https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800'],
-    status: 'published',
-    tier: 'premium',
-    verificationBadge: 'verified_business',
-    claimStatus: 'verified',
-  },
-  {
-    id: 'biz_konda_reddy_clinic',
-    name_en: 'Konda Reddy Diagnostics & Clinic',
-    name_te: 'కొండారెడ్డి డయాగ్నస్టిక్స్ & క్లినిక్',
-    categoryId: 'hospitals_clinics',
-    address: 'Gayatri Estate, Near Government General Hospital, Kurnool, AP 518002',
-    landmark: 'Near GGH Kurnool',
-    phone: '+918518233445',
-    whatsapp: '+919441188990',
-    ratingAvg: 4.6,
-    ratingCount: 84,
-    description_en: 'Full diagnostic lab facilities, 24/7 emergency pharmacy, digital X-Ray, ultrasound, and specialist doctor consultations.',
-    description_te: '24/7 డయాగ్నస్టిక్ ల్యాబ్, డిజిటల్ ఎక్స్-రే మరియు స్పెషలిస్ట్ వైద్యుల సంప్రదింపులు.',
-    images: ['https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800'],
-    status: 'published',
-    tier: 'featured',
-    verificationBadge: 'verified_business',
-    claimStatus: 'verified',
-  },
-  {
-    id: 'biz_raghavendra_sweets',
-    name_en: 'Sri Raghavendra Sweets & Bakery',
-    name_te: 'శ్రీ రాఘవేంద్ర స్వీట్స్',
-    categoryId: 'cafes_bakeries',
-    address: 'Mourya Inn Circle, Kurnool, AP 518001',
-    landmark: 'Mourya Circle',
-    phone: '+919849123789',
-    whatsapp: '+919849123789',
-    ratingAvg: 4.9,
-    ratingCount: 310,
-    description_en: 'Traditional pure ghee sweets, famous Kurnool Kova, Mysore Pak, Bellam Jalebi, hot savouries, and fresh bakery items.',
-    description_te: 'స్వచ్ఛమైన నెయ్యి స్వీట్లు, ప్రసిద్ధ కర్నూలు కోవా మరియు మైసూర్ పాక్.',
-    images: ['https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800'],
-    status: 'published',
-    tier: 'premium',
-    verificationBadge: 'verified_business',
-    claimStatus: 'verified',
-  },
-];
+export const SEED_BUSINESSES: BusinessItem[] = [];
 
-export const SEED_OFFERS: OfferItem[] = [
-  {
-    id: 'offer_silk_saree_kurnool',
-    title_en: 'Festive Season Saree Offer',
-    title_te: 'పండుగల పట్టుచీరల ప్రత్యేక ఆఫర్',
-    description_en: 'Get flat 20% off on all bridal silk sarees & traditional dhotis with complimentary fall and edging.',
-    description_te: 'అన్ని వివాహ పట్టుచీరలపై 20% ఫ్లాట్ డిస్కౌంట్ మరియు ఉచిత ఫాల్ అండ్ పీకో.',
-    discountText: 'FLAT 20% OFF',
-    businessName: 'Sri Sai Silk Palace, Kurnool',
-    validUntil: 'Valid till 31 Oct 2026',
-    category: 'clothing_fashion',
-    phone: '+919848012345',
-    bannerUrl: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80',
-    ],
-  },
-  {
-    id: 'offer_uggani_bajji_combo',
-    title_en: 'Rayalaseema Dining Special',
-    title_te: 'రాయలసీమ స్పెషల్ భోజనం & ఉగ్గాని బజ్జీ',
-    description_en: 'Enjoy special Rayalaseema authentic combos with complimentary famous Kurnool Uggani Bajji sampler on orders over ₹399.',
-    description_te: '₹399 పై ఆర్డర్లపై ప్రసిద్ధ కర్నూలు ఉగ్గాని బజ్జీ ఉచితం.',
-    discountText: 'COMPLIMENTARY DISH',
-    businessName: 'Kurnool Ruchulu Restaurant',
-    validUntil: 'Valid this Month',
-    category: 'restaurants_dining',
-    phone: '+919440054321',
-    bannerUrl: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=800&auto=format&fit=crop&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=800&auto=format&fit=crop&q=80',
-    ],
-  },
-];
-
-export const SEED_EVENTS: EventItem[] = [
-  {
-    id: 'event_konda_reddy_walk',
-    title_en: 'Konda Reddy Buruju Historic Heritage Walk',
-    title_te: 'కొండారెడ్డి బురుజు హెరిటేజ్ వాక్',
-    dateStr: 'Every Sunday Morning',
-    timeStr: '06:30 AM - 08:30 AM',
-    venue: 'Konda Reddy Fort Bastion Gate, Kurnool',
-    organizerName: 'Kurnool Heritage Society',
-    contactPhone: '+919849067890',
-    posterUrl: 'https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?w=800',
-    entryType: 'free',
-    status: 'approved',
-  },
-  {
-    id: 'event_kurnool_expo',
-    title_en: 'Kurnool Handloom & Artisans Trade Expo',
-    title_te: 'కర్నూలు చేనేత & కుటీర పరిశ్రమల ప్రదర్శన',
-    dateStr: 'Upcoming Weekend',
-    timeStr: '10:00 AM - 09:00 PM',
-    venue: 'Municipal Corporation Grounds, Kurnool',
-    organizerName: 'Rayalaseema Crafts Forum',
-    contactPhone: '+919441122334',
-    posterUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800',
-    entryType: 'free',
-    status: 'approved',
-  },
-];
+export const SEED_OFFERS: OfferItem[] = [];
 
 // ─── FIRESTORE API METHODS ───────────────────────────────────────────────────
 
@@ -1409,8 +1022,6 @@ export const fetchBusinesses = async (
     let results: BusinessItem[] = [];
     if (!snap.empty) {
       results = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessItem));
-    } else {
-      results = [...SEED_BUSINESSES];
     }
 
     if (categoryId && categoryId !== 'all') {
@@ -1421,7 +1032,7 @@ export const fetchBusinesses = async (
 
     if (searchQuery) {
       const queryLower = searchQuery.toLowerCase();
-      results = results.filter(b => 
+      results = results.filter(b =>
         b.name_en?.toLowerCase().includes(queryLower) ||
         b.name_te?.includes(searchQuery) ||
         b.address?.toLowerCase().includes(queryLower) ||
@@ -1431,7 +1042,7 @@ export const fetchBusinesses = async (
     return results;
   } catch (error) {
     console.error('fetchBusinesses error:', error);
-    return SEED_BUSINESSES;
+    return [];
   }
 };
 
@@ -1442,11 +1053,9 @@ export const fetchBusinessById = async (id: string): Promise<BusinessItem | null
     if (snap.exists()) {
       return { id: snap.id, ...snap.data() } as BusinessItem;
     }
-    const seed = SEED_BUSINESSES.find(b => b.id === id);
-    return seed || null;
+    return null;
   } catch {
-    const seed = SEED_BUSINESSES.find(b => b.id === id);
-    return seed || null;
+    return null;
   }
 };
 
@@ -1457,11 +1066,9 @@ export const fetchProfessionalById = async (id: string): Promise<ProfessionalIte
     if (snap.exists()) {
       return { id: snap.id, ...snap.data() } as ProfessionalItem;
     }
-    const seed = SEED_PROFESSIONALS.find(p => p.id === id);
-    return seed || null;
+    return null;
   } catch {
-    const seed = SEED_PROFESSIONALS.find(p => p.id === id);
-    return seed || null;
+    return null;
   }
 };
 
@@ -1470,7 +1077,7 @@ export const fetchProfessionals = async (category?: string, searchQuery?: string
     const coll = collection(db, 'professionals');
     const q = query(coll, where('status', '==', 'active'), limit(50));
     const snap = await getDocs(q);
-    let list = snap.empty ? [...SEED_PROFESSIONALS] : snap.docs.map(d => ({ id: d.id, ...d.data() } as ProfessionalItem));
+    let list = snap.empty ? [] : snap.docs.map(d => ({ id: d.id, ...d.data() } as ProfessionalItem));
 
     if (category && category !== 'all') {
       const catObj = PROFESSIONAL_CATEGORIES.find(c => c.id === category);
@@ -1489,7 +1096,7 @@ export const fetchProfessionals = async (category?: string, searchQuery?: string
     }
     return list;
   } catch {
-    return SEED_PROFESSIONALS;
+    return [];
   }
 };
 
@@ -1534,7 +1141,15 @@ export const fetchOffers = async (): Promise<OfferItem[]> => {
     if (snap.empty) return [];
     const now = Date.now();
     return snap.docs
-      .map(d => ({ id: d.id, ...d.data() } as OfferItem))
+      .map(d => {
+        const raw = d.data();
+        return {
+          id: d.id,
+          ...raw,
+          viewCount: Number(raw.viewCount ?? raw.views ?? 0),
+          views: Number(raw.views ?? raw.viewCount ?? 0),
+        } as unknown as OfferItem;
+      })
       .filter(o => {
         if (o.expiresAt) {
           const exp = new Date(o.expiresAt).getTime();
@@ -1547,17 +1162,6 @@ export const fetchOffers = async (): Promise<OfferItem[]> => {
         const tB = (b as any).createdAt?.toMillis ? (b as any).createdAt.toMillis() : new Date((b as any).createdAt || 0).getTime();
         return tB - tA;
       });
-  } catch {
-    return [];
-  }
-};
-
-export const fetchEvents = async (): Promise<EventItem[]> => {
-  try {
-    const coll = collection(db, 'events');
-    const snap = await getDocs(coll);
-    if (snap.empty) return [];
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as EventItem));
   } catch {
     return [];
   }
@@ -1831,28 +1435,68 @@ export const trackBusinessInteraction = async (
   }
 };
 
+export const trackProfessionalInteraction = async (
+  proId: string,
+  type: 'view' | 'call' | 'whatsapp'
+): Promise<void> => {
+  if (!proId) return;
+  try {
+    const proRef = doc(db, 'professionals', proId);
+    const fieldMap = {
+      view: 'viewCount',
+      call: 'callCount',
+      whatsapp: 'whatsappCount',
+    };
+    await updateDoc(proRef, {
+      [fieldMap[type]]: increment(1),
+    });
+  } catch (err) {
+    // Non-fatal
+  }
+};
+
+export const trackItemView = async (
+  collName: 'marketplace' | 'promotions' | 'businesses' | 'professionals',
+  id: string
+): Promise<void> => {
+  if (!id) return;
+  try {
+    const itemRef = doc(db, collName, id);
+    await updateDoc(itemRef, {
+      viewCount: increment(1),
+      views: increment(1),
+    });
+  } catch (err) {
+    console.warn(`[trackItemView] Error incrementing views for ${collName}/${id}:`, err);
+  }
+};
+
 export const updateBusinessProfile = async (
   businessId: string,
   data: Partial<BusinessItem>
 ): Promise<void> => {
   const bizRef = doc(db, 'businesses', businessId);
-  await updateDoc(bizRef, {
+  const cleanData = sanitizeFirestoreData({
     ...data,
     updatedAt: serverTimestamp(),
   });
+  await updateDoc(bizRef, cleanData);
 };
 
 export const createBusinessOffer = async (
   data: Partial<OfferItem>
 ): Promise<string> => {
   const coll = collection(db, 'promotions');
-  const docRef = await addDoc(coll, {
+  const cleanData = sanitizeFirestoreData({
     ...data,
     status: 'active',
+    viewCount: 0,
+    views: 0,
     createdAt: serverTimestamp(),
   });
+  const docRef = await addDoc(coll, cleanData);
 
-  // Automatically broadcast push alert for this new Hot Deal
+  // Decoupled push notification: runs in background try/catch and never blocks offer creation
   try {
     const notifColl = collection(db, 'broadcast_notifications');
     const discount = data.discountText || 'Special Offer';
@@ -1862,6 +1506,7 @@ export const createBusinessOffer = async (
       title: `🔥 Hot Deal: ${discount} at ${store}`,
       body: `${dealTitle} • Tap to view deal on Kurnool One!`,
       category: 'deal',
+      type: 'deal_alert',
       targetAudience: 'all',
       actionUrl: '/offers',
       imageUrl: data.bannerUrl || (data.images && data.images[0]) || '',
@@ -1872,7 +1517,7 @@ export const createBusinessOffer = async (
       store,
     });
   } catch (notifErr) {
-    console.warn('Failed to broadcast deal notification:', notifErr);
+    console.warn('Non-fatal: Push notification broadcast skipped for deal:', notifErr);
   }
 
   return docRef.id;
@@ -1989,13 +1634,91 @@ export const uploadBusinessCover = async (uri: string): Promise<string> => {
 };
 
 export const deleteBusiness = async (businessId: string): Promise<void> => {
-  const docRef = doc(db, 'businesses', businessId);
-  await deleteDoc(docRef);
+  if (!businessId) return;
+  try {
+    const docRef = doc(db, 'businesses', businessId);
+    const snap = await getDoc(docRef);
+    const data = snap.exists() ? snap.data() : null;
+    const phone = data?.phone || data?.ownerPhone;
+
+    // 1. Delete main business listing
+    await deleteDoc(docRef);
+
+    // 2. Cascade delete phone registration so owner can re-register if desired
+    if (phone) {
+      const cleanPhone = phone.replace(/[^0-9]/g, '').slice(-10);
+      if (cleanPhone.length === 10) {
+        try {
+          await deleteDoc(doc(db, 'registered_phones', cleanPhone));
+        } catch {}
+      }
+    }
+
+    // 3. Cascade delete associated promotions/deals
+    try {
+      const promoQuery = query(collection(db, 'promotions'), where('businessId', '==', businessId));
+      const promoSnaps = await getDocs(promoQuery);
+      for (const pDoc of promoSnaps.docs) {
+        await deleteDoc(pDoc.ref);
+      }
+    } catch {}
+
+    // 4. Cascade delete associated leads
+    try {
+      const leadsQuery = query(collection(db, 'leads'), where('targetId', '==', businessId));
+      const leadSnaps = await getDocs(leadsQuery);
+      for (const lDoc of leadSnaps.docs) {
+        await deleteDoc(lDoc.ref);
+      }
+    } catch {}
+  } catch (err) {
+    console.error('[deleteBusiness] Error executing cascade deletion:', err);
+    throw err;
+  }
 };
 
 export const deleteProfessional = async (proId: string): Promise<void> => {
-  const docRef = doc(db, 'professionals', proId);
-  await deleteDoc(docRef);
+  if (!proId) return;
+  try {
+    const docRef = doc(db, 'professionals', proId);
+    const snap = await getDoc(docRef);
+    const data = snap.exists() ? snap.data() : null;
+    const phone = data?.phone;
+
+    // 1. Delete main professional profile
+    await deleteDoc(docRef);
+
+    // 2. Cascade delete phone registration
+    if (phone) {
+      const cleanPhone = phone.replace(/[^0-9]/g, '').slice(-10);
+      if (cleanPhone.length === 10) {
+        try {
+          await deleteDoc(doc(db, 'registered_phones', cleanPhone));
+        } catch {}
+      }
+    }
+
+    // 3. Cascade delete associated marketplace items
+    try {
+      const marketQuery = query(collection(db, 'marketplace'), where('sellerId', '==', proId));
+      const marketSnaps = await getDocs(marketQuery);
+      for (const mDoc of marketSnaps.docs) {
+        await deleteDoc(mDoc.ref);
+      }
+    } catch {}
+
+    // 4. Cascade delete associated leads
+    try {
+      const leadsQuery = query(collection(db, 'leads'), where('targetId', '==', proId));
+      const leadSnaps = await getDocs(leadsQuery);
+      for (const lDoc of leadSnaps.docs) {
+        await deleteDoc(lDoc.ref);
+      }
+    } catch {}
+  } catch (err) {
+    console.error('[deleteProfessional] Error executing cascade deletion:', err);
+    throw err;
+  }
 };
 
 // ─── KURNOOL CITY LOCALITIES ─────────────────────────────────────────────
@@ -2051,14 +1774,14 @@ export const BUSINESS_PRICING_PLANS: PricingPlan[] = [
   },
   {
     id: 'biz_standard',
-    name: 'Standard Verified',
-    name_te: 'స్టాండర్డ్ వెరిఫైడ్',
+    name: 'Standard Listing',
+    name_te: 'స్టాండర్డ్ లిస్టింగ్',
     price: 399,
     period: 'for 6 months',
     badge: 'Popular Choice',
     recommended: true,
     features: [
-      'Official Verified Merchant checkmark',
+      '⭐ Standard Business Badge & Priority Ranking',
       'Direct Call & WhatsApp lead buttons',
       'Google Maps directions link',
       'Logo & storefront cover photo',
@@ -2077,7 +1800,7 @@ export const BUSINESS_PRICING_PLANS: PricingPlan[] = [
       'Homepage Featured showcase placement',
       'Hot Deals & Offers publishing privileges',
       'Complete photo gallery & storefront branding',
-      'Verified Merchant trust badge',
+      '👑 Featured Merchant Trust Badge',
     ],
   },
 ];
@@ -2099,17 +1822,17 @@ export const PROFESSIONAL_PRICING_PLANS: PricingPlan[] = [
   },
   {
     id: 'pro_standard',
-    name: 'Standard Verified',
-    name_te: 'స్టాండర్డ్ వెరిఫైడ్',
+    name: 'Standard Pro',
+    name_te: 'స్టాండర్డ్ ప్రో',
     price: 199,
     period: 'for 6 months',
     badge: 'Most Popular',
     recommended: true,
     features: [
-      'Official Verified Pro checkmark',
+      '⭐ Standard Pro Badge & Search Priority',
       'Direct 1-tap Call & WhatsApp inquiry buttons',
       'Visiting charges & experience display',
-      'Priority ranking above unverified profiles',
+      'Priority ranking above free profiles',
       'Customer review ratings badge',
     ],
   },
@@ -2172,41 +1895,7 @@ export interface NewsItem {
   createdAt?: any;
 }
 
-export const SEED_NEWS: NewsItem[] = [
-  {
-    id: 'news-1',
-    title_en: 'Kurnool City Development: New Bypass Road & Flyover Project Approved',
-    title_te: 'కర్నూలు నగర అభివృద్ధి: కొత్త బైపాస్ రోడ్డు మరియు ఫ్లైఓవర్ ప్రాజెక్టుకు ఆమోదం',
-    content_en: 'The Andhra Pradesh state administration has sanctioned new infrastructure upgrades for Kurnool city, easing traffic congestion between Bellary Chowrasta and Raj Vihar center. Work is slated to commence shortly.',
-    content_te: 'కర్నూలు నగరంలో ట్రాఫిక్ సమస్యలను పరిష్కరించేందుకు బళ్లారి చౌరస్తా మరియు రాజ్ విహార్ సెంటర్ మధ్య కొత్త ఫ్లైఓవర్ ప్రాజెక్టును ప్రభుత్వం మంజూరు చేసింది.',
-    source: 'Public Press Release / District Information',
-    publishedAt: '2025-02-15',
-    category: 'Development',
-    imageUrl: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'news-2',
-    title_en: 'Historic Konda Reddy Buruju Light & Sound Show Revamped for Visitors',
-    title_te: 'చారిత్రక కొండారెడ్డి బురుజు లైట్ అండ్ సౌండ్ షో ఆధునికీకరణ',
-    content_en: 'The prestigious Konda Reddy Buruju fort in Kurnool is now hosting an upgraded evening light and sound show narrating the glorious history of Rayalaseema and freedom fighters.',
-    content_te: 'కర్నూలులోని కొండారెడ్డి బురుజు వద్ద సాయంత్రం వేళల్లో నిర్వహించే లైట్ అండ్ సౌండ్ షోను సరికొత్త హంగులతో ఆధునీకరించారు.',
-    source: 'Tourism & Cultural Dept Updates',
-    publishedAt: '2025-02-10',
-    category: 'Culture & Tourism',
-    imageUrl: 'https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?w=800&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'news-3',
-    title_en: 'Solar & Renewable Energy Push Across Kurnool District',
-    title_te: 'కర్నూలు జిల్లాలో సౌర విద్యుత్ ప్రాజెక్టుల విస్తరణ',
-    content_en: 'With Kurnool remaining one of the largest renewable energy hubs in India, new rooftop solar incentives and mega park installations are generating sustainable local employment.',
-    content_te: 'భారతదేశంలో ప్రముఖ పునరుత్పాదక ఇంధన కేంద్రంగా ఉన్న కర్నూలు జిల్లాలో మరిన్ని సౌర విద్యుత్ ప్రాజెక్టులు అందుబాటులోకి వస్తున్నాయి.',
-    source: 'District Energy Updates',
-    publishedAt: '2025-02-05',
-    category: 'Energy',
-    imageUrl: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=800&auto=format&fit=crop&q=80',
-  },
-];
+export const SEED_NEWS: NewsItem[] = [];
 
 export async function fetchNews(): Promise<NewsItem[]> {
   try {
@@ -2280,6 +1969,7 @@ export interface MarketplaceItem {
   businessName?: string;
   proId?: string;
   proName?: string;
+  viewCount?: number;
   createdAt?: any;
 }
 
@@ -2293,7 +1983,15 @@ export async function fetchMarketplaceItems(): Promise<MarketplaceItem[]> {
     const snap = await getDocs(q);
     if (!snap.empty) {
       return snap.docs
-        .map(d => ({ id: d.id, ...d.data() } as MarketplaceItem))
+        .map(d => {
+          const raw = d.data();
+          return {
+            id: d.id,
+            ...raw,
+            viewCount: Number(raw.viewCount ?? raw.views ?? 0),
+            views: Number(raw.views ?? raw.viewCount ?? 0),
+          } as unknown as MarketplaceItem;
+        })
         .sort((a, b) => {
           const tA = (a as any).createdAt?.toMillis ? (a as any).createdAt.toMillis() : new Date((a as any).createdAt || 0).getTime();
           const tB = (b as any).createdAt?.toMillis ? (b as any).createdAt.toMillis() : new Date((b as any).createdAt || 0).getTime();
@@ -2322,7 +2020,15 @@ export async function fetchMyMarketplaceItems(sellerUid: string, businessId?: st
     const snap = await getDocs(q);
     if (!snap.empty) {
       return snap.docs
-        .map(d => ({ id: d.id, ...d.data() } as MarketplaceItem))
+        .map(d => {
+          const raw = d.data();
+          return {
+            id: d.id,
+            ...raw,
+            viewCount: Number(raw.viewCount ?? raw.views ?? 0),
+            views: Number(raw.views ?? raw.viewCount ?? 0),
+          } as unknown as MarketplaceItem;
+        })
         .sort((a, b) => {
           const tA = (a as any).createdAt?.toMillis ? (a as any).createdAt.toMillis() : new Date((a as any).createdAt || 0).getTime();
           const tB = (b as any).createdAt?.toMillis ? (b as any).createdAt.toMillis() : new Date((b as any).createdAt || 0).getTime();
@@ -2484,162 +2190,7 @@ export interface HouseRentalItem {
   updatedAt?: any;
 }
 
-export const SEED_HOUSE_RENTALS: HouseRentalItem[] = [
-  {
-    id: 'hr_seed_1',
-    ownerUid: 'seed_owner_1',
-    ownerName: 'Venkateswarlu G.',
-    ownerPhone: '9848011223',
-    ownerWhatsapp: '9848011223',
-    title_en: '2 BHK Spacious Flat (1st Floor, East Facing)',
-    title_te: '2 BHK విశాలమైన ఫ్లాట్ (మొదటి అంతస్తు, తూర్పు ముఖం)',
-    bhk: '2 BHK',
-    propertyType: 'Apartment / Flat',
-    monthlyRent: 9500,
-    depositAmount: 25000,
-    tenantPreference: 'Family Only',
-    furnishing: 'Semi-Furnished',
-    area: 'Gayatri Estate, Kurnool',
-    addressDetails: 'Near Venkateswara Swamy Temple, 2nd Cross Road',
-    waterFacility: '24/7 Borewell + Municipal Drinking Tap',
-    parking: 'Car & Bike Parking Available',
-    description: 'Neat & clean 2 BHK flat with modular kitchen, fans, lights, geyser, and separate utility balcony. Strictly vegetarian families preferred.',
-    images: [
-      'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&auto=format&fit=crop&q=80',
-    ],
-    status: 'available',
-    postedDate: 'Today',
-  },
-  {
-    id: 'hr_seed_2',
-    ownerUid: 'seed_owner_2',
-    ownerName: 'Shaik Abdul Rahim',
-    ownerPhone: '9440198765',
-    ownerWhatsapp: '9440198765',
-    title_en: '1 BHK Independent House Ground Floor',
-    title_te: '1 BHK ఇండిపెండెంట్ ఇల్లు గ్రౌండ్ ఫ్లోర్',
-    bhk: '1 BHK',
-    propertyType: 'Independent House',
-    monthlyRent: 5500,
-    depositAmount: 12000,
-    tenantPreference: 'Any / All',
-    furnishing: 'Unfurnished',
-    area: 'Joharapuram Road, Kurnool',
-    addressDetails: 'Opposite Community Hall, 30ft Road',
-    waterFacility: '24/7 Borewell water',
-    parking: 'Bike Parking Inside Gate',
-    description: 'Peaceful residential locality with peaceful surroundings. 1 Hall, 1 Bedroom with attached bath, Kitchen, and utility wash area.',
-    images: [
-      'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&auto=format&fit=crop&q=80',
-    ],
-    status: 'available',
-    postedDate: 'Yesterday',
-  },
-  {
-    id: 'hr_seed_3',
-    ownerUid: 'seed_owner_3',
-    ownerName: 'M. Suresh Reddy',
-    ownerPhone: '9849200001',
-    ownerWhatsapp: '9849200001',
-    title_en: '3 BHK Deluxe Flat with Lift & Generator',
-    title_te: '3 BHK డీలక్స్ ఫ్లాట్ (లిఫ్ట్ & జనరేటర్)',
-    bhk: '3 BHK',
-    propertyType: 'Apartment / Flat',
-    monthlyRent: 16000,
-    depositAmount: 40000,
-    tenantPreference: 'Family Only',
-    furnishing: 'Fully Furnished',
-    area: 'B Camp, Kurnool',
-    addressDetails: 'Prime Location, Near Silver Jubilee College',
-    waterFacility: 'Borewell & Manjeera connection',
-    parking: 'Dedicated Covered Car Parking',
-    description: 'Fully furnished 3 BHK with 3 ACs, sofa set, dining table, 2 double beds with mattresses, and modular kitchen chimney. 24/7 security guard.',
-    images: [
-      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?w=800&auto=format&fit=crop&q=80',
-    ],
-    status: 'available',
-    postedDate: '2 days ago',
-  },
-  {
-    id: 'hr_seed_4',
-    ownerUid: 'seed_owner_4',
-    ownerName: 'K. Srinivasa Rao',
-    ownerPhone: '9123456780',
-    ownerWhatsapp: '9123456780',
-    title_en: '2 BHK Independent House (Near Checkpost)',
-    title_te: '2 BHK ఇండిపెండెంట్ ఇల్లు (చెక్ పోస్ట్ దగ్గర)',
-    bhk: '2 BHK',
-    propertyType: 'Independent House',
-    monthlyRent: 8000,
-    depositAmount: 20000,
-    tenantPreference: 'Family Only',
-    furnishing: 'Semi-Furnished',
-    area: 'Nandyal Checkpost, Kurnool',
-    addressDetails: 'Behind Reliance Trends, Krishna Nagar',
-    waterFacility: 'Continuous supply borewell water',
-    parking: 'Bike & Small Car Parking',
-    description: 'Very close to main road, bus stop, schools, and hospitals. 100% Vastu compliant, east facing with marble flooring.',
-    images: [
-      'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&auto=format&fit=crop&q=80',
-    ],
-    status: 'available',
-    postedDate: '3 days ago',
-  },
-  {
-    id: 'hr_seed_5',
-    ownerUid: 'seed_owner_5',
-    ownerName: 'Ravi Teja',
-    ownerPhone: '9848055667',
-    ownerWhatsapp: '9848055667',
-    title_en: 'Main Road Commercial Shop / Office Space',
-    title_te: 'మెయిన్ రోడ్ కమర్షియల్ షాప్ / ఆఫీస్ స్పేస్',
-    bhk: 'Commercial',
-    propertyType: 'Commercial Space',
-    monthlyRent: 12000,
-    depositAmount: 50000,
-    tenantPreference: 'Any / All',
-    furnishing: 'Unfurnished',
-    area: 'Abbas Nagar, Kurnool',
-    addressDetails: 'Ground Floor, High Footfall Main Junction',
-    waterFacility: 'Commercial water connection',
-    parking: 'Customer Parking on Frontage',
-    description: '280 sq.ft prime commercial space with rolling shutter, glass partition, tile flooring, and separate electrical meter. Ideal for clinic, pharmacy, or office.',
-    images: [
-      'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&auto=format&fit=crop&q=80',
-    ],
-    status: 'available',
-    postedDate: '4 days ago',
-  },
-  {
-    id: 'hr_seed_6',
-    ownerUid: 'seed_owner_6',
-    ownerName: 'Prasad Babu',
-    ownerPhone: '9989012345',
-    ownerWhatsapp: '9989012345',
-    title_en: '1 RK Single Room for Students / Employees',
-    title_te: '1 RK సింగిల్ రూమ్ (ఉద్యోగులు / విద్యార్థులకు)',
-    bhk: '1 RK',
-    propertyType: 'Single Room / RK',
-    monthlyRent: 3800,
-    depositAmount: 8000,
-    tenantPreference: 'Bachelors',
-    furnishing: 'Unfurnished',
-    area: 'Birla Compound, Kurnool',
-    addressDetails: 'Near Medical College & G. Pulla Reddy Engineering College route',
-    waterFacility: '24/7 Water supply',
-    parking: 'Two-Wheeler Covered Parking',
-    description: 'Single large room with attached western bathroom and separate kitchen shelf. Ideal for single working male/female or medical/engineering students.',
-    images: [
-      'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=800&auto=format&fit=crop&q=80',
-    ],
-    status: 'available',
-    postedDate: '5 days ago',
-  },
-];
+export const SEED_HOUSE_RENTALS: HouseRentalItem[] = [];
 
 export async function fetchHouseRentals(bhkFilter?: string): Promise<HouseRentalItem[]> {
   try {
@@ -2725,11 +2276,11 @@ export const submitContentReport = async (report: ReportSubmission): Promise<boo
   try {
     const targetCollection =
       report.reportType === 'business' ? 'businesses' :
-      report.reportType === 'professional' ? 'professionals' :
-      report.reportType === 'deal' ? 'promotions' :
-      report.reportType === 'news' ? 'news' :
-      report.reportType === 'marketplace' ? 'marketplace' :
-      report.reportType === 'community_post' ? 'posts' : 'businesses';
+        report.reportType === 'professional' ? 'professionals' :
+          report.reportType === 'deal' ? 'promotions' :
+            report.reportType === 'news' ? 'news' :
+              report.reportType === 'marketplace' ? 'marketplace' :
+                report.reportType === 'community_post' ? 'posts' : 'businesses';
 
     const coll = collection(db, 'reports');
     await addDoc(coll, {

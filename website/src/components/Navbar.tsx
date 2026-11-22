@@ -374,15 +374,6 @@ export default function Navbar() {
           </Link>
 
           <Link
-            href="/events"
-            onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-3 py-2.5 text-slate-800 font-semibold text-sm border-b border-slate-100"
-          >
-            <Calendar className="w-4 h-4 text-purple-600" />
-            <span>{t('City Events & Festivals', 'వేడుకలు & ఉత్సవాలు')}</span>
-          </Link>
-
-          <Link
             href="/explore"
             onClick={() => setMobileMenuOpen(false)}
             className="flex items-center gap-3 py-2.5 text-slate-800 font-semibold text-sm border-b border-slate-100"
