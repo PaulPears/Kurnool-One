@@ -16,7 +16,7 @@ import {
   Share2,
   Building2,
 } from 'lucide-react';
-import { fetchBusinessById, SEED_BUSINESSES } from '@/services/directoryService';
+import { fetchBusinessById } from '@/services/directoryService';
 import BusinessActionButtons from '@/components/BusinessActionButtons';
 import BusinessReviews from '@/components/BusinessReviews';
 

@@ -1581,43 +1581,6 @@ export const syncMasterCategoriesToFirestore = async (): Promise<{ count: number
   return { count };
 };
 
-export const syncAllSeedsToFirestore = async (): Promise<{ totalCount: number }> => {
-  let totalCount = 0;
-  try {
-    for (const cat of MASTER_CATEGORIES) {
-      await setDoc(doc(db, 'categories', cat.id), cat, { merge: true });
-      totalCount++;
-    }
-    for (const biz of SEED_BUSINESSES) {
-      await setDoc(doc(db, 'businesses', biz.id), { ...biz, status: 'published' }, { merge: true });
-      totalCount++;
-    }
-    for (const pro of SEED_PROFESSIONALS) {
-      await setDoc(doc(db, 'professionals', pro.id), { ...pro, status: 'active' }, { merge: true });
-      totalCount++;
-    }
-    for (const off of SEED_OFFERS) {
-      await setDoc(doc(db, 'promotions', off.id), { ...off, status: 'published' }, { merge: true });
-      totalCount++;
-    }
-    for (const plc of SEED_PLACES) {
-      await setDoc(doc(db, 'places', plc.id), plc, { merge: true });
-      totalCount++;
-    }
-    for (const wor of SEED_WORSHIP_PLACES) {
-      await setDoc(doc(db, 'places_of_worship', wor.id), wor, { merge: true });
-      totalCount++;
-    }
-    for (const n of SEED_NEWS) {
-      await setDoc(doc(db, 'news', n.id), { ...n, status: 'approved' }, { merge: true });
-      totalCount++;
-    }
-  } catch (err) {
-    console.error('syncAllSeedsToFirestore error:', err);
-  }
-  return { totalCount };
-};
-
 export const saveCategoryToFirestore = async (category: Partial<CategoryItem> & { id: string }): Promise<void> => {
   try {
     await setDoc(doc(db, 'categories', category.id), category, { merge: true });

@@ -79,7 +79,6 @@ import {
   PROFESSIONAL_CATEGORIES,
   fetchPlatformLeads,
   syncMasterCategoriesToFirestore,
-  syncAllSeedsToFirestore,
   saveCategoryToFirestore,
   deleteCategoryFromFirestore,
   sendBroadcastNotification,
@@ -210,7 +209,6 @@ export default function DedicatedAdminConsole() {
   const [adminPassword, setAdminPassword] = useState('');
   const [showAdminHelpModal, setShowAdminHelpModal] = useState(false);
   const [syncingCategories, setSyncingCategories] = useState(false);
-  const [syncingAllSeeds, setSyncingAllSeeds] = useState(false);
   const [showAddCatModal, setShowAddCatModal] = useState(false);
   const [newCatForm, setNewCatForm] = useState({ id: '', name_en: '', name_te: '', icon: 'Tag', color: '#2563EB', subcategories: '' });
   const [showAddSubcatModal, setShowAddSubcatModal] = useState<string | null>(null);
@@ -926,20 +924,6 @@ export default function DedicatedAdminConsole() {
       alert('Failed to sync categories: ' + err.message);
     } finally {
       setSyncingCategories(false);
-    }
-  };
-
-  const handleSyncAllSeeds = async () => {
-    if (!confirm('This will sync all Businesses, Professionals, Hot Deals, Places, and News from seeds directly into live Firestore. Proceed?')) return;
-    setSyncingAllSeeds(true);
-    try {
-      const res = await syncAllSeedsToFirestore();
-      setToast(`Successfully synced ${res.totalCount} items to live Firestore!`);
-      await loadData();
-    } catch (err: any) {
-      alert('Failed to sync all seeds: ' + err.message);
-    } finally {
-      setSyncingAllSeeds(false);
     }
   };
 
@@ -3363,15 +3347,6 @@ export default function DedicatedAdminConsole() {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleSyncAllSeeds}
-                    disabled={syncingAllSeeds}
-                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${syncingAllSeeds ? 'animate-spin' : ''}`} />
-                    <span>{syncingAllSeeds ? 'Syncing Seeds...' : '⚡ Sync All Seed Businesses, Pros & Deals'}</span>
-                  </button>
                   <button
                     type="button"
                     onClick={handleSyncCategories}

@@ -120,7 +120,7 @@ export default function ProfileScreen({ route, navigation }: any) {
   const handleShareProfile = async () => {
     try {
       await Share.share({
-        message: `Discover Kurnool One — Everything in One App! Explore local shops, skilled pros, deals & tourism in Kurnool city: https://kurnool-kaburlu.web.app`,
+        message: `Discover Kurnool One — Everything in One App! Explore local shops, skilled pros, deals & tourism in Kurnool city: https://kurnool-one.web.app`,
       });
     } catch (error) {
       console.error('Share Error:', error);

@@ -258,17 +258,25 @@ export default function MobileFirebaseLogin({ navigation, route }: any) {
 
   const openTerms = async () => {
     try {
-      await WebBrowser.openBrowserAsync('https://kurnool-kaburlu.web.app/terms');
+      if (navigation?.navigate) {
+        navigation.navigate('Terms');
+        return;
+      }
+      await WebBrowser.openBrowserAsync('https://kurnool-one.web.app/terms');
     } catch {
-      Alert.alert('Terms of Service', 'Please visit https://kurnoolone.com/terms in your browser.');
+      Alert.alert('Terms of Service', 'Please visit https://kurnool-one.web.app/terms in your browser.');
     }
   };
 
   const openPrivacy = async () => {
     try {
-      await WebBrowser.openBrowserAsync('https://kurnool-kaburlu.web.app/privacy');
+      if (navigation?.navigate) {
+        navigation.navigate('PrivacyPolicy');
+        return;
+      }
+      await WebBrowser.openBrowserAsync('https://kurnool-one.web.app/privacy');
     } catch {
-      Alert.alert('Privacy Policy', 'Please visit https://kurnoolone.com/privacy in your browser.');
+      Alert.alert('Privacy Policy', 'Please visit https://kurnool-one.web.app/privacy in your browser.');
     }
   };
 
