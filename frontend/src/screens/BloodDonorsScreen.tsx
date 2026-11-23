@@ -42,13 +42,31 @@ export default function BloodDonorsScreen({ navigation }: any) {
   const [savingDonor, setSavingDonor] = useState(false);
   const [noticeCollapsed, setNoticeCollapsed] = useState(false);
 
+  const getEffectiveUser = async () => {
+    if (auth.currentUser) return auth.currentUser;
+    try {
+      const stored = await AsyncStorage.getItem('user');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && (parsed.uid || parsed.id)) {
+          return {
+            uid: parsed.uid || parsed.id,
+            displayName: parsed.name || parsed.displayName || '',
+            phoneNumber: parsed.phone || parsed.phoneNumber || '',
+          };
+        }
+      }
+    } catch {}
+    return null;
+  };
+
   useEffect(() => {
     loadDonors();
     checkMyProfile();
   }, [selectedGroup]);
 
   const checkMyProfile = async () => {
-    const user = auth.currentUser;
+    const user = await getEffectiveUser();
     if (user?.uid) {
       const p = await fetchMyBloodDonorProfile(user.uid);
       if (p) {
@@ -64,6 +82,18 @@ export default function BloodDonorsScreen({ navigation }: any) {
     }
   };
 
+  const handleGoBack = () => {
+    if (donorModalVisible) {
+      setDonorModalVisible(false);
+      return;
+    }
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Main', { screen: 'Home' });
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       const backAction = () => {
@@ -75,7 +105,7 @@ export default function BloodDonorsScreen({ navigation }: any) {
           navigation.goBack();
           return true;
         }
-        navigation.navigate('Main');
+        navigation.navigate('Main', { screen: 'Home' });
         return true;
       };
       const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
@@ -120,8 +150,9 @@ export default function BloodDonorsScreen({ navigation }: any) {
     } catch {}
   };
 
-  const handleOpenRegisterModal = () => {
-    if (!auth.currentUser) {
+  const handleOpenRegisterModal = async () => {
+    const user = await getEffectiveUser();
+    if (!user) {
       Alert.alert(
         language === 'en' ? 'Login Required' : 'లాగిన్ అవసరం',
         language === 'en'
@@ -135,8 +166,8 @@ export default function BloodDonorsScreen({ navigation }: any) {
       return;
     }
     if (!myDonorProfile) {
-      setDonorName(auth.currentUser.displayName || '');
-      let uPhone = auth.currentUser.phoneNumber || '';
+      setDonorName(user.displayName || '');
+      let uPhone = user.phoneNumber || '';
       if (uPhone) setDonorPhone(uPhone.replace('+91', ''));
       setDonorConsent(true);
     }
@@ -165,7 +196,8 @@ export default function BloodDonorsScreen({ navigation }: any) {
 
     setSavingDonor(true);
     try {
-      const uid = auth.currentUser?.uid || '';
+      const user = await getEffectiveUser();
+      const uid = user?.uid || `donor_${Date.now()}`;
       if (myDonorProfile) {
         await updateBloodDonor(myDonorProfile.id, {
           displayName: donorName.trim(),
@@ -234,7 +266,7 @@ export default function BloodDonorsScreen({ navigation }: any) {
       {/* Header */}
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <TouchableOpacity onPress={handleGoBack} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#1E293B" />
           </TouchableOpacity>
           <View>

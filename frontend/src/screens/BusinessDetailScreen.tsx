@@ -13,6 +13,7 @@ import {
 import { MASTER_CATEGORIES } from '../data/masterCategories';
 import { auth } from '../config/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAppUser } from '../services/authHelper';
 import { ReportModal } from '../components/ReportModal';
 import CustomerLeadModal, { LEAD_USER_KEY } from '../components/CustomerLeadModal';
 
@@ -218,8 +219,12 @@ export default function BusinessDetailScreen({ route, navigation }: any) {
   };
 
   const handleSubmitReview = async () => {
-    if (!auth.currentUser) {
-      Alert.alert('Sign in required', 'Please sign in to rate and review this business.');
+    const user = await getAppUser();
+    if (!user) {
+      Alert.alert('Sign in required', 'Please sign in to rate and review this business.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign In', onPress: () => navigation.navigate('MobileFirebaseLogin') },
+      ]);
       return;
     }
     if (!reviewComment.trim()) {

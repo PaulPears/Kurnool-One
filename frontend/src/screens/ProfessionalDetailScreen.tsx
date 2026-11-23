@@ -18,6 +18,7 @@ import {
 } from '../services/directoryService';
 import { auth } from '../config/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAppUser } from '../services/authHelper';
 import { ReportModal } from '../components/ReportModal';
 import CustomerLeadModal, { LEAD_USER_KEY } from '../components/CustomerLeadModal';
 
@@ -48,7 +49,7 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
           const parsed = JSON.parse(stored);
           if (parsed.uid || parsed.id) setCurrentUserUid(parsed.uid || parsed.id);
           if (parsed.phone) setCurrentUserPhone(parsed.phone);
-        } catch {}
+        } catch { }
       }
     });
   }, []);
@@ -68,12 +69,13 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
   useEffect(() => {
     const targetId = proId || initialPro?.id;
     if (targetId) {
-      fetchProfessionalReviews(targetId).then(setReviews).catch(() => {});
+      fetchProfessionalReviews(targetId).then(setReviews).catch(() => { });
     }
   }, [proId, initialPro?.id]);
 
   const handleSubmitReview = async () => {
-    if (!auth.currentUser) {
+    const user = await getAppUser();
+    if (!user) {
       Alert.alert(
         language === 'en' ? 'Sign In Required' : 'లాగిన్ అవసరం',
         language === 'en' ? 'Please sign in to rate and review this professional.' : 'ఈ నిపుణుడిని రేట్ చేయడానికి దయచేసి లాగిన్ అవ్వండి.',
@@ -140,7 +142,7 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
             const p = JSON.parse(savedLeadUser);
             if (p.name) citizenName = p.name;
             if (p.phone) citizenPhone = p.phone;
-          } catch {}
+          } catch { }
         }
         if (!citizenPhone) {
           const stored = await AsyncStorage.getItem('user');
@@ -151,7 +153,7 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
               if (parsed.phone) citizenPhone = parsed.phone;
               if (parsed.location) citizenArea = parsed.location;
               if (parsed.gender) citizenGender = parsed.gender;
-            } catch {}
+            } catch { }
           }
         }
       }
@@ -168,7 +170,7 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
         citizenArea,
         citizenGender,
       });
-    } catch {}
+    } catch { }
   };
 
   useEffect(() => {
@@ -195,7 +197,7 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
           customerName = parsed.name || '';
         }
       }
-    } catch {}
+    } catch { }
 
     if (customerPhone && customerPhone.length === 10) {
       executeLeadAction(action, customerName, customerPhone);
@@ -211,11 +213,11 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
     logProLead(action, customerName, customerPhone);
 
     if (action === 'call' && pro.phone) {
-      Linking.openURL(`tel:${pro.phone}`).catch(() => {});
+      Linking.openURL(`tel:${pro.phone}`).catch(() => { });
     } else if (action === 'whatsapp' && (pro.whatsapp || pro.phone)) {
       const num = (pro.whatsapp || pro.phone).replace(/[^0-9]/g, '');
       const waNumber = num.startsWith('91') ? num : `91${num}`;
-      Linking.openURL(`https://wa.me/${waNumber}?text=Hello ${pro.fullName}, I found your profile on Kurnool One and need your service.`).catch(() => {});
+      Linking.openURL(`https://wa.me/${waNumber}?text=Hello ${pro.fullName}, I found your profile on Kurnool One and need your service.`).catch(() => { });
     }
   };
 
@@ -230,7 +232,7 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
   const handleOpenLink = (url?: string) => {
     if (!url) return;
     const finalUrl = url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`;
-    Linking.openURL(finalUrl).catch(() => {});
+    Linking.openURL(finalUrl).catch(() => { });
   };
 
   const handleShare = async () => {
@@ -240,7 +242,7 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
       await Share.share({
         message: `Need a ${pro.category} in Kurnool? Check out ${pro.fullName} on Kurnool One!\nPhone: ${pro.phone}\nAreas: ${pro.serviceAreas?.join(', ') || 'Kurnool'}\n\n👉 Download Kurnool One App:\n${appUrl}`,
       });
-    } catch {}
+    } catch { }
   };
 
   if (loading) {
@@ -385,8 +387,8 @@ export default function ProfessionalDetailScreen({ route, navigation }: any) {
             {(Array.isArray(pro.serviceAreas) && pro.serviceAreas.length > 0
               ? pro.serviceAreas
               : typeof (pro.serviceAreas as any) === 'string' && (pro.serviceAreas as any).trim()
-              ? [(pro.serviceAreas as any).trim()]
-              : ['Kurnool City & Surrounding Areas']
+                ? [(pro.serviceAreas as any).trim()]
+                : ['Kurnool City & Surrounding Areas']
             ).map((area: string, idx: number) => (
               <View key={idx} style={styles.areaPill}>
                 <Ionicons name="location-outline" size={14} color="#2563EB" />

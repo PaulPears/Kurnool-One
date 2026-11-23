@@ -291,16 +291,6 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.highlightPill, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
-            onPress={() => navigation.navigate('Offers', { initialTab: 'marketplace' })}
-          >
-            <Ionicons name="cart" size={15} color="#059669" />
-            <Text style={[styles.highlightPillText, { color: '#047857' }]}>
-              {language === 'en' ? 'Kurnool Bazaar' : 'కర్నూలు బజార్'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
             style={[styles.highlightPill, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
             onPress={() => navigation.navigate('HouseRent')}
           >
@@ -504,25 +494,25 @@ export default function HomeScreen({ navigation }: any) {
         </View>
 
         {/* ─── FRESH OFFERS & DEALS SECTION (3-5 RECENT OFFERS) ─── */}
-        {offers.length > 0 && (
-          <View style={{ marginTop: 18, marginHorizontal: 14 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Ionicons name="flame" size={20} color="#DC2626" />
-                <Text style={{ fontSize: 16, fontWeight: '900', color: '#111827' }}>
-                  {language === 'en' ? 'Fresh Deals & Discounts' : 'తాజా హాట్ ఆఫర్లు'}
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => navigation.navigate('Offers', { initialTab: 'offers' })}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
-              >
-                <Text style={{ fontSize: 12, fontWeight: '800', color: '#DC2626' }}>
-                  {language === 'en' ? 'Explore All →' : 'అన్నీ చూడండి →'}
-                </Text>
-              </TouchableOpacity>
+        <View style={{ marginTop: 18, marginHorizontal: 14 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="flame" size={20} color="#DC2626" />
+              <Text style={{ fontSize: 16, fontWeight: '900', color: '#111827' }}>
+                {language === 'en' ? 'Fresh Deals & Discounts' : 'తాజా హాట్ ఆఫర్లు'}
+              </Text>
             </View>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Offers', { initialTab: 'offers' })}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: '800', color: '#DC2626' }}>
+                {language === 'en' ? 'Explore All →' : 'అన్నీ చూడండి →'}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
+          {offers.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 6 }}>
               {offers.slice(0, 5).map((deal) => (
                 <TouchableOpacity
@@ -575,8 +565,40 @@ export default function HomeScreen({ navigation }: any) {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </View>
-        )}
+          ) : (
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => navigation.navigate('Offers', { initialTab: 'offers' })}
+              style={{
+                backgroundColor: '#FFF5F5',
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: '#FED7D7',
+                borderStyle: 'dashed',
+                padding: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#9B2C2C' }}>
+                  {language === 'en' ? 'Special City Offers' : 'ప్రత్యేక నగర ఆఫర్లు'}
+                </Text>
+                <Text style={{ fontSize: 11, color: '#742A2A', marginTop: 2 }}>
+                  {language === 'en'
+                    ? 'No active offers today. Local businesses, post your discounts!'
+                    : 'ఈరోజు తాజా ఆఫర్లు లేవు. వ్యాపారస్తులు మీ ఆఫర్లను పోస్ట్ చేయండి!'}
+                </Text>
+              </View>
+              <View style={{ backgroundColor: '#E53E3E', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}>
+                <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800' }}>
+                  {language === 'en' ? '+ Post Offer' : '+ పోస్ట్ చేయండి'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* ─── NATIVE ADVANCED AD 1 ─── */}
         <View style={{ marginHorizontal: 14, marginTop: 14 }}>

@@ -35,7 +35,11 @@ export default function PartnerProgramScreen({ navigation }: any) {
   useEffect(() => {
     loadPartnerData();
     const onBackPress = () => {
-      navigation.goBack();
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate('Main', { screen: 'Home' });
+      }
       return true;
     };
     const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
@@ -223,7 +227,7 @@ export default function PartnerProgramScreen({ navigation }: any) {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4 }}>
+        <TouchableOpacity onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Main', { screen: 'Home' })} style={{ padding: 4 }}>
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 10 }}>
@@ -358,7 +362,7 @@ export default function PartnerProgramScreen({ navigation }: any) {
                                       const parsed = JSON.parse(stored);
                                       uid = parsed.uid || parsed.id;
                                     }
-                                  } catch {}
+                                  } catch { }
                                 }
                                 if (uid) {
                                   try {
@@ -368,7 +372,7 @@ export default function PartnerProgramScreen({ navigation }: any) {
                                       newUpi: '',
                                       timestamp: serverTimestamp(),
                                     });
-                                  } catch {}
+                                  } catch { }
                                   await setDoc(doc(db, 'partners', uid), {
                                     upiId: '',
                                     updatedAt: new Date().toISOString(),

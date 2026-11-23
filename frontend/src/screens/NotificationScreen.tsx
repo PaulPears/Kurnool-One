@@ -136,7 +136,7 @@ export default function NotificationScreen({ navigation }: any) {
     <SafeAreaView className="flex-1 bg-white">
       <View className="px-4 py-4 border-b border-gray-100 flex-row items-center justify-center relative">
         <Text className="text-xl font-bold text-gray-900">Notifications</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()} className="absolute right-4 top-4">
+        <TouchableOpacity onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Main', { screen: 'Home' })} className="absolute right-4 top-4">
           <Ionicons name="close" size={28} color="#1F2937" />
         </TouchableOpacity>
       </View>

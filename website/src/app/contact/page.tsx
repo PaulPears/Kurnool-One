@@ -48,16 +48,27 @@ export default function ContactPage() {
                     support@kurnoolone.com
                   </a>
                 </div>
-                <div className="flex items-center gap-2.5">
-                  <Phone className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <a
-                    href="https://wa.me/917780533086?text=Hello%20Kurnool%20One%20Support"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-bold text-emerald-700 hover:underline flex items-center gap-1.5"
-                  >
-                    <span>WhatsApp Helpline (9:00 AM – 9:00 PM • +91 77805 33086)</span>
-                  </a>
+                <div className="flex items-start gap-2.5">
+                  <Phone className="w-4 h-4 text-emerald-600 shrink-0 mt-1" />
+                  <div className="flex flex-col gap-1">
+                    <a
+                      href="https://wa.me/917780533086?text=Hello%20Kurnool%20One%20Support"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-bold text-emerald-700 hover:underline flex items-center gap-1.5"
+                    >
+                      <span>WhatsApp Line 1: +91 77805 33086</span>
+                    </a>
+                    <a
+                      href="https://wa.me/919063367768?text=Hello%20Kurnool%20One%20Support"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-bold text-emerald-700 hover:underline flex items-center gap-1.5"
+                    >
+                      <span>WhatsApp Line 2: +91 90633 67768</span>
+                    </a>
+                    <span className="text-[11px] text-slate-500">(9:00 AM – 9:00 PM IST)</span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2.5">
                   <MapPin className="w-4 h-4 text-blue-600 shrink-0" />

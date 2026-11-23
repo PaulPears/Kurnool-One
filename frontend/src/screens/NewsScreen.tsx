@@ -119,6 +119,26 @@ export default function NewsScreen({ navigation }: any) {
     loadNews();
   }, []);
 
+  const handleGoBack = () => {
+    if (fullScreenNewsImage) {
+      setFullScreenNewsImage(null);
+      return;
+    }
+    if (selectedArticle) {
+      setSelectedArticle(null);
+      return;
+    }
+    if (submitModalVisible) {
+      setSubmitModalVisible(false);
+      return;
+    }
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Main', { screen: 'Home' });
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       const backAction = () => {
@@ -137,8 +157,10 @@ export default function NewsScreen({ navigation }: any) {
         if (navigation.canGoBack()) {
           navigation.goBack();
           return true;
+        } else {
+          navigation.navigate('Main', { screen: 'Home' });
+          return true;
         }
-        return false;
       };
 
       const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
@@ -202,8 +224,8 @@ export default function NewsScreen({ navigation }: any) {
             <Text style={styles.dateText}>{item.dateStr || 'Recent'}</Text>
           </View>
 
-          <Text style={styles.title} numberOfLines={2}>{title}</Text>
-          <Text style={styles.snippet} numberOfLines={2}>{content}</Text>
+          <Text style={styles.title} numberOfLines={1}>{title}</Text>
+          <Text style={styles.snippet} numberOfLines={1}>{content}</Text>
 
           <View style={styles.cardFooter}>
             {item.source ? (
@@ -231,7 +253,7 @@ export default function NewsScreen({ navigation }: any) {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity onPress={handleGoBack} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <View style={{ flex: 1, marginLeft: 10 }}>
@@ -568,51 +590,51 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '900', color: '#111827' },
   headerSub: { fontSize: 11, color: '#6B7280', marginTop: 1 },
   loaderWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContent: { padding: 16, paddingBottom: 100 },
+  listContent: { padding: 12, paddingBottom: 80 },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    marginBottom: 16,
+    borderRadius: 14,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
-    shadowRadius: 8,
+    shadowRadius: 4,
     elevation: 2,
   },
-  cardImage: { width: '100%', height: 170 },
+  cardImage: { width: '100%', height: 110 },
   placeholderImage: {
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cardBody: { padding: 14 },
+  cardBody: { padding: 10 },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   categoryBadge: {
     backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: '#DBEAFE',
   },
-  categoryBadgeText: { fontSize: 10, fontWeight: '800', color: '#2563EB' },
-  dateText: { fontSize: 11, color: '#9CA3AF' },
-  title: { fontSize: 15, fontWeight: '800', color: '#111827', lineHeight: 21 },
-  snippet: { fontSize: 13, color: '#4B5563', lineHeight: 18, marginTop: 4 },
+  categoryBadgeText: { fontSize: 9, fontWeight: '800', color: '#2563EB' },
+  dateText: { fontSize: 10, color: '#9CA3AF' },
+  title: { fontSize: 13, fontWeight: '800', color: '#111827', lineHeight: 18 },
+  snippet: { fontSize: 11, color: '#4B5563', lineHeight: 15, marginTop: 2 },
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 10,
-    paddingTop: 8,
+    marginTop: 6,
+    paddingTop: 6,
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
   },

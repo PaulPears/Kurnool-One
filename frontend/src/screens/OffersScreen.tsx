@@ -232,6 +232,42 @@ export default function OffersScreen({ route, navigation }: any) {
   const postModalVisibleRef = useRef(postModalVisible);
   postModalVisibleRef.current = postModalVisible;
 
+  const handleGoBack = () => {
+    if (viewerVisibleRef.current) {
+      setViewerVisible(false);
+      setViewerImages([]);
+      setViewerIndex(0);
+      return;
+    }
+    if (reportingTargetRef.current) {
+      setReportingTarget(null);
+      return;
+    }
+    if (selectedDealRef.current) {
+      setSelectedDeal(null);
+      closeDealModal();
+      return;
+    }
+    if (selectedMarketItemRef.current) {
+      setSelectedMarketItem(null);
+      closeMarketModal();
+      return;
+    }
+    if (postModalVisibleRef.current) {
+      setPostModalVisible(false);
+      return;
+    }
+    if (activeTabRef.current === 'marketplace') {
+      setActiveTab('offers');
+      return;
+    }
+    if (navigation?.canGoBack && navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Main', { screen: 'Home' });
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       const backAction = () => {
@@ -246,10 +282,12 @@ export default function OffersScreen({ route, navigation }: any) {
           return true;
         }
         if (selectedDealRef.current) {
+          setSelectedDeal(null);
           closeDealModal();
           return true;
         }
         if (selectedMarketItemRef.current) {
+          setSelectedMarketItem(null);
           closeMarketModal();
           return true;
         }
@@ -261,7 +299,11 @@ export default function OffersScreen({ route, navigation }: any) {
           setActiveTab('offers');
           return true;
         }
-        navigation.navigate('Home');
+        if (navigation?.canGoBack && navigation.canGoBack()) {
+          navigation.goBack();
+          return true;
+        }
+        navigation.navigate('Main', { screen: 'Home' });
         return true;
       };
 
@@ -340,8 +382,27 @@ export default function OffersScreen({ route, navigation }: any) {
     }
   };
 
+  const getEffectiveUser = async () => {
+    if (auth.currentUser) return auth.currentUser;
+    try {
+      const stored = await AsyncStorage.getItem('user');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && (parsed.uid || parsed.id)) {
+          return {
+            uid: parsed.uid || parsed.id,
+            displayName: parsed.name || parsed.displayName || '',
+            phoneNumber: parsed.phone || parsed.phoneNumber || '',
+          };
+        }
+      }
+    } catch { }
+    return null;
+  };
+
   const handleOpenPostModal = async () => {
-    if (!auth.currentUser) {
+    const user = await getEffectiveUser();
+    if (!user) {
       Alert.alert(
         language === 'en' ? 'Sign In Required' : 'లాగిన్ అవసరం',
         language === 'en'
@@ -353,6 +414,9 @@ export default function OffersScreen({ route, navigation }: any) {
         ]
       );
       return;
+    }
+    if (!postPhone && user.phoneNumber) {
+      setPostPhone(user.phoneNumber.replace('+91', ''));
     }
     setPostModalVisible(true);
   };
@@ -436,14 +500,15 @@ export default function OffersScreen({ route, navigation }: any) {
           }
         }
       }
-      const uid = auth.currentUser?.uid || '';
+      const user = await getEffectiveUser();
+      const uid = user?.uid || `user_${Date.now()}`;
       await createMarketplaceItem({
         title_en: postTitle.trim(),
         price: postPrice.trim().startsWith('₹') ? postPrice.trim() : `₹${postPrice.trim()}`,
         category: postCategory || 'other',
         condition: postCondition.trim() || 'Used / Pre-owned',
         area: postArea.trim() || 'Kurnool City',
-        sellerName: auth.currentUser?.displayName || 'Citizen Seller',
+        sellerName: user?.displayName || 'Citizen Seller',
         sellerPhone: cleanPhone,
         sellerWhatsapp: cleanPhone,
         sellerUid: uid,
@@ -498,11 +563,9 @@ export default function OffersScreen({ route, navigation }: any) {
       {/* Header with Back Navigation */}
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          {navigation?.canGoBack && navigation.canGoBack() && (
-            <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4, marginRight: 2 }}>
-              <Ionicons name="arrow-back" size={24} color="#0F172A" />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity onPress={handleGoBack} style={{ padding: 4, marginRight: 2 }}>
+            <Ionicons name="arrow-back" size={24} color="#0F172A" />
+          </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>
               {language === 'en' ? 'Deals & Kurnool Bazaar' : 'హాట్ ఆఫర్లు & బజార్'}
@@ -749,6 +812,7 @@ export default function OffersScreen({ route, navigation }: any) {
                         <Text style={{ fontSize: 10, color: '#64748B', fontWeight: '700' }}>{formatViewCount(item.viewCount)}</Text>
                       </View>
                       <View style={styles.compactClaimBtn}>
+                        <Text style={styles.compactClaimBtnText}>Claim</Text>
                         <Text style={styles.compactClaimBtnText}>
                           {language === 'en' ? 'View Offer' : 'ఆఫర్ చూడండి'}
                         </Text>
@@ -924,6 +988,62 @@ export default function OffersScreen({ route, navigation }: any) {
       <View style={{ alignItems: 'center', backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingVertical: 4 }}>
         <SafeBannerAd unitId={BANNER_AD_UNIT} />
       </View>
+      {/* Full-Screen Image Viewer Modal */}
+      <Modal
+        visible={viewerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setViewerVisible(false)}
+      >
+        <SafeAreaView style={styles.viewerOverlay}>
+          <StatusBar barStyle="light-content" backgroundColor="#000000" />
+          <View style={styles.viewerHeader}>
+            <View style={styles.viewerCounterBadge}>
+              <Text style={styles.viewerCounterText}>
+                {viewerImages.length > 1
+                  ? `${viewerIndex + 1} / ${viewerImages.length}`
+                  : '1 Photo'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setViewerVisible(false)}
+              style={styles.viewerCloseBtn}
+            >
+              <Ionicons name="close" size={26} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.viewerImageContainer}>
+            {viewerImages[viewerIndex] ? (
+              <Image
+                source={{ uri: viewerImages[viewerIndex] }}
+                style={styles.viewerImage}
+                resizeMode="contain"
+              />
+            ) : null}
+
+            {viewerImages.length > 1 && (
+              <View style={styles.viewerNavRow}>
+                <TouchableOpacity
+                  disabled={viewerIndex === 0}
+                  onPress={() => setViewerIndex(prev => Math.max(0, prev - 1))}
+                  style={[styles.viewerNavBtn, viewerIndex === 0 && { opacity: 0.3 }]}
+                >
+                  <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  disabled={viewerIndex === viewerImages.length - 1}
+                  onPress={() => setViewerIndex(prev => Math.min(viewerImages.length - 1, prev + 1))}
+                  style={[styles.viewerNavBtn, viewerIndex === viewerImages.length - 1 && { opacity: 0.3 }]}
+                >
+                  <Ionicons name="chevron-forward" size={28} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </SafeAreaView>
+      </Modal>
 
       {/* Deal Details Modal */}
       <Modal

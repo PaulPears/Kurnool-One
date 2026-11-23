@@ -1898,24 +1898,41 @@ export interface NewsItem {
 export const SEED_NEWS: NewsItem[] = [];
 
 export async function fetchNews(): Promise<NewsItem[]> {
+  const getMillis = (item: any): number => {
+    if (item.createdAt) {
+      if (typeof item.createdAt.toMillis === 'function') return item.createdAt.toMillis();
+      if (typeof item.createdAt.toDate === 'function') return item.createdAt.toDate().getTime();
+      if (item.createdAt.seconds) return item.createdAt.seconds * 1000;
+      const t = new Date(item.createdAt).getTime();
+      if (!isNaN(t)) return t;
+    }
+    if (item.publishedAt) {
+      const t = new Date(item.publishedAt).getTime();
+      if (!isNaN(t)) return t;
+    }
+    return 0;
+  };
+
   try {
     const coll = collection(db, 'news');
+    let items: NewsItem[] = [];
     try {
-      const q = query(coll, where('status', '==', 'published'), orderBy('publishedAt', 'desc'), limit(50));
+      const q = query(coll, where('status', '==', 'published'), limit(50));
       const snap = await getDocs(q);
       if (!snap.empty) {
-        return snap.docs.map(d => ({ id: d.id, ...d.data() } as NewsItem));
+        items = snap.docs.map(d => ({ id: d.id, ...d.data() } as NewsItem));
       }
     } catch {
       // Fallback filtering if composite index is pending
-      const fallbackQ = query(coll, orderBy('publishedAt', 'desc'), limit(50));
+      const fallbackQ = query(coll, limit(50));
       const snap = await getDocs(fallbackQ);
       if (!snap.empty) {
-        return snap.docs
+        items = snap.docs
           .map(d => ({ id: d.id, ...d.data() } as NewsItem))
           .filter(n => n.status === 'published' || !n.status);
       }
     }
+    return items.sort((a, b) => getMillis(b) - getMillis(a));
   } catch (err) {
     console.warn('fetchNews Firestore error:', err);
   }

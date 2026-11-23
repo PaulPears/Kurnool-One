@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  FlatList, ActivityIndicator, Image, StyleSheet,
+  FlatList, ActivityIndicator, Image, StyleSheet, BackHandler,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
@@ -123,11 +124,34 @@ export default function SearchScreen({ navigation }: any) {
     }
   };
 
+  const handleGoBack = () => {
+    if (navigation?.canGoBack && navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Main', { screen: 'Home' });
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      const backAction = () => {
+        if (navigation?.canGoBack && navigation.canGoBack()) {
+          navigation.goBack();
+          return true;
+        }
+        navigation.navigate('Main', { screen: 'Home' });
+        return true;
+      };
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+      return () => backHandler.remove();
+    }, [navigation])
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header Search Input */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4 }}>
+        <TouchableOpacity onPress={handleGoBack} style={{ padding: 4 }}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
 

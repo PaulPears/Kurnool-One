@@ -335,7 +335,7 @@ export default function ProfileScreen({ route, navigation }: any) {
             {language === 'en' ? 'Connect with Kurnool One' : 'కర్నూలు వన్ తో అనుసంధానం'}
           </Text>
 
-          {/* WhatsApp Support */}
+          {/* WhatsApp Support Line 1 */}
           <TouchableOpacity
             style={styles.menuCard}
             onPress={() => Linking.openURL('https://wa.me/917780533086?text=Hello%20Kurnool%20One%20Support').catch(() => {})}
@@ -345,13 +345,32 @@ export default function ProfileScreen({ route, navigation }: any) {
             </View>
             <View style={styles.menuContent}>
               <Text style={styles.menuTitle}>
-                {language === 'en' ? 'WhatsApp Helpline' : 'వాట్సాప్ హెల్ప్‌లైన్'}
+                {language === 'en' ? 'WhatsApp Helpline (Line 1)' : 'వాట్సాప్ హెల్ప్‌లైన్ (లైన్ 1)'}
               </Text>
               <Text style={styles.menuSubtitle}>
-                {language === 'en' ? '9:00 AM – 9:00 PM • +91 77805 33086' : 'ఉ. 9:00 - రా. 9:00 • +91 77805 33086'}
+                +91 77805 33086 • {language === 'en' ? '9:00 AM – 9:00 PM' : 'ఉ. 9:00 - రా. 9:00'}
               </Text>
             </View>
-            <Ionicons name="open-outline" size={16} color="#94A3B8" />
+            <Ionicons name="open-outline" size={16} color="#16A34A" />
+          </TouchableOpacity>
+
+          {/* WhatsApp Support Line 2 */}
+          <TouchableOpacity
+            style={styles.menuCard}
+            onPress={() => Linking.openURL('https://wa.me/919063367768?text=Hello%20Kurnool%20One%20Support').catch(() => {})}
+          >
+            <View style={[styles.menuIconContainer, { backgroundColor: '#DCFCE7' }]}>
+              <Ionicons name="logo-whatsapp" size={22} color="#16A34A" />
+            </View>
+            <View style={styles.menuContent}>
+              <Text style={styles.menuTitle}>
+                {language === 'en' ? 'WhatsApp Helpline (Line 2)' : 'వాట్సాప్ హెల్ప్‌లైన్ (లైన్ 2)'}
+              </Text>
+              <Text style={styles.menuSubtitle}>
+                +91 90633 67768 • {language === 'en' ? '9:00 AM – 9:00 PM' : 'ఉ. 9:00 - రా. 9:00'}
+              </Text>
+            </View>
+            <Ionicons name="open-outline" size={16} color="#16A34A" />
           </TouchableOpacity>
 
           {/* Share App */}

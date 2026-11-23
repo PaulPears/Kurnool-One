@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
+import { getAppUser } from '../services/authHelper';
 import { useLanguage } from '../context/LanguageContext';
 import { pickImageWithFreeStyleCrop } from '../utils/imageUploadHelper';
 import { playRewardedAdForPhotoUnlock } from '../services/adService';
@@ -42,6 +43,26 @@ export default function HouseRentScreen({ navigation }: any) {
   // Post Rental Modal State
   const [postModalVisible, setPostModalVisible] = useState(false);
 
+  const handleGoBack = () => {
+    if (viewerVisible) {
+      setViewerVisible(false);
+      return;
+    }
+    if (selectedRental) {
+      setSelectedRental(null);
+      return;
+    }
+    if (postModalVisible) {
+      setPostModalVisible(false);
+      return;
+    }
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Main', { screen: 'Home' });
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       const backAction = () => {
@@ -61,7 +82,7 @@ export default function HouseRentScreen({ navigation }: any) {
           navigation.goBack();
           return true;
         }
-        navigation.navigate('Main');
+        navigation.navigate('Main', { screen: 'Home' });
         return true;
       };
       const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
@@ -176,7 +197,8 @@ export default function HouseRentScreen({ navigation }: any) {
   };
 
   const handleOpenPostModal = async () => {
-    if (!auth.currentUser) {
+    const user = await getAppUser();
+    if (!user) {
       Alert.alert(
         language === 'en' ? 'Login Required' : 'లాగిన్ అవసరం',
         language === 'en'
@@ -190,14 +212,7 @@ export default function HouseRentScreen({ navigation }: any) {
       return;
     }
     // Pre-fill phone if available
-    let userPhone = auth.currentUser.phoneNumber || '';
-    try {
-      const stored = await AsyncStorage.getItem('user');
-      if (stored) {
-        const p = JSON.parse(stored);
-        if (p.phone) userPhone = p.phone;
-      }
-    } catch { }
+    let userPhone = user.phoneNumber || '';
     if (userPhone && !phone) setPhone(userPhone.replace('+91', ''));
     setPostModalVisible(true);
   };
@@ -232,8 +247,9 @@ export default function HouseRentScreen({ navigation }: any) {
         }
       }
 
-      const uid = auth.currentUser?.uid || '';
-      const ownerName = auth.currentUser?.displayName || 'Property Owner';
+      const appUser = await getAppUser();
+      const uid = appUser?.uid || `owner_${Date.now()}`;
+      const ownerName = appUser?.displayName || 'Property Owner';
 
       await createHouseRental({
         ownerUid: uid,
@@ -331,7 +347,7 @@ export default function HouseRentScreen({ navigation }: any) {
       {/* Header */}
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <TouchableOpacity onPress={handleGoBack} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#1E293B" />
           </TouchableOpacity>
           <View>

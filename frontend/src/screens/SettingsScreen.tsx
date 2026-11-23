@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -9,16 +9,50 @@ import {
   StyleSheet,
   StatusBar,
   Image,
+  BackHandler,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
 import { useLanguage } from '../context/LanguageContext';
 import { deleteUserAccount } from '../services/firestoreService';
+import {
+  fetchBusinesses,
+  fetchProfessionals,
+  fetchOffers,
+  fetchNews,
+  fetchBloodDonors,
+} from '../services/directoryService';
 
 export default function SettingsScreen({ navigation }: any) {
   const { language, toggleLanguage } = useLanguage();
+  const [syncing, setSyncing] = useState(false);
+
+  const handleGoBack = () => {
+    if (navigation?.canGoBack && navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Main', { screen: 'Home' });
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      const backAction = () => {
+        if (navigation?.canGoBack && navigation.canGoBack()) {
+          navigation.goBack();
+          return true;
+        }
+        navigation.navigate('Main', { screen: 'Home' });
+        return true;
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', backAction);
+      return () => sub.remove();
+    }, [navigation])
+  );
 
   const handleLogout = () => {
     Alert.alert(
@@ -50,28 +84,45 @@ export default function SettingsScreen({ navigation }: any) {
 
   const handleClearCache = async () => {
     Alert.alert(
-      language === 'en' ? 'Clear App Cache?' : 'కాష్ తొలగించాలా?',
+      language === 'en' ? 'Clear Cache & Re-sync Data?' : 'కాష్ తొలగించి డేటా రీ-సింక్ చేయాలా?',
       language === 'en'
-        ? 'This will refresh all stored listing caches, reload fresh city data, and keep your login session active. Do you wish to proceed?'
-        : 'ఇది తాజా సమాచారాన్ని రీలోడ్ చేస్తుంది మరియు మీ లాగిన్ అలాగే ఉంటుంది. కొనసాగించాలా?',
+        ? 'This will purge all local directory caches, download fresh listings directly from the cloud, and keep your login session active. Do you wish to proceed?'
+        : 'ఇది తాజా సమాచారాన్ని క్లౌడ్ నుండి రీలోడ్ చేస్తుంది మరియు మీ లాగిన్ అలాగే ఉంటుంది. కొనసాగించాలా?',
       [
         { text: language === 'en' ? 'Cancel' : 'వద్దు', style: 'cancel' },
         {
           text: language === 'en' ? 'Clear & Re-sync' : 'క్లియర్ & రీ-సింక్',
           onPress: async () => {
+            setSyncing(true);
             try {
               // Clear cache keys while preserving login & language
               const keys = await AsyncStorage.getAllKeys();
-              const cacheKeys = keys.filter(k => k !== 'user' && k !== 'app_language' && !k.startsWith('@firebase'));
+              const cacheKeys = keys.filter(
+                k => k !== 'user' && k !== 'app_language' && !k.startsWith('@firebase') && !k.startsWith('auth')
+              );
               if (cacheKeys.length > 0) {
                 await AsyncStorage.multiRemove(cacheKeys);
               }
+
+              // Actively re-sync all live Firestore collections
+              await Promise.allSettled([
+                fetchBusinesses('all'),
+                fetchProfessionals(),
+                fetchOffers(),
+                fetchNews(),
+                fetchBloodDonors(),
+              ]);
+
               Alert.alert(
-                language === 'en' ? 'Cache Cleared Successfully' : 'కాష్ విజయవంతంగా తొలగించబడింది',
-                language === 'en' ? 'All city feeds and listing data have been re-synchronized.' : 'తాజా సమాచారం సమకాలీకరించబడింది.'
+                language === 'en' ? 'Data Synchronized ✅' : 'సమకాలీకరణ పూర్తయింది ✅',
+                language === 'en'
+                  ? 'All local caches have been cleared and latest city listings successfully updated.'
+                  : 'కాష్ క్లియర్ చేయబడింది మరియు తాజా సమాచారం సమకాలీకరించబడింది.'
               );
             } catch (e: any) {
               Alert.alert('Error', e.message || 'Could not clear cache.');
+            } finally {
+              setSyncing(false);
             }
           },
         },
@@ -124,7 +175,7 @@ export default function SettingsScreen({ navigation }: any) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={handleGoBack}
           style={styles.backButton}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
@@ -172,7 +223,11 @@ export default function SettingsScreen({ navigation }: any) {
                 {language === 'en' ? 'Purge cached listings, images & reload fresh city data' : 'తాజా నగర సమాచారం కోసం కాష్ తొలగించండి'}
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+            {syncing ? (
+              <ActivityIndicator size="small" color="#0284C7" />
+            ) : (
+              <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+            )}
           </TouchableOpacity>
         </View>
 
